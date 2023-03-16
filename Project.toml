@@ -3,6 +3,12 @@ uuid = "3883ed4c-82a0-4091-a108-0ec9373ee70d"
 authors = ["andrew-saydjari"]
 version = "0.1.0"
 
+[deps]
+EllipsisNotation = "da5c29d0-fa7d-589e-88eb-ea29b0a81949"
+FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
+LowRankOps = "0ea32739-31af-43e6-82ee-ebe6dcf00a6f"
+ShiftedArrays = "1277b4bf-5013-50f5-be3d-901d8477a67a"
+
 [compat]
 julia = "1"
 
