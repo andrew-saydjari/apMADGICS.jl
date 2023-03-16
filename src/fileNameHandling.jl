@@ -2,12 +2,12 @@
 
 function cache_skyname(intup)
     (tele,field,plate,mjd,file,plateFile,fiberindx) = intup
-    join(["./local_cache",join(["sky",tele,field,plate,mjd],"_")],"/")*".jdat"
+    join(["../local_cache",join(["sky",tele,field,plate,mjd],"_")],"/")*".jdat"
 end
 
 function cache_starname(intup)
     (tele,field,plate,mjd,file,plateFile,fiberindx) = intup
-    join(["./local_cache",join(["star",tele,field,plate,mjd,fiberindx],"_")],"/")*".jdat"
+    join(["../local_cache",join(["star",tele,field,plate,mjd,fiberindx],"_")],"/")*".jdat"
 end
 
 function getFramesFromPlate(x)
