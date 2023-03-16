@@ -23,7 +23,7 @@ end
     BLAS.set_num_threads(1)
 end
 
-git_dir = "../2023_03_16/apMADGICS.jl"
+git_dir = "./"
 git_commit = LibGit2.head(git_dir)
 git_repo = LibGit2.GitRepo(git_dir)
 git_head = LibGit2.head(prepo)
