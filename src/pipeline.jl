@@ -144,8 +144,6 @@ end
         fullBitprox = zeros(Int,length(wavetarg))
         fullBitprox[.!simplemsk] .= 2^4
 
-        Rinv = generateInterpMatrix_sparse_inv(wavetarg,fullBitprox,wavetarg);
-
         ## Set up priors
         V_skyline_c = V_skyline
         V_skyline_r = V_skyline_c[simplemsk,:]
