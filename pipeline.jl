@@ -3,8 +3,11 @@ import Pkg
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 
 using Distributed, SlurmClusterManager, LibGit2
-addprocs(SlurmManager())
-# addprocs(2)
+if isdefined(SLURM_JOB_ID)
+    addprocs(SlurmManager())
+else
+    addprocs(2)
+end
         
 @everywhere println("hello from $(myid()):$(gethostname())")
 flush(stdout)
