@@ -16,7 +16,15 @@ end
 
 @everywhere begin
     using FITSIO, Serialization, HDF5
+    include("utils.jl")
+    include("gridSearch.jl")
+    include("componentAndPosteriors.jl")
     include("fileNameHandling.jl")
+    include("ingest.jl")
+    include("lowRankPrescription.jl")
+    include("marginalizeEW.jl")
+    include("spectraInterpolation.jl")
+    include("chi2Wrappers.jl")
     
     using StatsBase, LinearAlgebra, ProgressMeter
     BLAS.set_num_threads(1)
