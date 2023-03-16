@@ -34,7 +34,7 @@ flush(stdout)
 # These global allocations for the injest are messy... but we plan on changing the ingest
 # relatively soon... so don't worry for now.
 @everywhere begin
-    wavetarg = 10 .^range(start=(4.179-125*6.0e-6),step=6.0e-6,length=8575+125);
+    global const wavetarg = 10 .^range(start=(4.179-125*6.0e-6),step=6.0e-6,length=8575+125);
     minw, maxw = extrema(wavetarg)
     
     c = 299792.458; # in km/s
