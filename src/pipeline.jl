@@ -15,7 +15,7 @@ flush(stdout)
 end
 
 @everywhere begin
-    using FITSIO, Serialization, HDF5
+    using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays
     include("utils.jl")
     include("gridSearch.jl")
     include("componentAndPosteriors.jl")
