@@ -1,5 +1,5 @@
 module apMADGICS
 
-    using LowRankOps
+    using LowRankOps, EllipsisNotation
 
 end
