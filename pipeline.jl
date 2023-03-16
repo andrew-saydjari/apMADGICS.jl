@@ -210,8 +210,8 @@ end
         x_comp_out = [nanify(x_comp_lst[1],simplemsk), x_comp_lst[2:end]...]
 
         push!(out,x_comp_out)
-        push!(out,(wave_obs,fvarvec[simplemsk],simplemsk))
-        push!(out,(meanLocSky, VLocSky))
+#         push!(out,(wave_obs,fvarvec[simplemsk],simplemsk))
+#         push!(out,(meanLocSky, VLocSky))
         return out
     end
 
@@ -267,6 +267,8 @@ end
         exobj = elemap(x[1])
         outmat = zeros(eltype(exobj),size(exobj)...,len)
         for i=1:len
+            println(size(outmat[.. ,i]))
+            println(elemap(x[i]))
             outmat[.. ,i] .= elemap(x[i])
         end
         h5write(savename,elename,outmat)
