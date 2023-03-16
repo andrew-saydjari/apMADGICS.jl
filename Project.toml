@@ -4,12 +4,19 @@ authors = ["andrew-saydjari"]
 version = "0.1.0"
 
 [deps]
+Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 EllipsisNotation = "da5c29d0-fa7d-589e-88eb-ea29b0a81949"
 FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
 HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
+Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
+LibGit2 = "76f85450-5226-5b5a-8eaa-529ad045b433"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LowRankOps = "0ea32739-31af-43e6-82ee-ebe6dcf00a6f"
+ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 ShiftedArrays = "1277b4bf-5013-50f5-be3d-901d8477a67a"
+SlurmClusterManager = "c82cd089-7bf7-41d7-976b-6b5d413cbe0a"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
 julia = "1"
