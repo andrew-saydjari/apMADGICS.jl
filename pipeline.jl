@@ -1,6 +1,6 @@
 ## This is the main pipeline that will batch over APOGEE files
 import Pkg
-Pkg.activate("./")
+Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 
 using Distributed, SlurmClusterManager, LibGit2
 addprocs(SlurmManager())
