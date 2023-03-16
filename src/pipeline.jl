@@ -2,7 +2,7 @@
 import Pkg
 Pkg.activate("/uufs/chpc.utah.edu/common/home/u6039752/scratch/julia_env/apMADGICS/")
 
-using Distributed, SlurmClusterManager
+using Distributed, SlurmClusterManager, LibGit2
 addprocs(SlurmManager())
 
 @everywhere println("hello from $(myid()):$(gethostname())")
@@ -19,6 +19,14 @@ end
     using Statsbase, LinearAlgebra, Progressmeter
     BLAS.set_num_threads(1)
 end
+
+git_dir = "../2023_03_16/apMADGICS.jl"
+git_commit = LibGit2.head(git_dir)
+git_repo = LibGit2.GitRepo(git_dir)
+git_head = LibGit2.head(prepo)
+git_branch = LibGit2.shortname(phead)
+println("Running on branch: $git_branch, commit: $git_commit")
+flush(stdout)
 
 # These global allocations for the injest are messy... but we plan on changing the ingest
 # relatively soon... so don't worry for now.
@@ -259,7 +267,7 @@ end
 end
 
 input_list = deserialize("input_list.jl")
-itarg = Iterators.partition(input_list,10)
+itarg = Iterators.partition(input_list[1:2],10)
 
 println("Batches to Do: ",length(itarg))
 flush(stdout)
