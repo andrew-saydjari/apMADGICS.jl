@@ -8,7 +8,6 @@ module apMADGICS
     include("fileNameHandling.jl")
     include("ingest.jl")
     include("lowRankPrescription.jl")
-    include("lowRankMultMatIP.jl")
     include("marginalizeEW.jl")
     include("spectraInterpolation.jl")
     include("chi2Wrappers.jl")
