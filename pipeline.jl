@@ -267,7 +267,7 @@ end
         outmat = zeros(eltype(exobj),size(exobj)...,len)
         for i=1:len
             println(size(outmat[.. ,i]))
-            println(elemap(x[i]))
+            println(size(elemap(x[i])))
             outmat[.. ,i] .= elemap(x[i])
         end
         h5write(savename,elename,outmat)
