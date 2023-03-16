@@ -16,7 +16,7 @@ end
 
 @everywhere begin
     using FITSIO, Serialization, HDF5
-    include("apMADGICS.jl")
+    include("fileNameHandling.jl")
     
     using StatsBase, LinearAlgebra, ProgressMeter
     BLAS.set_num_threads(1)
