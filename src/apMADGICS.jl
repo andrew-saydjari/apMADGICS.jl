@@ -1,6 +1,6 @@
 module apMADGICS
 
-    using LowRankOps, EllipsisNotation, ShiftedArrays
+    using LowRankOps, EllipsisNotation, ShiftedArrays, FITSIO, HDF5
 
     export cache_skyname, getSky4visit, cache_starname, stack_out, nanmedian, LowRankMultMatIP
     export sampler_1d_hierarchy_var, update_Ctotinv_Vstarstarlines, deblend_components_all
