@@ -12,12 +12,11 @@ flush(stdout)
 @everywhere begin
     import Pkg
     Pkg.activate("/uufs/chpc.utah.edu/common/home/u6039752/scratch/julia_env/apMADGICS/")
-    push!(LOAD_PATH,"./")
 end
 
 @everywhere begin
     using FITSIO, Serialization, HDF5
-    using apMADGICS
+    include("apMADGICS.jl")
     
     using StatsBase, LinearAlgebra, ProgressMeter
     BLAS.set_num_threads(1)
@@ -34,7 +33,7 @@ flush(stdout)
 # These global allocations for the injest are messy... but we plan on changing the ingest
 # relatively soon... so don't worry for now.
 @everywhere begin
-    global const wavetarg = 10 .^range(start=(4.179-125*6.0e-6),step=6.0e-6,length=8575+125);
+    wavetarg = 10 .^range(start=(4.179-125*6.0e-6),step=6.0e-6,length=8575+125);
     minw, maxw = extrema(wavetarg)
     
     c = 299792.458; # in km/s
