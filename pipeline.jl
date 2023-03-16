@@ -12,6 +12,7 @@ flush(stdout)
     import Pkg
     Pkg.activate("./")
 end
+flush(stdout)
 
 @everywhere begin
     using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays
@@ -267,7 +268,6 @@ end
         exobj = elemap(x[1])
         outmat = zeros(eltype(exobj),size(exobj)...,len)
         for i=1:len
-            println(size(outmat[.. ,i]),size(elemap(x[i])))
             flush(stdout)
             outmat[.. ,i] .= elemap(x[i])
         end
@@ -278,8 +278,9 @@ end
 
 input_list = deserialize("../input_list.jl")
 itarg = Iterators.partition(input_list,10)
-
-println("Batches to Do: ",length(itarg))
+larg = length(itarg)
+nwork = length(workers())
+println("Batches to Do: $larg, number of workers: $nwork")
 flush(stdout)
 
 @showprogress pmap(multi_spectra_batch,itarg)
