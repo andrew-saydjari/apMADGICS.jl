@@ -56,27 +56,27 @@ end
 # This overhead is going to depend on fiber number soon, so this will move inside the multispectra wrapper
 @everywhere begin
     # pretty happy at here, revisit if we incoporate tellurics more consistently
-    f = h5open("../2023_02_28/APOGEE_skycont_svd_150_f295.h5")
+    f = h5open("../../2023_02_28/APOGEE_skycont_svd_150_f295.h5")
     V_skycont = f["Vmat"][:,1:30]
     close(f)
 
     # pretty happy here, could be convinced to decrease a little bit
-    f = h5open("../2023_02_28/APOGEE_skyline_kry_150_f295.h5")
+    f = h5open("../../2023_02_28/APOGEE_skyline_kry_150_f295.h5")
     V_skyline = f["Vmat"][:,1:100]
     close(f)
 
-    f = h5open("../2023_03_03/APOGEE_starcont_svd_150_f295.h5")
+    f = h5open("../../2023_03_03/APOGEE_starcont_svd_150_f295.h5")
     V_starcont = f["Vmat"][:,1:60]
     close(f)
 
     # hard to test and decide to decrease without doing a batch over a large range of stellar types
     # can consider dropping at the full fiber reduction stage
-    f = h5open("../2023_03_06/APOGEE_stellar_svd_50_f295_lite_subpix_zerocent.h5")
+    f = h5open("../../2023_03_06/APOGEE_stellar_svd_50_f295_lite_subpix_zerocent.h5")
     V_subpix = read(f["Vmat"])
     close(f)
 
     # nothing to do on size here, if anything expand
-    f = h5open("../2023_03_07/precomp_dust_2_analyticDeriv.h5")
+    f = h5open("../../2023_03_07/precomp_dust_2_analyticDeriv.h5")
     V_dib = read(f["Vmat"])
     close(f)
 end
