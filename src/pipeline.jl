@@ -15,6 +15,7 @@ end
 
 @everywhere begin
     using FITSIO, Serialization, HDF5
+    using apMADGICS
     
     using Statsbase, LinearAlgebra, Progressmeter
     BLAS.set_num_threads(1)
