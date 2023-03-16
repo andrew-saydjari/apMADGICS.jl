@@ -1,5 +1,5 @@
 module apMADGICS
 
-# Write your package code here.
+    using LowRankOps
 
 end
