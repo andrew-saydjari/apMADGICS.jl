@@ -19,7 +19,7 @@ end
     using FITSIO, Serialization, HDF5
     using apMADGICS
     
-    using StatsBase, LinearAlgebra, Progressmeter
+    using StatsBase, LinearAlgebra, ProgressMeter
     BLAS.set_num_threads(1)
 end
 
