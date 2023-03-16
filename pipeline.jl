@@ -1,6 +1,6 @@
 ## This is the main pipeline that will batch over APOGEE files
 import Pkg
-Pkg.activate("/uufs/chpc.utah.edu/common/home/u6039752/scratch/julia_env/apMADGICS/")
+Pkg.activate("./")
 
 using Distributed, SlurmClusterManager, LibGit2
 # addprocs(SlurmManager())
@@ -11,20 +11,20 @@ flush(stdout)
 
 @everywhere begin
     import Pkg
-    Pkg.activate("/uufs/chpc.utah.edu/common/home/u6039752/scratch/julia_env/apMADGICS/")
+    Pkg.activate("./")
 end
 
 @everywhere begin
     using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays
-    include("utils.jl")
-    include("gridSearch.jl")
-    include("componentAndPosteriors.jl")
-    include("fileNameHandling.jl")
-    include("ingest.jl")
-    include("lowRankPrescription.jl")
-    include("marginalizeEW.jl")
-    include("spectraInterpolation.jl")
-    include("chi2Wrappers.jl")
+    include("src/utils.jl")
+    include("src/gridSearch.jl")
+    include("src/componentAndPosteriors.jl")
+    include("src/fileNameHandling.jl")
+    include("src/ingest.jl")
+    include("src/lowRankPrescription.jl")
+    include("src/marginalizeEW.jl")
+    include("src/spectraInterpolation.jl")
+    include("src/chi2Wrappers.jl")
     
     using StatsBase, LinearAlgebra, ProgressMeter
     BLAS.set_num_threads(1)
@@ -63,27 +63,27 @@ end
 # This overhead is going to depend on fiber number soon, so this will move inside the multispectra wrapper
 @everywhere begin
     # pretty happy at here, revisit if we incoporate tellurics more consistently
-    f = h5open("../../2023_02_28/APOGEE_skycont_svd_150_f295.h5")
+    f = h5open("../2023_02_28/APOGEE_skycont_svd_150_f295.h5")
     V_skycont = f["Vmat"][:,1:30]
     close(f)
 
     # pretty happy here, could be convinced to decrease a little bit
-    f = h5open("../../2023_02_28/APOGEE_skyline_kry_150_f295.h5")
+    f = h5open("../2023_02_28/APOGEE_skyline_kry_150_f295.h5")
     V_skyline = f["Vmat"][:,1:100]
     close(f)
 
-    f = h5open("../../2023_03_03/APOGEE_starcont_svd_150_f295.h5")
+    f = h5open("../2023_03_03/APOGEE_starcont_svd_150_f295.h5")
     V_starcont = f["Vmat"][:,1:60]
     close(f)
 
     # hard to test and decide to decrease without doing a batch over a large range of stellar types
     # can consider dropping at the full fiber reduction stage
-    f = h5open("../../2023_03_06/APOGEE_stellar_svd_50_f295_lite_subpix_zerocent.h5")
+    f = h5open("../2023_03_06/APOGEE_stellar_svd_50_f295_lite_subpix_zerocent.h5")
     V_subpix = read(f["Vmat"])
     close(f)
 
     # nothing to do on size here, if anything expand
-    f = h5open("../../2023_03_07/precomp_dust_2_analyticDeriv.h5")
+    f = h5open("../2023_03_07/precomp_dust_2_analyticDeriv.h5")
     V_dib = read(f["Vmat"])
     close(f)
 end
@@ -215,7 +215,7 @@ end
         return out
     end
 
-    function multi_spectra_batch(indsubset; fibnum=295, out_dir="../outdir/")
+    function multi_spectra_batch(indsubset; fibnum=295, out_dir="./outdir/")
         out = []
         for (ind,indval) in enumerate(indsubset)
             push!(out,pipeline_single_spectra(indval; caching=true))
