@@ -1,6 +1,7 @@
 ## This is the main pipeline that will batch over APOGEE files
 import Pkg
 Pkg.activate("/uufs/chpc.utah.edu/common/home/u6039752/scratch/julia_env/apMADGICS/")
+push!(LOAD_PATH,"./")
 
 using Distributed, SlurmClusterManager, LibGit2
 # addprocs(SlurmManager())
