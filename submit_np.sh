@@ -16,5 +16,6 @@
 # ------------------------------------------------------------------------------
 
 module load julia
+module load slurm/kingspeak
 
 julia pipeline.jl
