@@ -121,9 +121,13 @@ end
         if (isfile(skycache) & caching)
             meanLocSky, VLocSky = deserialize(skycache)
         else
-            meanLocSky, VLocSky = getSky4visit(intup)
-            if caching
-                serialize(skycache,[meanLocSky, VLocSky])
+            try
+                meanLocSky, VLocSky = getSky4visit(intup)
+                if caching
+                    serialize(skycache,[meanLocSky, VLocSky])
+                end
+            catch
+                println(intup)
             end
         end
 
