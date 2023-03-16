@@ -24,6 +24,12 @@ function build_framepath(mjd,imid,chip)
     return join([base,mjd,fname],"/")
 end
 
+function build_visitpath(intup)
+    (tele,field,plate,mjd,file) = intup
+    base = "/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/redux/dr17/visit"
+    return join([base,tele,field,string(parse(Int,plate)),mjd,file],"/")
+end
+
 function visit2cframe(fname,imid,chip)
     imids = lpad(imid,8,"0")
     file = "apCframe-$chip-$imids"*".fits"
