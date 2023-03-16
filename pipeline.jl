@@ -236,8 +236,9 @@ end
             (x->x[2][2][1][3],      "DIB_p5delchi2_lvl1"),
             (x->x[2][2][2][3],      "DIB_p5delchi2_lvl2"),
             (x->x[2][2][3][3],      "DIB_p5delchi2_lvl3"),
-            (x->x[2][2][4][3],      "DIB_p5delchi2_lvl4"),
-            (x->x[2][2][5][3],      "DIB_p5delchi2_lvl5"),
+            # These do not have fixed sizing because they can hit the grid edge for sigma... need to ponder if/how to handle
+#             (x->x[2][2][4][3],      "DIB_p5delchi2_lvl4"),
+#             (x->x[2][2][5][3],      "DIB_p5delchi2_lvl5"),
 
             (x->x[2][1][1],         "DIB_minchi2_final"),
             (x->x[2][1][2][1],      "DIB_pixoff_final"),
