@@ -56,13 +56,6 @@ function wood_precomp_mult_mat(matList::Vector{AbstractMatrix{Float64}}, sVnew::
     return [(AinvV)*inv(I+V'*(AinvV)),prealloc[1],prealloc[2],prealloc[3]]
 end
 
-function wood_precomp_mult(matList)
-    Ainv = matList[1]
-    V = matList[2]
-    AinvV = Ainv*V
-    return [(AinvV)*inv(I+V'*(AinvV))]
-end
-
 ## Low Rank Mult Partners Module  
 
 function densify(x)
