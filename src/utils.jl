@@ -50,3 +50,10 @@ function tuple2dprint(x)
     push!(out,sum(out))
     println(out)
 end
+
+function nanify(x,msk)
+    out = zeros(eltype(x),length(msk))
+    out[msk] .= x
+    out[.!msk] .= NaN
+    return out
+end
