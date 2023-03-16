@@ -15,7 +15,6 @@
 #SBATCH --mail-user=7155301634@vtext.com
 # ------------------------------------------------------------------------------
 
-module load slurm/kingspeak
-module load julia/1.8.2
+module load julia
 
 julia pipeline.jl
