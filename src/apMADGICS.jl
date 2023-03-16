@@ -2,6 +2,8 @@ module apMADGICS
 
     using LowRankOps, EllipsisNotation, ShiftedArrays
 
+    export cache_skyname
+
     include("utils.jl")
     include("gridSearch.jl")
     include("componentAndPosteriors.jl")
