@@ -9,7 +9,7 @@ function find_yinx(x,y)
             indold = ind
             out[i] = indold
         else
-            if abs(x[ind]-y[i]) <= abs(x[ind-1]-y[i])
+            if abs(x[ind]-y[i]) < abs(x[ind-1]-y[i])
                 indold = ind
                 out[i] = indold
             else
