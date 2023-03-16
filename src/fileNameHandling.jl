@@ -31,3 +31,10 @@ function visit2cframe(fname,imid,chip)
     sname[end] = file
     return join(sname,"/")
 end
+
+function platepath2intuple(plate_path)
+    sname = split(plate_path,"/")
+    field, plate, mjd = sname[end-3], sname[end-2], sname[end-1]
+    file = replace(replace(replace(replace(replace(sname[end],"apPlate"=>"apVisit"),"-a-"=>"-dr17-"),"-b-"=>"-dr17-"),"-c-"=>"-dr17-"),".fits"=>"-006.fits")
+    return ("apo25m",field,plate,mjd,file,295)
+end
