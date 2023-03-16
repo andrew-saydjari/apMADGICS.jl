@@ -3,8 +3,9 @@ import Pkg
 Pkg.activate("/uufs/chpc.utah.edu/common/home/u6039752/scratch/julia_env/apMADGICS/")
 
 using Distributed, SlurmClusterManager, LibGit2
-addprocs(SlurmManager())
-
+# addprocs(SlurmManager())
+addprocs(2)
+        
 @everywhere println("hello from $(myid()):$(gethostname())")
 flush(stdout)
 
