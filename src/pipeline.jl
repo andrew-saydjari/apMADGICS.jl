@@ -269,7 +269,7 @@ end
     
 end
 
-input_list = deserialize("input_list.jl")
+input_list = deserialize("../input_list.jl")
 itarg = Iterators.partition(input_list[1:2],10)
 
 println("Batches to Do: ",length(itarg))
