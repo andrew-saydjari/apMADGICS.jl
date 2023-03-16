@@ -213,7 +213,7 @@ end
     function multi_spectra_batch(indsubset; fibnum=295, out_dir="../outdir/")
         out = []
         for (ind,indval) in enumerate(indsubset)
-            push!(out,full_process_wrapper(indval; caching=true))
+            push!(out,pipeline_single_spectra(indval; caching=true))
         end
 
         startind = indsubset[1][1]
