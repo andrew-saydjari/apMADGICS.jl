@@ -3,8 +3,8 @@ import Pkg
 Pkg.activate("./")
 
 using Distributed, SlurmClusterManager, LibGit2
-# addprocs(SlurmManager())
-addprocs(2)
+addprocs(SlurmManager())
+# addprocs(2)
         
 @everywhere println("hello from $(myid()):$(gethostname())")
 flush(stdout)
