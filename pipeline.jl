@@ -187,7 +187,8 @@ end
         chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(simplemsk,Ctotinv,Xd_obs,wave_obs,starFull_Mscale,Vcomb,V_dib,dib_center))
         lout = sampler_2d_hierarchy_var(chi2_wrapper_partial,lvltuple)
         opt_tup = lout[1][3]
-        push!(out,(lout..., x_comp_lst[end])) # probabably not the most efficient
+        push!(out,lout)
+        push!(x_comp_lst[end])
 
         ## Shift the marginalization sampling (should this be wrapped inside the function?)
         # especially because we need to do bounds handling
