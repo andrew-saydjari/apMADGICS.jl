@@ -211,7 +211,7 @@ end
 
         # I would like to fill NaNs in chip gaps for the sky/continuum components
         # revisit that when we revisit the interpolations before making other fiber priors
-        x_comp_out = [nanify(x_comp_lst[1],simplemsk), x_comp_lst[2:end]...]
+        x_comp_out = [nanify(x_comp_lst[1],simplemsk), x_comp_lst[2], x_comp_lst[3].+meanLocSky, x_comp_lst[4:end]...]
 
         push!(out,x_comp_out)
 #         push!(out,(wave_obs,fvarvec[simplemsk],simplemsk))
