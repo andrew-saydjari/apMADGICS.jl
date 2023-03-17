@@ -1,10 +1,9 @@
 ## This is the main pipeline that will batch over APOGEE files
 import Pkg
-Pkg.activate("./")
+Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 
 using Distributed, SlurmClusterManager, LibGit2
 addprocs(SlurmManager())
-# addprocs(2)
         
 @everywhere println("hello from $(myid()):$(gethostname())")
 flush(stdout)
@@ -13,6 +12,7 @@ flush(stdout)
     import Pkg
     Pkg.activate("./")
 end
+flush(stdout)
 
 @everywhere begin
     using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays
@@ -121,9 +121,13 @@ end
         if (isfile(skycache) & caching)
             meanLocSky, VLocSky = deserialize(skycache)
         else
-            meanLocSky, VLocSky = getSky4visit(intup)
-            if caching
-                serialize(skycache,[meanLocSky, VLocSky])
+            try
+                meanLocSky, VLocSky = getSky4visit(intup)
+                if caching
+                    serialize(skycache,[meanLocSky, VLocSky])
+                end
+            catch
+                println(intup)
             end
         end
 
@@ -210,8 +214,8 @@ end
         x_comp_out = [nanify(x_comp_lst[1],simplemsk), x_comp_lst[2:end]...]
 
         push!(out,x_comp_out)
-        push!(out,(wave_obs,fvarvec[simplemsk],simplemsk))
-        push!(out,(meanLocSky, VLocSky))
+#         push!(out,(wave_obs,fvarvec[simplemsk],simplemsk))
+#         push!(out,(meanLocSky, VLocSky))
         return out
     end
 
@@ -237,8 +241,9 @@ end
             (x->x[2][2][1][3],      "DIB_p5delchi2_lvl1"),
             (x->x[2][2][2][3],      "DIB_p5delchi2_lvl2"),
             (x->x[2][2][3][3],      "DIB_p5delchi2_lvl3"),
-            (x->x[2][2][4][3],      "DIB_p5delchi2_lvl4"),
-            (x->x[2][2][5][3],      "DIB_p5delchi2_lvl5"),
+            # These do not have fixed sizing because they can hit the grid edge for sigma... need to ponder if/how to handle
+#             (x->x[2][2][4][3],      "DIB_p5delchi2_lvl4"),
+#             (x->x[2][2][5][3],      "DIB_p5delchi2_lvl5"),
 
             (x->x[2][1][1],         "DIB_minchi2_final"),
             (x->x[2][1][2][1],      "DIB_pixoff_final"),
@@ -267,6 +272,7 @@ end
         exobj = elemap(x[1])
         outmat = zeros(eltype(exobj),size(exobj)...,len)
         for i=1:len
+            flush(stdout)
             outmat[.. ,i] .= elemap(x[i])
         end
         h5write(savename,elename,outmat)
@@ -276,8 +282,9 @@ end
 
 input_list = deserialize("../input_list.jl")
 itarg = Iterators.partition(input_list,10)
-
-println("Batches to Do: ",length(itarg))
+larg = length(itarg)
+nwork = length(workers())
+println("Batches to Do: $larg, number of workers: $nwork")
 flush(stdout)
 
 @showprogress pmap(multi_spectra_batch,itarg)
