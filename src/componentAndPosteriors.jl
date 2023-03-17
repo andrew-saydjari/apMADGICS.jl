@@ -23,6 +23,32 @@ function deblend_components_all_asym(Σ_inv, Xd, prior_lst_R, prior_lst_L)
     end
     return out
 end
+        
+function deblend_components_all_tot(Σ_inv, Xd, prior_lst)
+    out = []
+    lprior = length(prior_lst)
+    
+    Σinvx = (Σ_inv*Xd)
+    
+    for i=1:lprior
+        push!(out,get_component_from_prior(prior_lst[i],Σinvx))
+    end
+    push!(out,Xd'*Σinvx)
+    return out
+end
+
+function deblend_components_all_asym_tot(Σ_inv, Xd, prior_lst_R, prior_lst_L)
+    out = []
+    lprior = length(prior_lst_R)
+    @assert lprior == length(prior_lst_L)
+    Σinvx = (Σ_inv*Xd)
+    
+    for i=1:lprior
+        push!(out,get_component_from_prior_asym(prior_lst_R[i],prior_lst_L[i],Σinvx))
+    end
+    push!(out,Xd'*Σinvx)
+    return out
+end
 
 function get_component_from_prior(pobj,Σinvx)
     if typeof(pobj) <: Diagonal
