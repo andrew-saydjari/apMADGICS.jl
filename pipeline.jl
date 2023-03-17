@@ -229,37 +229,37 @@ end
         savename = out_dir*"apMADGICS_fiber_"*lpad(fibnum,3,"0")*"_batch_"*lpad(startind,7,"0")*".h5"
 
         extractlst = [
-            (x->x[1][2][1][3],      "RV_p5delchi2_lvl1"),
-            (x->x[1][2][2][3],      "RV_p5delchi2_lvl2"),
-            (x->x[1][2][3][3],      "RV_p5delchi2_lvl3"),
+            (x->x[1][2][1][3],                  "RV_p5delchi2_lvl1"),
+            (x->x[1][2][2][3],                  "RV_p5delchi2_lvl2"),
+            (x->x[1][2][3][3],                  "RV_p5delchi2_lvl3"),
 
-            (x->x[1][1][1],         "RV_minchi2_final"),
-            (x->x[1][1][1],         "RV_pixoff_final"),
-            (x->x[1][1][5],         "RV_flag"),
-            (x->x[1][1][6],         "RV_pix_var"),
+            (x->x[1][1][1],                     "RV_minchi2_final"),
+            (x->x[1][1][1],                     "RV_pixoff_final"),
+            (x->x[1][1][5],                     "RV_flag"),
+            (x->x[1][1][6],                     "RV_pix_var"),
 
-            (x->x[2][2][1][3],      "DIB_p5delchi2_lvl1"),
-            (x->x[2][2][2][3],      "DIB_p5delchi2_lvl2"),
-            (x->x[2][2][3][3],      "DIB_p5delchi2_lvl3"),
+            (x->x[2][2][1][3],                  "DIB_p5delchi2_lvl1"),
+            (x->x[2][2][2][3],                  "DIB_p5delchi2_lvl2"),
+            (x->x[2][2][3][3],                  "DIB_p5delchi2_lvl3"),
             # These do not have fixed sizing because they can hit the grid edge for sigma... need to ponder if/how to handle
 #             (x->x[2][2][4][3],      "DIB_p5delchi2_lvl4"),
 #             (x->x[2][2][5][3],      "DIB_p5delchi2_lvl5"),
 
-            (x->x[2][1][1],         "DIB_minchi2_final"),
-            (x->x[2][1][2][1],      "DIB_pixoff_final"),
-            (x->x[2][1][2][2],      "DIB_sigval_final"),
-            (x->x[2][1][5],         "DIB_flag"),
-            (x->[x[2][1][6:10]...], "DIB_hess_var"),
+            (x->x[2][1][1],                     "DIB_minchi2_final"),
+            (x->Float64.(x[2][1][2][1]),        "DIB_pixoff_final"),
+            (x->Float64.(x[2][1][2][2]),        "DIB_sigval_final"),
+            (x->x[2][1][5],                     "DIB_flag"),
+            (x->[x[2][1][6:10]...],             "DIB_hess_var"),
 
-            (x->x[3][1],            "EW_dib"),
-            (x->x[3][2],            "EW_dib_err"),
+            (x->x[3][1],                        "EW_dib"),
+            (x->x[3][2],                        "EW_dib_err"),
 
-            (x->x[4][1],            "x_residuals_v1"),
-            (x->x[4][2],            "x_skyLines_v1"),
-            (x->x[4][3],            "x_skyContinuum_v1"),
-            (x->x[4][4],            "x_starContinuum_v1"),
-            (x->x[4][5],            "x_starLines_v1"),
-            (x->x[4][6],            "x_dib_v1"),
+            (x->x[4][1],                        "x_residuals_v1"),
+            (x->x[4][2],                        "x_skyLines_v1"),
+            (x->x[4][3],                        "x_skyContinuum_v1"),
+            (x->x[4][4],                        "x_starContinuum_v1"),
+            (x->x[4][5],                        "x_starLines_v1"),
+            (x->x[4][6],                        "x_dib_v1"),
         ]
 
         for elelst in extractlst
