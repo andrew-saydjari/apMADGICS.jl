@@ -177,8 +177,9 @@ end
         # update the Ctot inv to include the stellar line component (could iterate to refine starContScale)
         svalc = lout[1][3]
         Ctotinv, Vcomb, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines(svalc,Ctotinv.matList[1],simplemsk,starCont_Mscale,Vcomb,V_subpix)
-        x_comp_lst = deblend_components_all(Ctotinv, Xd_obs, (V_starCont_r,V_starlines_r))
-        starCont_Mscale = Diagonal(x_comp_lst[1])
+        x_comp_lst = deblend_components_all_tot(Ctotinv, Xd_obs, (V_starCont_r,V_starlines_r))
+        # should this be used to re-update Ctotinv? Need to revisit refinement loop steps
+        starCont_Mscale = Diagonal(x_comp_lst[1]) 
         starFull_Mscale = Diagonal(x_comp_lst[1].+x_comp_lst[2])
 
         ## Solve DIB parameters (for just 15273)
@@ -186,7 +187,7 @@ end
         chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(simplemsk,Ctotinv,Xd_obs,wave_obs,starFull_Mscale,Vcomb,V_dib,dib_center))
         lout = sampler_2d_hierarchy_var(chi2_wrapper_partial,lvltuple)
         opt_tup = lout[1][3]
-        push!(out,lout)
+        push!(out,(lout..., x_comp_lst[end])) # probabably not the most efficient
 
         ## Shift the marginalization sampling (should this be wrapped inside the function?)
         # especially because we need to do bounds handling
@@ -204,7 +205,7 @@ end
         Ctotinv, Vcomb, V_dibc, V_dibr = update_Ctotinv_Vdib(
             opt_tup,Ctotinv.matList[1],simplemsk,starFull_Mscale,Vcomb,V_dib)
 
-        x_comp_lst = deblend_components_all_asym(Ctotinv, Xd_obs, 
+        x_comp_lst = deblend_components_all_asym_tot(Ctotinv, Xd_obs, 
             (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r, V_dibr),
             (A, V_skyline_c, V_locSky_c, V_starCont_c, V_starlines_c, V_dibc),
         )
@@ -214,6 +215,7 @@ end
         x_comp_out = [nanify(x_comp_lst[1],simplemsk), x_comp_lst[2], x_comp_lst[3].+meanLocSky, x_comp_lst[4:end]...]
 
         push!(out,x_comp_out)
+        push!(out,count(simplemsk))
 #         push!(out,(wave_obs,fvarvec[simplemsk],simplemsk))
 #         push!(out,(meanLocSky, VLocSky))
         return out
@@ -229,27 +231,29 @@ end
         savename = out_dir*"apMADGICS_fiber_"*lpad(fibnum,3,"0")*"_batch_"*lpad(startind,7,"0")*".h5"
 
         extractlst = [
-            (x->x[1][2][1][3],                  "RV_p5delchi2_lvl1"),
-            (x->x[1][2][2][3],                  "RV_p5delchi2_lvl2"),
-            (x->x[1][2][3][3],                  "RV_p5delchi2_lvl3"),
-
             (x->x[1][1][1],                     "RV_minchi2_final"),
             (x->x[1][1][2],                     "RV_pixoff_final"),
             (x->x[1][1][5],                     "RV_flag"),
             (x->x[1][1][6],                     "RV_pix_var"),
+                                
+            (x->x[1][2][1][3],                  "RV_p5delchi2_lvl1"),
+            (x->x[1][2][2][3],                  "RV_p5delchi2_lvl2"),
+            (x->x[1][2][3][3],                  "RV_p5delchi2_lvl3"),
 
-            (x->x[2][2][1][3],                  "DIB_p5delchi2_lvl1"),
-            (x->x[2][2][2][3],                  "DIB_p5delchi2_lvl2"),
-            (x->x[2][2][3][3],                  "DIB_p5delchi2_lvl3"),
-            # These do not have fixed sizing because they can hit the grid edge for sigma... need to ponder if/how to handle
-#             (x->x[2][2][4][3],      "DIB_p5delchi2_lvl4"),
-#             (x->x[2][2][5][3],      "DIB_p5delchi2_lvl5"),
+            (x->x[1][3],                        "tot_p5chi2_v0"),  # consider saving DIB_less components        
 
             (x->x[2][1][1],                     "DIB_minchi2_final"),
             (x->Float64.(x[2][1][2][1]),        "DIB_pixoff_final"),
             (x->Float64.(x[2][1][2][2]),        "DIB_sigval_final"),
             (x->x[2][1][5],                     "DIB_flag"),
             (x->[x[2][1][6:10]...],             "DIB_hess_var"),
+                                
+            (x->x[2][2][1][3],                  "DIB_p5delchi2_lvl1"),
+            (x->x[2][2][2][3],                  "DIB_p5delchi2_lvl2"),
+            (x->x[2][2][3][3],                  "DIB_p5delchi2_lvl3"),
+            # These do not have fixed sizing because they can hit the grid edge for sigma... need to ponder if/how to handle
+#             (x->x[2][2][4][3],      "DIB_p5delchi2_lvl4"),
+#             (x->x[2][2][5][3],      "DIB_p5delchi2_lvl5"),
 
             (x->x[3][1],                        "EW_dib"),
             (x->x[3][2],                        "EW_dib_err"),
@@ -260,6 +264,9 @@ end
             (x->x[4][4],                        "x_starContinuum_v1"),
             (x->x[4][5],                        "x_starLines_v1"),
             (x->x[4][6],                        "x_dib_v1"),
+            (x->x[4][7],                        "tot_p5chi2_v1"),
+                                
+            (x->x[5],                           "data_pix_cnt"), #this is a DOF proxy, but I think our more careful info/pixel analysis would be better
         ]
 
         for elelst in extractlst
