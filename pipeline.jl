@@ -234,7 +234,7 @@ end
             (x->x[1][2][3][3],                  "RV_p5delchi2_lvl3"),
 
             (x->x[1][1][1],                     "RV_minchi2_final"),
-            (x->x[1][1][1],                     "RV_pixoff_final"),
+            (x->x[1][1][2],                     "RV_pixoff_final"),
             (x->x[1][1][5],                     "RV_flag"),
             (x->x[1][1][6],                     "RV_pix_var"),
 
