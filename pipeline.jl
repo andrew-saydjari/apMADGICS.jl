@@ -181,13 +181,14 @@ end
         # should this be used to re-update Ctotinv? Need to revisit refinement loop steps
         starCont_Mscale = Diagonal(x_comp_lst[1]) 
         starFull_Mscale = Diagonal(x_comp_lst[1].+x_comp_lst[2])
+        push!(out,x_comp_lst[end])
 
         ## Solve DIB parameters (for just 15273)
         # one of the main questions is how many time to compute components and where
         chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(simplemsk,Ctotinv,Xd_obs,wave_obs,starFull_Mscale,Vcomb,V_dib,dib_center))
         lout = sampler_2d_hierarchy_var(chi2_wrapper_partial,lvltuple)
         opt_tup = lout[1][3]
-        push!(out,(lout..., x_comp_lst[end])) # probabably not the most efficient
+        push!(out,lout)
 
         ## Shift the marginalization sampling (should this be wrapped inside the function?)
         # especially because we need to do bounds handling
@@ -229,44 +230,50 @@ end
 
         startind = indsubset[1][1]
         savename = out_dir*"apMADGICS_fiber_"*lpad(fibnum,3,"0")*"_batch_"*lpad(startind,7,"0")*".h5"
-
+        
+        RVind = 1
+        RVcom = 2
+        DIBin = 3
+        EWind = 4
+        DIBco = 5
+        metai = 6
         extractlst = [
-            (x->x[1][1][1],                     "RV_minchi2_final"),
-            (x->x[1][1][2],                     "RV_pixoff_final"),
-            (x->x[1][1][5],                     "RV_flag"),
-            (x->x[1][1][6],                     "RV_pix_var"),
+            (x->x[RVind][1][1],                     "RV_minchi2_final"),
+            (x->x[RVind][1][2],                     "RV_pixoff_final"),
+            (x->x[RVind][1][5],                     "RV_flag"),
+            (x->x[RVind][1][6],                     "RV_pix_var"),
                                 
-            (x->x[1][2][1][3],                  "RV_p5delchi2_lvl1"),
-            (x->x[1][2][2][3],                  "RV_p5delchi2_lvl2"),
-            (x->x[1][2][3][3],                  "RV_p5delchi2_lvl3"),
+            (x->x[RVind][2][1][3],                  "RV_p5delchi2_lvl1"),
+            (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
+            (x->x[RVind][2][3][3],                  "RV_p5delchi2_lvl3"),
 
-            (x->x[1][3],                        "tot_p5chi2_v0"),  # consider saving DIB_less components        
+            (x->x[RVcom],                           "tot_p5chi2_v0"),  # consider saving DIB_less components        
 
-            (x->x[2][1][1],                     "DIB_minchi2_final"),
-            (x->Float64.(x[2][1][2][1]),        "DIB_pixoff_final"),
-            (x->Float64.(x[2][1][2][2]),        "DIB_sigval_final"),
-            (x->x[2][1][5],                     "DIB_flag"),
-            (x->[x[2][1][6:10]...],             "DIB_hess_var"),
+            (x->x[DIBin][1][1],                     "DIB_minchi2_final"),
+            (x->Float64.(x[DIBin][1][2][1]),        "DIB_pixoff_final"),
+            (x->Float64.(x[DIBin][1][2][2]),        "DIB_sigval_final"),
+            (x->x[DIBin][1][5],                     "DIB_flag"),
+            (x->[x[DIBin][1][6:10]...],             "DIB_hess_var"),
                                 
-            (x->x[2][2][1][3],                  "DIB_p5delchi2_lvl1"),
-            (x->x[2][2][2][3],                  "DIB_p5delchi2_lvl2"),
-            (x->x[2][2][3][3],                  "DIB_p5delchi2_lvl3"),
+            (x->x[DIBin][2][1][3],                  "DIB_p5delchi2_lvl1"),
+            (x->x[DIBin][2][2][3],                  "DIB_p5delchi2_lvl2"),
+            (x->x[DIBin][2][3][3],                  "DIB_p5delchi2_lvl3"),
             # These do not have fixed sizing because they can hit the grid edge for sigma... need to ponder if/how to handle
-#             (x->x[2][2][4][3],      "DIB_p5delchi2_lvl4"),
-#             (x->x[2][2][5][3],      "DIB_p5delchi2_lvl5"),
+#             (x->x[DIBin][2][4][3],      "DIB_p5delchi2_lvl4"),
+#             (x->x[DIBin][2][5][3],      "DIB_p5delchi2_lvl5"),
 
-            (x->x[3][1],                        "EW_dib"),
-            (x->x[3][2],                        "EW_dib_err"),
+            (x->x[EWind][1],                        "EW_dib"),
+            (x->x[EWind][2],                        "EW_dib_err"),
 
-            (x->x[4][1],                        "x_residuals_v1"),
-            (x->x[4][2],                        "x_skyLines_v1"),
-            (x->x[4][3],                        "x_skyContinuum_v1"),
-            (x->x[4][4],                        "x_starContinuum_v1"),
-            (x->x[4][5],                        "x_starLines_v1"),
-            (x->x[4][6],                        "x_dib_v1"),
-            (x->x[4][7],                        "tot_p5chi2_v1"),
+            (x->x[DIBco][1],                        "x_residuals_v1"),
+            (x->x[DIBco][2],                        "x_skyLines_v1"),
+            (x->x[DIBco][3],                        "x_skyContinuum_v1"),
+            (x->x[DIBco][4],                        "x_starContinuum_v1"),
+            (x->x[DIBco][5],                        "x_starLines_v1"),
+            (x->x[DIBco][6],                        "x_dib_v1"),
+            (x->x[DIBco][7],                        "tot_p5chi2_v1"),
                                 
-            (x->x[5],                           "data_pix_cnt"), #this is a DOF proxy, but I think our more careful info/pixel analysis would be better
+            (x->x[metai],                           "data_pix_cnt"), #this is a DOF proxy, but I think our more careful info/pixel analysis would be better
         ]
 
         for elelst in extractlst
