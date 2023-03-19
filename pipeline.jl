@@ -1,4 +1,6 @@
 ## This is the main pipeline that will batch over APOGEE files
+# Author - Andrew Saydjari, CfA
+
 import Pkg
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 
