@@ -214,7 +214,7 @@ end
         sigMarg = shift_trim_range(sigMarg0,lout[1][3][2]; minv=4//10, maxv=4)
         samp_lst = Iterators.product(svalMarg,sigMarg)
 
-        intupf = (simplemsk,Ctotinv,Xd_obs,wave_obs,starFull_Mscale,Vcomb,V_dib,dib_center)
+        intupf = (simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,dib_center)
         chi2lst, fluxlst, dfluxlst = sample_chi2_flux_dflux(samp_lst,intupf)
         refchi2val = minimum(chi2lst) #this should just be set to the min found at the 2d step
         lout = marginalize_flux_err(chi2lst, fluxlst, dfluxlst, refchi2val)
