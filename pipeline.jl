@@ -188,7 +188,7 @@ end
         Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix)
         
         # do a component save without the 15273 DIB
-        x_comp_lst = deblend_components_all_asym_tot(Ctotinv, Xd_obs, 
+        x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
             (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r),
             (A, V_skyline_c, V_locSky_c, V_starCont_c, V_starlines_c),
         )
