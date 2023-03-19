@@ -193,7 +193,7 @@ end
             (A, V_skyline_c, V_locSky_c, V_starCont_c, V_starlines_c),
         )
         x_comp_out = [nanify(x_comp_lst[1],simplemsk), x_comp_lst[2], x_comp_lst[3].+meanLocSky, x_comp_lst[4:end]...]
-        push!(out,x_comp_lst)
+        push!(out,x_comp_out)
         
         # prepare multiplicative factors for DIB prior
         x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,V_starlines_r))
