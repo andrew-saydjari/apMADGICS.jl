@@ -270,7 +270,7 @@ end
             (x->x[RVcom][3],                        "x_skyContinuum_v0"),
             (x->x[RVcom][4],                        "x_starContinuum_v0"),
             (x->x[RVcom][5],                        "x_starLines_v0"),
-            (x->x[RVcom][6],                        "tot_p5chi2_v0")        
+            (x->x[RVcom][6],                        "tot_p5chi2_v0"),        
 
             (x->x[DIBin][1][1],                     "DIB_minchi2_final"),
             (x->Float64.(x[DIBin][1][2][1]),        "DIB_pixoff_final"),
