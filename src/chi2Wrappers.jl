@@ -64,3 +64,16 @@ function update_Ctotinv_Vdib(samp_tup,Ainv,simplemsk,Dscale,Vcomb_0,V_dib)
     Ctotinv = LowRankMultMat([Ainv,Vcomb],wood_precomp_mult,wood_fxn_mult);
     return Ctotinv, Vcomb, V_dibc, V_dibr
 end
+
+function update_Ctotinv_Vdib_asym(samp_tup,Ainv,simplemsk,Dscale,Vcomb_0,V_dib,V_dib_noLSF)
+    (svald,sigvald) = samp_tup
+    rval = indInt(svald)
+    tval = indTenth(svald)
+    sigindx = sigScanFun(sigvald)
+    V_dibc = circshift(view(V_dib_noLSF,:,:,sigindx,tval),(rval,0)) # this needs NaNs or something... VBAD
+    V_dibr = Dscale*ShiftedArrays.circshift(view(V_dib,:,:,sigindx,tval),(rval,0))[simplemsk,:]
+    Vcomb = hcat(Vcomb_0,V_dibr);
+    Ctotinv = LowRankMultMat([Ainv,Vcomb],wood_precomp_mult,wood_fxn_mult);
+    return Ctotinv, Vcomb, V_dibc, V_dibr
+end
+
