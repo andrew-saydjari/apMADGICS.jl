@@ -1,4 +1,6 @@
 ## This is the main pipeline that will batch over APOGEE files
+# Author - Andrew Saydjari, CfA
+
 import Pkg
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 
@@ -90,6 +92,8 @@ end
 
 # it would be great to move this into a parameter file that is red for each run
 @everywhere begin
+    refine_iters = 1
+    
     # Star Wave
     lvl1 = -70:1//2:70
     lvl2 = -8:2//10:8
@@ -165,27 +169,42 @@ end
 
         ## Solve RV of Star
         # compute stellar continuum to modify stellar line prior
-        Vcomb = hcat(V_skyline_r,V_locSky_r,V_starCont_r);
-        Ctotinv = LowRankMultMatIP([Ainv,Vcomb],wood_precomp_mult_mat([Ainv,Vcomb],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
-        x_comp_lst = deblend_components_all(Ctotinv, Xd_obs, (V_starCont_r,))
+        Vcomb_cur = hcat(V_skyline_r,V_locSky_r,V_starCont_r);
+        Ctotinv_cur = LowRankMultMatIP([Ainv,Vcomb_cur],wood_precomp_mult_mat([Ainv,Vcomb_cur],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
+        x_comp_lst = deblend_components_all(Ctotinv_cur, Xd_obs, (V_starCont_r,))
 
         starCont_Mscale = Diagonal(x_comp_lst[1])
-        chi2_wrapper_partial = Base.Fix2(chi2_wrapper,(simplemsk,Ctotinv,Xd_obs,starCont_Mscale,V_subpix))
+        chi2_wrapper_partial = Base.Fix2(chi2_wrapper,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix))
         lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=1//10,stepx=1)
         push!(out,lout)
 
-        # update the Ctot inv to include the stellar line component (could iterate to refine starContScale)
+        # update the Ctotinv to include the stellar line component (iterate to refine starCont_Mscale)
         svalc = lout[1][3]
-        Ctotinv, Vcomb, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines(svalc,Ctotinv.matList[1],simplemsk,starCont_Mscale,Vcomb,V_subpix)
-        x_comp_lst = deblend_components_all_tot(Ctotinv, Xd_obs, (V_starCont_r,V_starlines_r))
-        # should this be used to re-update Ctotinv? Need to revisit refinement loop steps
+        for i=1:refine_iters
+            Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix)
+            x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,))
+            starCont_Mscale = Diagonal(x_comp_lst[1])
+        end
+        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix)
+        
+        # do a component save without the 15273 DIB
+        x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
+            (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r),
+            (A, V_skyline_c, V_locSky_c, V_starCont_c, V_starlines_c),
+        )
+        x_comp_out = [nanify(x_comp_lst[1],simplemsk), x_comp_lst[2], x_comp_lst[3].+meanLocSky, x_comp_lst[4:end]...]
+        push!(out,x_comp_out)
+        
+        # prepare multiplicative factors for DIB prior
+        x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,V_starlines_r))
         starCont_Mscale = Diagonal(x_comp_lst[1]) 
         starFull_Mscale = Diagonal(x_comp_lst[1].+x_comp_lst[2])
-        push!(out,x_comp_lst[end])
 
         ## Solve DIB parameters (for just 15273)
         # one of the main questions is how many time to compute components and where
-        chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(simplemsk,Ctotinv,Xd_obs,wave_obs,starFull_Mscale,Vcomb,V_dib,dib_center))
+        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix)
+        Ctotinv_cur, Ctotinv_fut = Ctotinv_fut, Ctotinv_cur; Vcomb_cur, Vcomb_fut = Vcomb_fut, Vcomb_cur # swap to updated covariance finally
+        chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,dib_center))
         lout = sampler_2d_hierarchy_var(chi2_wrapper_partial,lvltuple)
         opt_tup = lout[1][3]
         push!(out,lout)
@@ -196,17 +215,17 @@ end
         sigMarg = shift_trim_range(sigMarg0,lout[1][3][2]; minv=4//10, maxv=4)
         samp_lst = Iterators.product(svalMarg,sigMarg)
 
-        intupf = (simplemsk,Ctotinv,Xd_obs,wave_obs,starFull_Mscale,Vcomb,V_dib,dib_center)
+        intupf = (simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,dib_center)
         chi2lst, fluxlst, dfluxlst = sample_chi2_flux_dflux(samp_lst,intupf)
         refchi2val = minimum(chi2lst) #this should just be set to the min found at the 2d step
         lout = marginalize_flux_err(chi2lst, fluxlst, dfluxlst, refchi2val)
         push!(out,lout)
 
-        # Compute some final components for export
-        Ctotinv, Vcomb, V_dibc, V_dibr = update_Ctotinv_Vdib(
-            opt_tup,Ctotinv.matList[1],simplemsk,starFull_Mscale,Vcomb,V_dib)
+        # Compute some final components for export (still need to implement DIB iterative refinement)
+        Ctotinv_fut, Vcomb_fut, V_dibc, V_dibr = update_Ctotinv_Vdib(
+            opt_tup,Ctotinv_cur.matList[1],simplemsk,starFull_Mscale,Vcomb_cur,V_dib)
 
-        x_comp_lst = deblend_components_all_asym_tot(Ctotinv, Xd_obs, 
+        x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
             (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r, V_dibr),
             (A, V_skyline_c, V_locSky_c, V_starCont_c, V_starlines_c, V_dibc),
         )
@@ -247,7 +266,12 @@ end
             (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
             (x->x[RVind][2][3][3],                  "RV_p5delchi2_lvl3"),
 
-            (x->x[RVcom],                           "tot_p5chi2_v0"),  # consider saving DIB_less components        
+            (x->x[RVcom][1],                        "x_residuals_v0"),
+            (x->x[RVcom][2],                        "x_skyLines_v0"),
+            (x->x[RVcom][3],                        "x_skyContinuum_v0"),
+            (x->x[RVcom][4],                        "x_starContinuum_v0"),
+            (x->x[RVcom][5],                        "x_starLines_v0"),
+            (x->x[RVcom][6],                        "tot_p5chi2_v0"),        
 
             (x->x[DIBin][1][1],                     "DIB_minchi2_final"),
             (x->Float64.(x[DIBin][1][2][1]),        "DIB_pixoff_final"),
