@@ -317,7 +317,7 @@ end
             flush(stdout)
             outmat[.. ,i] .= elemap(x[i])
         end
-        println((savename,elename,typeof(outmat))
+        println((savename,elename,typeof(outmat)))
         h5write(savename,elename,outmat)
     end
     
