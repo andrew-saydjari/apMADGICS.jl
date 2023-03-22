@@ -86,6 +86,10 @@ end
 
     # nothing to do on size here, if anything expand
     f = h5open("../../2023_03_07/precomp_dust_2_analyticDeriv.h5")
+    V_dib_noLSF = read(f["Vmat"])
+    close(f)
+        
+    f = h5open("../../2023_03_20/precomp_dust_2_analyticDerivLSF.h5")
     V_dib = read(f["Vmat"])
     close(f)
 end
@@ -216,14 +220,14 @@ end
         samp_lst = Iterators.product(svalMarg,sigMarg)
 
         intupf = (simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,dib_center)
-        chi2lst, fluxlst, dfluxlst = sample_chi2_flux_dflux(samp_lst,intupf)
+        chi2lst, fluxlst, dfluxlst = sample_chi2_flux_dflux(samp_lst,intupf) #shouldn't this take chi2_wrapper_partial as an argument?
         refchi2val = minimum(chi2lst) #this should just be set to the min found at the 2d step
         lout = marginalize_flux_err(chi2lst, fluxlst, dfluxlst, refchi2val)
         push!(out,lout)
 
         # Compute some final components for export (still need to implement DIB iterative refinement)
-        Ctotinv_fut, Vcomb_fut, V_dibc, V_dibr = update_Ctotinv_Vdib(
-            opt_tup,Ctotinv_cur.matList[1],simplemsk,starFull_Mscale,Vcomb_cur,V_dib)
+        Ctotinv_fut, Vcomb_fut, V_dibc, V_dibr = update_Ctotinv_Vdib_asym(
+            opt_tup,Ctotinv_cur.matList[1],simplemsk,starFull_Mscale,Vcomb_cur,V_dib,V_dib_noLSF)
 
         x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
             (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r, V_dibr),
