@@ -1,13 +1,13 @@
 ## File Name Handlers
 
-function cache_skyname(intup)
+function cache_skyname(intup; cache_dir="../local_cache")
     (tele,field,plate,mjd,file,plateFile,fiberindx) = intup
-    join(["../local_cache",join(["sky",tele,field,plate,mjd],"_")],"/")*".jdat"
+    join([cache_dir,join(["sky",tele,field,plate,mjd],"_")],"/")*".jdat"
 end
 
-function cache_starname(intup)
+function cache_starname(intup; cache_dir="../local_cache")
     (tele,field,plate,mjd,file,plateFile,fiberindx) = intup
-    join(["../local_cache",join(["star",tele,field,plate,mjd,fiberindx],"_")],"/")*".jdat"
+    join([cache_dir,join(["star",tele,field,plate,mjd,fiberindx],"_")],"/")*".jdat"
 end
 
 function getFramesFromPlate(x)
