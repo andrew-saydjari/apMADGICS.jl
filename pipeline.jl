@@ -89,7 +89,7 @@ end
     V_dib_noLSF = read(f["Vmat"])
     close(f)
         
-    f = h5open("../../2023_03_20/precomp_dust_2_analyticDerivLSF.h5")
+    f = h5open("../../2023_03_23/precomp_dust_2_analyticDerivLSF.h5")
     V_dib = read(f["Vmat"])
     close(f)
 end
@@ -199,7 +199,7 @@ end
         push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 2
         x_comp_out = [nanify(x_comp_lst[1],simplemsk), x_comp_lst[2], x_comp_lst[3].+meanLocSky, x_comp_lst[4:end]...]
         push!(out,x_comp_out) # 3
-        dflux_starlines = get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r)
+        dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
         push!(out,dflux_starlines) # 4
                 
         # prepare multiplicative factors for DIB prior
