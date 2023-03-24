@@ -143,6 +143,6 @@ function get_posterior_from_prior_asym(Σ_inv, pobjL, pobjR)
 end
                             
 function get_diag_posterior_from_prior_asym(Σ_inv, pobjL, pobjR)
-    tempDiagMat = LowRankDiagMat([Σ_inv,pobjL,pobjR],Cii_precomp_aym_diag,Cii_diag_asym_map);
+    tempDiagMat = LowRankDiagMat([Σ_inv,pobjL,pobjR],Cii_precomp_asym_diag,Cii_diag_asym_map);
     return diag(tempDiagMat)           
 end
