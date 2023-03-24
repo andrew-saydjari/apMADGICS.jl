@@ -18,20 +18,22 @@ flush(stdout)
 
 @everywhere begin
     using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays, ParallelDataTransfer
-    include("src/utils.jl")
-    include("src/gridSearch.jl")
-    include("src/componentAndPosteriors.jl")
-    include("src/fileNameHandling.jl")
-    include("src/ingest.jl")
-    include("src/lowRankPrescription.jl")
-    include("src/marginalizeEW.jl")
-    include("src/spectraInterpolation.jl")
-    include("src/chi2Wrappers.jl")
+    src_dir = "./"
+    include(src_dir*"src/utils.jl")
+    include(src_dir*"src/gridSearch.jl")
+    include(src_dir*"src/componentAndPosteriors.jl")
+    include(src_dir*"src/fileNameHandling.jl")
+    include(src_dir*"src/ingest.jl")
+    include(src_dir*"src/lowRankPrescription.jl")
+    include(src_dir*"src/marginalizeEW.jl")
+    include(src_dir*"src/spectraInterpolation.jl")
+    include(src_dir*"src/chi2Wrappers.jl")
     
     using StatsBase, LinearAlgebra, ProgressMeter
     BLAS.set_num_threads(1)
 end
 
+prior_dir = "../../"
 git_dir = "./"
 git_commit = LibGit2.head(git_dir)
 git_repo = LibGit2.GitRepo(git_dir)
@@ -68,31 +70,31 @@ end
 # This overhead is going to depend on fiber number soon, so this will move inside the multispectra wrapper
 @everywhere begin
     # pretty happy at here, revisit if we incoporate tellurics more consistently
-    f = h5open("../../2023_02_28/APOGEE_skycont_svd_150_f295.h5")
+    f = h5open(prior_dir*"2023_02_28/APOGEE_skycont_svd_150_f295.h5")
     V_skycont = f["Vmat"][:,1:30]
     close(f)
 
     # pretty happy here, could be convinced to decrease a little bit
-    f = h5open("../../2023_02_28/APOGEE_skyline_kry_150_f295.h5")
+    f = h5open(prior_dir*"2023_02_28/APOGEE_skyline_kry_150_f295.h5")
     V_skyline = f["Vmat"][:,1:100]
     close(f)
 
-    f = h5open("../../2023_03_03/APOGEE_starcont_svd_150_f295.h5")
+    f = h5open(prior_dir*"2023_03_03/APOGEE_starcont_svd_150_f295.h5")
     V_starcont = f["Vmat"][:,1:60]
     close(f)
 
     # hard to test and decide to decrease without doing a batch over a large range of stellar types
     # can consider dropping at the full fiber reduction stage
-    f = h5open("../../2023_03_06/APOGEE_stellar_svd_50_f295_lite_subpix_zerocent.h5")
+    f = h5open(prior_dir*"2023_03_06/APOGEE_stellar_svd_50_f295_lite_subpix_zerocent.h5")
     V_subpix = read(f["Vmat"])
     close(f)
 
     # nothing to do on size here, if anything expand
-    f = h5open("../../2023_03_07/precomp_dust_2_analyticDeriv.h5")
+    f = h5open(prior_dir*"2023_03_07/precomp_dust_2_analyticDeriv.h5")
     V_dib_noLSF = read(f["Vmat"])
     close(f)
         
-    f = h5open("../../2023_03_23/precomp_dust_2_analyticDerivLSF.h5")
+    f = h5open(prior_dir*"2023_03_23/precomp_dust_2_analyticDerivLSF.h5")
     V_dib = read(f["Vmat"])
     close(f)
 end
@@ -124,11 +126,11 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true)
+    function pipeline_single_spectra(argtup; caching=true, cache_dir="../local_cache")
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
-        skycache = cache_skyname(intup)
+        skycache = cache_skyname(intup,cache_dir=cache_dir)
         if (isfile(skycache) & caching)
             meanLocSky, VLocSky = deserialize(skycache)
         else
@@ -142,7 +144,7 @@ end
             end
         end
 
-        starcache = cache_starname(intup)
+        starcache = cache_starname(intup,cache_dir=cache_dir)
         if (isfile(starcache) & caching)
             fvec, fvarvec, cntvec = deserialize(starcache)
         else
