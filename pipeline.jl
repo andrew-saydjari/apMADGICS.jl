@@ -199,7 +199,9 @@ end
         push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 2
         x_comp_out = [nanify(x_comp_lst[1],simplemsk), x_comp_lst[2], x_comp_lst[3].+meanLocSky, x_comp_lst[4:end]...]
         push!(out,x_comp_out) # 3
-        
+        dflux_starlines = get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r)
+        push!(out,dflux_starlines) # 4
+                
         # prepare multiplicative factors for DIB prior
         x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,V_starlines_r))
         starCont_Mscale = Diagonal(x_comp_lst[1]) 
@@ -212,7 +214,7 @@ end
         chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,dib_center))
         lout = sampler_2d_hierarchy_var(chi2_wrapper_partial,lvltuple)
         opt_tup = lout[1][3]
-        push!(out,lout) # 4
+        push!(out,lout) # 5
 
         ## Shift the marginalization sampling (should this be wrapped inside the function?)
         # especially because we need to do bounds handling
@@ -224,7 +226,7 @@ end
         chi2lst, fluxlst, dfluxlst = sample_chi2_flux_dflux(samp_lst,intupf) #shouldn't this take chi2_wrapper_partial as an argument?
         refchi2val = minimum(chi2lst) #this should just be set to the min found at the 2d step
         lout = marginalize_flux_err(chi2lst, fluxlst, dfluxlst, refchi2val)
-        push!(out,lout) #5
+        push!(out,lout) # 6
 
         # Compute some final components for export (still need to implement DIB iterative refinement)
         Ctotinv_fut, Vcomb_fut, V_dibc, V_dibr = update_Ctotinv_Vdib_asym(
@@ -234,13 +236,13 @@ end
             (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r, V_dibr),
             (A, V_skyline_c, V_locSky_c, V_starCont_c, V_starlines_c, V_dibc),
         )
-        push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 6
+        push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 7
         # I would like to fill NaNs in chip gaps for the sky/continuum components
         # revisit that when we revisit the interpolations before making other fiber priors
         x_comp_out = [nanify(x_comp_lst[1],simplemsk), x_comp_lst[2], x_comp_lst[3].+meanLocSky, x_comp_lst[4:end]...]
 
-        push!(out,x_comp_out) # 7
-        push!(out,count(simplemsk)) # 8
+        push!(out,x_comp_out) # 8
+        push!(out,count(simplemsk)) # 9
 #         push!(out,(wave_obs,fvarvec[simplemsk],simplemsk))
 #         push!(out,(meanLocSky, VLocSky))
         return out
@@ -258,11 +260,12 @@ end
         RVind = 1
         RVchi = 2
         RVcom = 3
-        DIBin = 4
-        EWind = 5
-        DIBch = 6
-        DIBco = 7
-        metai = 8
+        strpo = 4 
+        DIBin = 5
+        EWind = 6
+        DIBch = 7
+        DIBco = 8
+        metai = 9
         extractlst = [
             (x->x[RVind][1][1],                     "RV_minchi2_final"),
             (x->x[RVind][1][2],                     "RV_pixoff_final"),
@@ -280,8 +283,10 @@ end
             (x->x[RVcom][3],                        "x_skyContinuum_v0"),
             (x->x[RVcom][4],                        "x_starContinuum_v0"),
             (x->x[RVcom][5],                        "x_starLines_v0"),
-            (x->x[RVcom][6],                        "tot_p5chi2_v0"),        
-
+            (x->x[RVcom][6],                        "tot_p5chi2_v0"),       
+                                
+            (x->x[strpo],                           "x_starLines_err_v0"),    
+                                
             (x->x[DIBin][1][1],                     "DIB_minchi2_final"),
             (x->Float64.(x[DIBin][1][2][1]),        "DIB_pixoff_final"),
             (x->Float64.(x[DIBin][1][2][2]),        "DIB_sigval_final"),
