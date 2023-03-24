@@ -17,7 +17,7 @@ end
 flush(stdout)
 
 @everywhere begin
-    using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays
+    using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays, ParallelDataTransfer
     include("src/utils.jl")
     include("src/gridSearch.jl")
     include("src/componentAndPosteriors.jl")
@@ -39,6 +39,9 @@ git_head = LibGit2.head(git_repo)
 git_branch = LibGit2.shortname(git_head)
 println("Running on branch: $git_branch, commit: $git_commit")
 flush(stdout)
+
+@passobj 1 workers() git_branch
+@passobj 1 workers() git_commit
 
 # These global allocations for the injest are messy... but we plan on changing the ingest
 # relatively soon... so don't worry for now.
