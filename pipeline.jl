@@ -315,11 +315,15 @@ end
                                 
             (x->x[metai],                           "data_pix_cnt"), #this is a DOF proxy, but I think our more careful info/pixel analysis would be better
         ]
-        
+             
+        hdr_dict = Dict(   
+                "pipeline"=>"apMADGICS.jl",
+                "git_branch"=>git_branch,   
+                "git_commit"=>git_commit,
+        )
+                        
         h5write(savename,"hdr","This is only a header")
-        write_attribute(f["hdr"],"pipeline","apMADGICS.jl")
-        write_attribute(f["hdr"],"git_branch",git_branch)
-        write_attribute(f["hdr"],"git_commit",git_commit)
+        h5writeattr(savename,"hdr",hdr_dict)
                         
         for elelst in extractlst
             extractor(out,elelst[1],elelst[2],savename)
