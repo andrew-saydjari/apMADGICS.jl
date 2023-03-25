@@ -33,7 +33,7 @@
     tstrng_2d_2 = ((-2:2),(-2:2));
     tsttup_2d = (tstrng_2d_1,tstrng_2d_2);
     
-    out = sampler_2d_hierarchy_var(tstfun2d,tstrng_2d)
+    out = sampler_2d_hierarchy_var(tstfun2d,tsttup_2d)
     @test out[1] == ((1.5, 2.5), 3.0, (3//2, 5//2), 3.0, CartesianIndex(3, 3), 0, 0.5, 0.5, -0.0, 0.5, 0.5)
     
 end
