@@ -16,3 +16,19 @@ If you wish to download the code and have the dependencies required to run it in
 import Pkg
 Pkg.add(url="https://github.com/andrew-saydjari/apMADGICS.jl")
 ```
+
+## gridSearch Module Flag Bits
+
+There is still a (much smaller dimensional) space that MADGICS needs to sample over (e.g. radial velocity). We have a custom grid-sampler module to implement that sampling. The flag bits from that module are below.
+
+| Value         | Bit         | Meaning     |
+| ----------- | ----------- | ----------- |
+| 0     | -     | No problems       |
+| 1     | 0     | Interpolated minimum not less than minimum (should not occur) |
+| 2     | 1     | Minimum index at edge of grid for dimension 1 |
+| 4     | 2     | Minimum index at edge of grid for dimension 2 |
+| 8     | 3     | Finite difference Hessian beyond grid edge |
+| 16    | 4     | Bad curvature of chi2 surface (can't invert full 2d Hessian)|
+| 32    | 5     | Very bad curvature of chi2 surface (can't invert diagonal entries)|
+
+
