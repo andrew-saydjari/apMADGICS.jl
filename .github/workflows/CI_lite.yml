@@ -1,7 +1,6 @@
-name: CI
+name: CI_lite
 on:
-  schedule:
-    - cron: 0 0 * * *
+  workflow_call:
   workflow_dispatch:
 concurrency:
   # Skip intermediate builds: always.
@@ -16,19 +15,11 @@ jobs:
       fail-fast: false
       matrix:
         version:
-#           - '1.3'
           - '1.8'
-#           - 'nightly'
         os:
           - ubuntu-latest
-#           - macOS-latest
-#           - windows-latest
         arch:
           - x64
-#           - x86
-        exclude:
-          - os: macOS-latest
-            arch: x86
     steps:
       - uses: actions/checkout@v3
       - uses: julia-actions/setup-julia@v1
