@@ -1,6 +1,6 @@
 module apMADGICS
 
-    using LowRankOps, EllipsisNotation, ShiftedArrays, FITSIO, HDF5
+    using LowRankOps, EllipsisNotation, ShiftedArrays, FITSIO, HDF5, ParallelDataTransfer
     using Distributed, SlurmClusterManager, LibGit2, Interpolations, SparseArrays
     using StatsBase, LinearAlgebra, ProgressMeter
 
