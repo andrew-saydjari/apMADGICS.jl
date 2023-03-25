@@ -55,12 +55,12 @@ function quadratic_interp3_2d(vrngs,chi2,minInd;step1=1,step2=1)
         x1, x2, x3 = vrng1[subgrid1]
         dx = (x2-x1)
         if !((x3-x2) ≈ dx)
-            warn("Non uniform grid error estimates not implemented")
+            @warn "Non uniform grid error estimates not implemented"
         end
         y1, y2, y3 = vrng2[subgrid2]
         dy = (y2-y1)
         if !((y3-y2) ≈ dy)
-            warn("Non uniform grid error estimates not implemented")
+            @warn "Non uniform grid error estimates not implemented"
         end
         Hxx = (locgrid[3,2]-2*locgrid[2,2]+locgrid[1,2])/(dx^2)
         Hyy = (locgrid[2,3]-2*locgrid[2,2]+locgrid[2,1])/(dy^2)
@@ -99,7 +99,7 @@ function quadratic_interp3_2d(vrngs,chi2,minInd;step1=1,step2=1)
 
         return copt, minVal_opt, flag
     else
-        warn("I can't interpolate a 0d scan...")
+        @warn "I can't interpolate a 0d scan..."
     end
 end
 
@@ -290,7 +290,7 @@ function err1d(vrng,chi2,minind;stepx=1)
         x1, x2, x3 = vrng[subgrid]
         dx = (x2-x1)
         if !((x3-x2) ≈ dx)
-            warn("Non uniform grid error estimates not implemented")
+            @warn "Non uniform grid error estimates not implemented"
         end
         return (dx^2)/(c1-2*c2+c3)
     end
@@ -313,12 +313,12 @@ function err2d(vrngs,chi2,minind;step1=1,step2=1)
         x1, x2, x3 = vrng1[subgrid1]
         dx = (x2-x1)
         if !((x3-x2) ≈ dx)
-            warn("Non uniform grid error estimates not implemented")
+            @warn "Non uniform grid error estimates not implemented"
         end
         y1, y2, y3 = vrng2[subgrid2]
         dy = (y2-y1)
         if !((y3-y2) ≈ dy)
-            warn("Non uniform grid error estimates not implemented")
+            @warn "Non uniform grid error estimates not implemented"
         end
         Hxx = (locgrid[3,2]-2*locgrid[2,2]+locgrid[1,2])/(dx^2)
         Hyy = (locgrid[2,3]-2*locgrid[2,2]+locgrid[2,1])/(dy^2)
