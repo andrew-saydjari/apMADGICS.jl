@@ -267,13 +267,13 @@ function sampler_2d_hierarchy_var(chi2_fun,lvltup;step1=1,step2=1,minres1=1//10,
                 varx, vary, varxy, varxx, varyy = err2d((uprng1,uprng2),chi2out,minInd;step1=step1,step2=step2)
             end
             if isnan(varx)
-                globalflag += 2^3 #var off grid
+                global_flag += 2^3 #var off grid
             end
             if (varx<=0) | (vary<=0)
-                globalflag += 2^4 #bad error curvature
+                global_flag += 2^4 #bad error curvature
             end
             if (varxx<=0) | (varyy<=0)
-                globalflag += 2^5 #very bad error curvature
+                global_flag += 2^5 #very bad error curvature
             end
         return (((global_minVal_interp1, global_minVal_interp2), global_minChi_interp, (global_minVal1, global_minVal2), global_minChi, global_minInd, global_flag, varx, vary, varxy, varxx, varyy), out)
         end
