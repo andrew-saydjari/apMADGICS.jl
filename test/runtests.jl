@@ -1,5 +1,8 @@
-using apMADGICS
+using apMADGICS #Why isn't LowRankOps loaded here?
 using Test
+
+using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays, ParallelDataTransfer
+using StatsBase, LinearAlgebra, ProgressMeter
 
 src_dir = "../"
 include(src_dir*"src/utils.jl")
