@@ -223,8 +223,8 @@ end
 
         ## Shift the marginalization sampling (should this be wrapped inside the function?)
         # especially because we need to do bounds handling
-        svalMarg = svalMarg0 .+ lout[1][3][1]
-        sigMarg = shift_trim_range(sigMarg0,lout[1][3][2]; minv=4//10, maxv=4)
+        svalMarg = svalMarg0 .+ opt_tup[1]
+        sigMarg = shift_trim_range(sigMarg0,opt_tup[2]; minv=4//10, maxv=4)
         samp_lst = Iterators.product(svalMarg,sigMarg)
 
         intupf = (simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,dib_center)
@@ -272,10 +272,10 @@ end
         DIBco = 8
         metai = 9
         extractlst = [
-            (x->x[RVind][1][1],                     "RV_minchi2_final"),
-            (x->x[RVind][1][2],                     "RV_pixoff_final"),
-            (x->x[RVind][1][5],                     "RV_flag"),
-            (x->x[RVind][1][6],                     "RV_pix_var"),
+            (x->x[RVind][1][1],                     "RV_pixoff_final"),
+            (x->x[RVind][1][2],                     "RV_minchi2_final"),
+            (x->x[RVind][1][6],                     "RV_flag"),
+            (x->x[RVind][1][7],                     "RV_pix_var"),
                                 
             (x->x[RVchi][1],                        "RVchi2_residuals"),
                                 
@@ -292,11 +292,11 @@ end
                                 
             (x->x[strpo],                           "x_starLines_err_v0"),    
                                 
-            (x->x[DIBin][1][1],                     "DIB_minchi2_final"),
-            (x->Float64.(x[DIBin][1][2][1]),        "DIB_pixoff_final"),
-            (x->Float64.(x[DIBin][1][2][2]),        "DIB_sigval_final"),
-            (x->x[DIBin][1][5],                     "DIB_flag"),
-            (x->[x[DIBin][1][6:10]...],             "DIB_hess_var"),
+            (x->Float64.(x[DIBin][1][1][1]),        "DIB_pixoff_final"),
+            (x->Float64.(x[DIBin][1][1][2]),        "DIB_sigval_final"),
+            (x->x[DIBin][1][2],                     "DIB_minchi2_final"),
+            (x->x[DIBin][1][6],                     "DIB_flag"),
+            (x->[x[DIBin][1][7:11]...],             "DIB_hess_var"),
                                 
             (x->x[DIBin][2][1][3],                  "DIB_p5delchi2_lvl1"),
             (x->x[DIBin][2][2][3],                  "DIB_p5delchi2_lvl2"),
