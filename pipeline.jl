@@ -18,6 +18,7 @@ flush(stdout)
 
 @everywhere begin
     using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays, ParallelDataTransfer
+    prior_dir = "../../"
     src_dir = "./"
     include(src_dir*"src/utils.jl")
     include(src_dir*"src/gridSearch.jl")
@@ -33,7 +34,6 @@ flush(stdout)
     BLAS.set_num_threads(1)
 end
 
-prior_dir = "../../"
 git_dir = "./"
 git_commit = LibGit2.head(git_dir)
 git_repo = LibGit2.GitRepo(git_dir)
