@@ -175,3 +175,27 @@ function Cij_fxn_comp_dmat_mult(matList,precompList,x)
     Cj = matList[3]
     return -Vi*(Vi'*(Ctotinv*(Cj*x)))
 end
+                                                                        
+function Cii_precomp_diag(matList)
+    Ctotinv = matList[1]
+    Vi = matList[2]
+    return [Vi'*(Ctotinv*Vi)]
+end
+
+function Cii_diag_map(matList,precompList)
+    Vi = matList[2]
+    arg1 = precompList[1]
+    return dropdims(sum(Vi.^2,dims=2),dims=2).-dropdims(sum(Vi'.*(arg1*Vi'),dims=1),dims=1)
+end
+                                                                                
+function Cii_precomp_asym_diag(matList)
+    Ctotinv = matList[1]
+    Vir = matList[3]
+    return [Vir'*(Ctotinv*Vir)]
+end
+
+function Cii_diag_asym_map(matList,precompList)
+    Vi = matList[2]
+    arg1 = precompList[1]
+    return dropdims(sum(Vi.^2,dims=2),dims=2).-dropdims(sum(Vi'.*(arg1*Vi'),dims=1),dims=1)
+end                                                                   

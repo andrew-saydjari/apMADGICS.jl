@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=sdss-np
 #SBATCH --partition=sdss-shared-np
-#SBATCH --nodes=1
+#SBATCH --nodes=2
 #SBATCH --ntasks-per-node=64
 
 #SBATCH --mem-per-cpu=7500
