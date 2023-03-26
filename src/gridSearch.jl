@@ -28,7 +28,7 @@ function quadratic_interp3(vrng,chi2,minInd;step=1)
     if copt > c2 # this should not be possible and should never be thrown
         flag = 2^0
         xoptr = x2
-        coptr = y2
+        coptr = c2
     else
         flag = 0
         xoptr = xopt
