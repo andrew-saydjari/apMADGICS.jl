@@ -18,6 +18,7 @@ flush(stdout)
 
 @everywhere begin
     using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays, ParallelDataTransfer
+    prior_dir = "../../"
     src_dir = "./"
     include(src_dir*"src/utils.jl")
     include(src_dir*"src/gridSearch.jl")
@@ -33,7 +34,6 @@ flush(stdout)
     BLAS.set_num_threads(1)
 end
 
-prior_dir = "../../"
 git_dir = "./"
 git_commit = LibGit2.head(git_dir)
 git_repo = LibGit2.GitRepo(git_dir)
@@ -86,7 +86,7 @@ end
     # hard to test and decide to decrease without doing a batch over a large range of stellar types
     # can consider dropping at the full fiber reduction stage
     f = h5open(prior_dir*"2023_03_06/APOGEE_stellar_svd_50_f295_lite_subpix_zerocent.h5")
-    V_subpix = read(f["Vmat"])
+    V_subpix = 2 .*read(f["Vmat"])
     close(f)
 
     # nothing to do on size here, if anything expand
@@ -116,8 +116,12 @@ end
     lvl2d = ((0:0), (-7//5:4//100:11//5))
     lvl3d = ((-18:2//10:18), (0:0))
     lvl4d = ((0:0), (-90//100:2//100:90//100))
-    lvl5d = ((-4//10:1//10:4//10), (-4//100:1//100:4//100));
-    lvltuple = (lvl1d, lvl2d, lvl3d, lvl4d, lvl5d);
+    lvl5d = ((-1:2//10:1), (0:0))
+    lvl6d = ((0:0), (-10//100:2//100:10//100))
+    lvl7d = ((-6//10:2//10:6//10), (0:0))
+    lvl8d = ((0:0), (-6//100:2//100:6//100))
+    lvl9d = ((-4//10:1//10:4//10), (-4//100:1//100:4//100));
+    lvltuple = (lvl1d, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
     # tuple2dprint(lvltuple)
 
     # Flux marginalize region
