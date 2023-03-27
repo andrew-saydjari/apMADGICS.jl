@@ -314,7 +314,7 @@ end
             
             # we should automate this populating the name from DIB center wave
             (x->Float64.(x[DIBin1][1][1][1]),        "DIB_pixoff_final_15273"),
-            (x->Float64.(x[DIBin1][1][1][2]),        "DIB_sigval_fina_15273"),
+            (x->Float64.(x[DIBin1][1][1][2]),        "DIB_sigval_final_15273"),
             (x->x[DIBin1][1][2],                     "DIB_minchi2_final_15273"),
             (x->x[DIBin1][1][6],                     "DIB_flag_15273"),
             (x->[x[DIBin1][1][7:11]...],             "DIB_hess_var_15273"),
