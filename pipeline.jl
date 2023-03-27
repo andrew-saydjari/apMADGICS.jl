@@ -111,7 +111,7 @@ end
     # tuple1dprint(slvl_tuple)
 
     # (Wave, Sig) DIB
-    dib_center_lst = [15273, 15673]
+    dib_center_lst = [15273, 15653]
     lvl1d = ((-150:4:150),(18//10:18//10))
     lvl2d = ((0:0), (-7//5:4//100:11//5))
     lvl3d = ((-18:2//10:18), (0:0))
