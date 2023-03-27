@@ -215,43 +215,54 @@ end
         x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,V_starlines_r))
         starCont_Mscale = Diagonal(x_comp_lst[1]) 
         starFull_Mscale = Diagonal(x_comp_lst[1].+x_comp_lst[2])
-
-        ## Solve DIB parameters (for just 15273)
-        # one of the main questions is how many time to compute components and where
+        
         Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix)
         Ctotinv_cur, Ctotinv_fut = Ctotinv_fut, Ctotinv_cur; Vcomb_cur, Vcomb_fut = Vcomb_fut, Vcomb_cur # swap to updated covariance finally
-        chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,dib_center))
-        lout = sampler_2d_hierarchy_var(chi2_wrapper_partial,lvltuple)
-        opt_tup = lout[1][3]
-        push!(out,lout) # 5
+        
+        # currently, this is modeling each DIB seperately... I think we want to change this later, just easier parallel structure
+        for dib_ind = 1:length(dib_center_lst) # eventually need to decide if these are cumulative or not
+            dib_center = dib_center_lst[dib_ind]
+            scan_offset = findmin(abs.(wavetarg.-dib_center_lst[dib_ind]))[2].-findmin(abs.(wavetarg.-dib_center_lst[1]))[2]
+            lvl1d = ((-150:4:150).+scan_offset,(18//10:18//10))
+            lvltuple = (lvl1d, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
+            
+            ## Solve DIB parameters (for just 15273), not any more, just a single DIB
+            # one of the main questions is how many time to compute components and where
+            chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,dib_center))
+            lout = sampler_2d_hierarchy_var(chi2_wrapper_partial,lvltuple)
+            opt_tup = lout[1][3]
+            push!(out,lout) # 5, 9
 
-        ## Shift the marginalization sampling (should this be wrapped inside the function?)
-        # especially because we need to do bounds handling
-        svalMarg = svalMarg0 .+ opt_tup[1]
-        sigMarg = shift_trim_range(sigMarg0,opt_tup[2]; minv=4//10, maxv=4)
-        samp_lst = Iterators.product(svalMarg,sigMarg)
+            ## Shift the marginalization sampling (should this be wrapped inside the function?)
+            # especially because we need to do bounds handling
+            svalMarg = svalMarg0 .+ opt_tup[1]
+            sigMarg = shift_trim_range(sigMarg0,opt_tup[2]; minv=4//10, maxv=4)
+            samp_lst = Iterators.product(svalMarg,sigMarg)
 
-        intupf = (simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,dib_center)
-        chi2lst, fluxlst, dfluxlst = sample_chi2_flux_dflux(samp_lst,intupf) #shouldn't this take chi2_wrapper_partial as an argument?
-        refchi2val = minimum(chi2lst) #this should just be set to the min found at the 2d step
-        lout = marginalize_flux_err(chi2lst, fluxlst, dfluxlst, refchi2val)
-        push!(out,lout) # 6
+            intupf = (simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,dib_center)
+            chi2lst, fluxlst, dfluxlst = sample_chi2_flux_dflux(samp_lst,intupf) #shouldn't this take chi2_wrapper_partial as an argument?
+            refchi2val = minimum(chi2lst) #this should just be set to the min found at the 2d step
+            lout = marginalize_flux_err(chi2lst, fluxlst, dfluxlst, refchi2val)
+            push!(out,lout) # 6, 10
 
-        # Compute some final components for export (still need to implement DIB iterative refinement)
-        Ctotinv_fut, Vcomb_fut, V_dibc, V_dibr = update_Ctotinv_Vdib_asym(
-            opt_tup,Ctotinv_cur.matList[1],simplemsk,starFull_Mscale,Vcomb_cur,V_dib,V_dib_noLSF)
+            # Compute some final components for export (still need to implement DIB iterative refinement)
+            Ctotinv_fut, Vcomb_fut, V_dibc, V_dibr = update_Ctotinv_Vdib_asym(
+                opt_tup,Ctotinv_cur.matList[1],simplemsk,starFull_Mscale,Vcomb_cur,V_dib,V_dib_noLSF)
 
-        x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
-            (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r, V_dibr),
-            (A, V_skyline_c, V_locSky_c, V_starCont_c, V_starlines_c, V_dibc),
-        )
-        push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 7
-        # I would like to fill NaNs in chip gaps for the sky/continuum components
-        # revisit that when we revisit the interpolations before making other fiber priors
-        x_comp_out = [nanify(x_comp_lst[1],simplemsk), x_comp_lst[2], x_comp_lst[3].+meanLocSky, x_comp_lst[4:end]...]
+            x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
+                (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r, V_dibr),
+                (A, V_skyline_c, V_locSky_c, V_starCont_c, V_starlines_c, V_dibc),
+            )
+            push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 7, 11
+            # I am not sure that during production we really want to run and output full sets of components per DIB
+            # I would like to fill NaNs in chip gaps for the sky/continuum components
+            # revisit that when we revisit the interpolations before making other fiber priors
+            x_comp_out = [nanify(x_comp_lst[1],simplemsk), x_comp_lst[2], x_comp_lst[3].+meanLocSky, x_comp_lst[4:end]...]
 
-        push!(out,x_comp_out) # 8
-        push!(out,count(simplemsk)) # 9
+            push!(out,x_comp_out) # 8, 12
+        end
+                        
+        push!(out,count(simplemsk)) # 13
 #         push!(out,(wave_obs,fvarvec[simplemsk],simplemsk))
 #         push!(out,(meanLocSky, VLocSky))
         return out
@@ -269,12 +280,19 @@ end
         RVind = 1
         RVchi = 2
         RVcom = 3
-        strpo = 4 
-        DIBin = 5
-        EWind = 6
-        DIBch = 7
-        DIBco = 8
-        metai = 9
+        strpo = 4
+            
+        DIBin1 = 5
+        EWind1 = 6
+        DIBch1 = 7
+        DIBco1 = 8
+            
+        DIBin2 = 9
+        EWind2 = 10
+        DIBch2 = 11
+        DIBco2 = 12
+            
+        metai = 13
         extractlst = [
             (x->x[RVind][1][1],                     "RV_pixoff_final"),
             (x->x[RVind][1][2],                     "RV_minchi2_final"),
@@ -295,32 +313,56 @@ end
             (x->x[RVcom][6],                        "tot_p5chi2_v0"),       
                                 
             (x->x[strpo],                           "x_starLines_err_v0"),    
+            
+            # we should automate this populating the name from DIB center wave
+            (x->Float64.(x[DIBin1][1][1][1]),        "DIB_pixoff_final_15273"),
+            (x->Float64.(x[DIBin1][1][1][2]),        "DIB_sigval_fina_15273"),
+            (x->x[DIBin1][1][2],                     "DIB_minchi2_final_15273"),
+            (x->x[DIBin1][1][6],                     "DIB_flag_15273"),
+            (x->[x[DIBin1][1][7:11]...],             "DIB_hess_var_15273"),
                                 
-            (x->Float64.(x[DIBin][1][1][1]),        "DIB_pixoff_final"),
-            (x->Float64.(x[DIBin][1][1][2]),        "DIB_sigval_final"),
-            (x->x[DIBin][1][2],                     "DIB_minchi2_final"),
-            (x->x[DIBin][1][6],                     "DIB_flag"),
-            (x->[x[DIBin][1][7:11]...],             "DIB_hess_var"),
-                                
-            (x->x[DIBin][2][1][3],                  "DIB_p5delchi2_lvl1"),
-            (x->x[DIBin][2][2][3],                  "DIB_p5delchi2_lvl2"),
-            (x->x[DIBin][2][3][3],                  "DIB_p5delchi2_lvl3"),
+            (x->x[DIBin1][2][1][3],                  "DIB_p5delchi2_lvl1_15273"),
+            (x->x[DIBin1][2][2][3],                  "DIB_p5delchi2_lvl2_15273"),
+            (x->x[DIBin1][2][3][3],                  "DIB_p5delchi2_lvl3_15273"),
             # These do not have fixed sizing because they can hit the grid edge for sigma... need to ponder if/how to handle
 #             (x->x[DIBin][2][4][3],      "DIB_p5delchi2_lvl4"),
 #             (x->x[DIBin][2][5][3],      "DIB_p5delchi2_lvl5"),
 
-            (x->x[EWind][1],                        "EW_dib"),
-            (x->x[EWind][2],                        "EW_dib_err"),
+            (x->x[EWind1][1],                        "EW_dib_15273"),
+            (x->x[EWind1][2],                        "EW_dib_err_15273"),
                                 
-            (x->x[DIBch][1],                        "DIBchi2_residuals"),
+            (x->x[DIBch1][1],                        "DIBchi2_residuals_15273"),
 
-            (x->x[DIBco][1],                        "x_residuals_v1"),
-            (x->x[DIBco][2],                        "x_skyLines_v1"),
-            (x->x[DIBco][3],                        "x_skyContinuum_v1"),
-            (x->x[DIBco][4],                        "x_starContinuum_v1"),
-            (x->x[DIBco][5],                        "x_starLines_v1"),
-            (x->x[DIBco][6],                        "x_dib_v1"),
-            (x->x[DIBco][7],                        "tot_p5chi2_v1"),
+            (x->x[DIBco1][1],                        "x_residuals_v1_15273"),
+            (x->x[DIBco1][2],                        "x_skyLines_v1_15273"),
+            (x->x[DIBco1][3],                        "x_skyContinuum_v1_15273"),
+            (x->x[DIBco1][4],                        "x_starContinuum_v1_15273"),
+            (x->x[DIBco1][5],                        "x_starLines_v1_15273"),
+            (x->x[DIBco1][6],                        "x_dib_v1_15273"),
+            (x->x[DIBco1][7],                        "tot_p5chi2_v1_15273"),
+                
+            (x->Float64.(x[DIBin2][1][1][1]),        "DIB_pixoff_final_15673"),
+            (x->Float64.(x[DIBin2][1][1][2]),        "DIB_sigval_final_15673"),
+            (x->x[DIBin2][1][2],                     "DIB_minchi2_final_15673"),
+            (x->x[DIBin2][1][6],                     "DIB_flag_15673"),
+            (x->[x[DIBin2][1][7:11]...],             "DIB_hess_var_15673"),
+                                
+            (x->x[DIBin2][2][1][3],                  "DIB_p5delchi2_lvl1_15673"),
+            (x->x[DIBin2][2][2][3],                  "DIB_p5delchi2_lvl2_15673"),
+            (x->x[DIBin2][2][3][3],                  "DIB_p5delchi2_lvl3_15673"),
+
+            (x->x[EWind2][1],                        "EW_dib_15673"),
+            (x->x[EWind2][2],                        "EW_dib_err_15673"),
+                                
+            (x->x[DIBch2][1],                        "DIBchi2_residuals_15673"),
+
+            (x->x[DIBco2][1],                        "x_residuals_v1_15673"),
+            (x->x[DIBco2][2],                        "x_skyLines_v1_15673"),
+            (x->x[DIBco2][3],                        "x_skyContinuum_v1_15673"),
+            (x->x[DIBco2][4],                        "x_starContinuum_v1_15673"),
+            (x->x[DIBco2][5],                        "x_starLines_v1_15673"),
+            (x->x[DIBco2][6],                        "x_dib_v1_15673"),
+            (x->x[DIBco2][7],                        "tot_p5chi2_v1_15673"),
                                 
             (x->x[metai],                           "data_pix_cnt"), #this is a DOF proxy, but I think our more careful info/pixel analysis would be better
         ]
