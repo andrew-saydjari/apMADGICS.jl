@@ -11,10 +11,10 @@ sigScanFun(x; step = sigstep0, minoffset = minoffset0)  = round(Int,x / step) .-
 # passing Vcomb_0 is new to some of the codes, we need to revisit having to pass these intups
 function chi2_wrapper2d(svals,intup;sigslice=4)
     sval1, sval2 = svals
-    (simplemsk,Ctotinv,Xd_obs,wave_obs,Dscale,Vcomb_0,V_new,new_center) = intup
+    (simplemsk,Ctotinv,Xd_obs,wave_obs,Dscale,Vcomb_0,V_new,new_center,center_offset) = intup
     # transform center shift to index
-    rval = indInt(sval1)
-    tval = indTenth(sval1)
+    rval = indInt(sval1+center_offset)
+    tval = indTenth(sval1+center_offset)
     # transform sigma scan to index
     sigindx = sigScanFun(sval2)
     # calculate window where DIB has support (speed up computation)
