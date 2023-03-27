@@ -223,12 +223,10 @@ end
         for dib_ind = 1:length(dib_center_lst) # eventually need to decide if these are cumulative or not
             dib_center = dib_center_lst[dib_ind]
             scan_offset = findmin(abs.(wavetarg.-dib_center_lst[dib_ind]))[2].-findmin(abs.(wavetarg.-dib_center_lst[1]))[2]
-            lvl1d = ((-150:4:150).+scan_offset,(18//10:18//10))
-            lvltuple = (lvl1d, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
             
             ## Solve DIB parameters (for just 15273), not any more, just a single DIB
             # one of the main questions is how many time to compute components and where
-            chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,dib_center))
+            chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,dib_center,scan_offset))
             lout = sampler_2d_hierarchy_var(chi2_wrapper_partial,lvltuple)
             opt_tup = lout[1][3]
             push!(out,lout) # 5, 9
@@ -239,7 +237,7 @@ end
             sigMarg = shift_trim_range(sigMarg0,opt_tup[2]; minv=4//10, maxv=4)
             samp_lst = Iterators.product(svalMarg,sigMarg)
 
-            intupf = (simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,dib_center)
+            intupf = (simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,dib_center,scan_offset)
             chi2lst, fluxlst, dfluxlst = sample_chi2_flux_dflux(samp_lst,intupf) #shouldn't this take chi2_wrapper_partial as an argument?
             refchi2val = minimum(chi2lst) #this should just be set to the min found at the 2d step
             lout = marginalize_flux_err(chi2lst, fluxlst, dfluxlst, refchi2val)
