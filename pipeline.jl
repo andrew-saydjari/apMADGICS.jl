@@ -85,7 +85,7 @@ end
 
     # hard to test and decide to decrease without doing a batch over a large range of stellar types
     # can consider dropping at the full fiber reduction stage
-    f = h5open(prior_dir*"2023_03_26/APOGEE_stellar_svd_100_f295_lite_subpix_zerocent.h5")
+    f = h5open(prior_dir*"2023_03_06/APOGEE_stellar_svd_50_f295_lite_subpix_zerocent.h5")
     V_subpix = read(f["Vmat"])
     close(f)
 
