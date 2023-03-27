@@ -5,7 +5,7 @@ import Pkg
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 
 using Distributed, SlurmClusterManager, LibGit2
-addprocs(SlurmManager())
+addprocs(SlurmManager(launch_timeout=120.0))
         
 @everywhere println("hello from $(myid()):$(gethostname())")
 flush(stdout)
