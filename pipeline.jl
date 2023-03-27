@@ -111,7 +111,7 @@ end
     # tuple1dprint(slvl_tuple)
 
     # (Wave, Sig) DIB
-    dib_center_lst = [15273, 15653]
+    dib_center_lst = [15273]#, 15653]
     lvl1d = ((-150:4:150),(18//10:18//10))
     lvl2d = ((0:0), (-7//5:4//100:11//5))
     lvl3d = ((-18:2//10:18), (0:0))
@@ -285,12 +285,12 @@ end
         DIBch1 = 7
         DIBco1 = 8
             
-        DIBin2 = 9
-        EWind2 = 10
-        DIBch2 = 11
-        DIBco2 = 12
+#         DIBin2 = 9
+#         EWind2 = 10
+#         DIBch2 = 11
+#         DIBco2 = 12
             
-        metai = 13
+        metai = 9 #13
         extractlst = [
             (x->x[RVind][1][1],                     "RV_pixoff_final"),
             (x->x[RVind][1][2],                     "RV_minchi2_final"),
@@ -339,28 +339,28 @@ end
             (x->x[DIBco1][6],                        "x_dib_v1_15273"),
             (x->x[DIBco1][7],                        "tot_p5chi2_v1_15273"),
                 
-            (x->Float64.(x[DIBin2][1][1][1]),        "DIB_pixoff_final_15673"),
-            (x->Float64.(x[DIBin2][1][1][2]),        "DIB_sigval_final_15673"),
-            (x->x[DIBin2][1][2],                     "DIB_minchi2_final_15673"),
-            (x->x[DIBin2][1][6],                     "DIB_flag_15673"),
-            (x->[x[DIBin2][1][7:11]...],             "DIB_hess_var_15673"),
+#             (x->Float64.(x[DIBin2][1][1][1]),        "DIB_pixoff_final_15673"),
+#             (x->Float64.(x[DIBin2][1][1][2]),        "DIB_sigval_final_15673"),
+#             (x->x[DIBin2][1][2],                     "DIB_minchi2_final_15673"),
+#             (x->x[DIBin2][1][6],                     "DIB_flag_15673"),
+#             (x->[x[DIBin2][1][7:11]...],             "DIB_hess_var_15673"),
                                 
-            (x->x[DIBin2][2][1][3],                  "DIB_p5delchi2_lvl1_15673"),
-            (x->x[DIBin2][2][2][3],                  "DIB_p5delchi2_lvl2_15673"),
-            (x->x[DIBin2][2][3][3],                  "DIB_p5delchi2_lvl3_15673"),
+#             (x->x[DIBin2][2][1][3],                  "DIB_p5delchi2_lvl1_15673"),
+#             (x->x[DIBin2][2][2][3],                  "DIB_p5delchi2_lvl2_15673"),
+#             (x->x[DIBin2][2][3][3],                  "DIB_p5delchi2_lvl3_15673"),
 
-            (x->x[EWind2][1],                        "EW_dib_15673"),
-            (x->x[EWind2][2],                        "EW_dib_err_15673"),
+#             (x->x[EWind2][1],                        "EW_dib_15673"),
+#             (x->x[EWind2][2],                        "EW_dib_err_15673"),
                                 
-            (x->x[DIBch2][1],                        "DIBchi2_residuals_15673"),
+#             (x->x[DIBch2][1],                        "DIBchi2_residuals_15673"),
 
-            (x->x[DIBco2][1],                        "x_residuals_v1_15673"),
-            (x->x[DIBco2][2],                        "x_skyLines_v1_15673"),
-            (x->x[DIBco2][3],                        "x_skyContinuum_v1_15673"),
-            (x->x[DIBco2][4],                        "x_starContinuum_v1_15673"),
-            (x->x[DIBco2][5],                        "x_starLines_v1_15673"),
-            (x->x[DIBco2][6],                        "x_dib_v1_15673"),
-            (x->x[DIBco2][7],                        "tot_p5chi2_v1_15673"),
+#             (x->x[DIBco2][1],                        "x_residuals_v1_15673"),
+#             (x->x[DIBco2][2],                        "x_skyLines_v1_15673"),
+#             (x->x[DIBco2][3],                        "x_skyContinuum_v1_15673"),
+#             (x->x[DIBco2][4],                        "x_starContinuum_v1_15673"),
+#             (x->x[DIBco2][5],                        "x_starLines_v1_15673"),
+#             (x->x[DIBco2][6],                        "x_dib_v1_15673"),
+#             (x->x[DIBco2][7],                        "tot_p5chi2_v1_15673"),
                                 
             (x->x[metai],                           "data_pix_cnt"), #this is a DOF proxy, but I think our more careful info/pixel analysis would be better
         ]
