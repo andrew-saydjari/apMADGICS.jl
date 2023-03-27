@@ -11,10 +11,10 @@ sigScanFun(x; step = sigstep0, minoffset = minoffset0)  = round(Int,x / step) .-
 # passing Vcomb_0 is new to some of the codes, we need to revisit having to pass these intups
 function chi2_wrapper2d(svals,intup;sigslice=4)
     sval1, sval2 = svals
-    (simplemsk,Ctotinv,Xd_obs,wave_obs,Dscale,Vcomb_0,V_new,new_center) = intup
+    (simplemsk,Ctotinv,Xd_obs,wave_obs,Dscale,Vcomb_0,V_new,new_center,center_offset) = intup
     # transform center shift to index
-    rval = indInt(sval1)
-    tval = indTenth(sval1)
+    rval = indInt(sval1+center_offset)
+    tval = indTenth(sval1+center_offset)
     # transform sigma scan to index
     sigindx = sigScanFun(sval2)
     # calculate window where DIB has support (speed up computation)
@@ -53,10 +53,10 @@ function update_Ctotinv_Vstarstarlines(svald,Ainv,simplemsk,Dscale,Vcomb_0,V_sta
     return Ctotinv, Vcomb, V_starlines_c, V_starlines_r
 end
 
-function update_Ctotinv_Vdib(samp_tup,Ainv,simplemsk,Dscale,Vcomb_0,V_dib)
+function update_Ctotinv_Vdib(samp_tup,Ainv,simplemsk,Dscale,Vcomb_0,V_dib,scan_offset)
     (svald,sigvald) = samp_tup
-    rval = indInt(svald)
-    tval = indTenth(svald)
+    rval = indInt(svald+scan_offset)
+    tval = indTenth(svald+scan_offset)
     sigindx = sigScanFun(sigvald)
     V_dibc = circshift(view(V_dib,:,:,sigindx,tval),(rval,0)) # this needs NaNs or something... VBAD
     V_dibr = Dscale*ShiftedArrays.circshift(view(V_dib,:,:,sigindx,tval),(rval,0))[simplemsk,:]
@@ -65,10 +65,10 @@ function update_Ctotinv_Vdib(samp_tup,Ainv,simplemsk,Dscale,Vcomb_0,V_dib)
     return Ctotinv, Vcomb, V_dibc, V_dibr
 end
 
-function update_Ctotinv_Vdib_asym(samp_tup,Ainv,simplemsk,Dscale,Vcomb_0,V_dib,V_dib_noLSF)
+function update_Ctotinv_Vdib_asym(samp_tup,Ainv,simplemsk,Dscale,Vcomb_0,V_dib,V_dib_noLSF,scan_offset)
     (svald,sigvald) = samp_tup
-    rval = indInt(svald)
-    tval = indTenth(svald)
+    rval = indInt(svald+scan_offset)
+    tval = indTenth(svald+scan_offset)
     sigindx = sigScanFun(sigvald)
     V_dibc = circshift(view(V_dib_noLSF,:,:,sigindx,tval),(rval,0)) # this needs NaNs or something... VBAD
     V_dibr = Dscale*ShiftedArrays.circshift(view(V_dib,:,:,sigindx,tval),(rval,0))[simplemsk,:]

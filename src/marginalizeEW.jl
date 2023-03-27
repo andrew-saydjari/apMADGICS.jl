@@ -35,12 +35,12 @@ function sample_chi2_flux_dflux(samp_lst,intup;waveaxis=wavetarg,delLogSpace=del
     chi2lst = zeros(lenit)
     fluxlst = zeros(lenit)
     dfluxlst = zeros(lenit)
-    (Rs,Ctotinv0,Xd_obs,wave_obs,Dscale,Vcomb_0,V_dib,dib_center) = intup
-    chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(Rs,Ctotinv0,Xd_obs,wave_obs,Dscale,Vcomb_0,V_dib,dib_center))
+    (Rs,Ctotinv0,Xd_obs,wave_obs,Dscale,Vcomb_0,V_dib,dib_center,scan_offset) = intup
+    chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(Rs,Ctotinv0,Xd_obs,wave_obs,Dscale,Vcomb_0,V_dib,dib_center,scan_offset))
     
     for (samp_ind, samp_tup) in enumerate(samp_lst)
         chi2lst[samp_ind] = chi2_wrapper_partial(samp_tup)
-        Ctotinv, Vcomb, V_dibc, V_dibr = update_Ctotinv_Vdib(samp_tup,Ctotinv0.matList[1],Rs,Dscale,Vcomb_0,V_dib)
+        Ctotinv, Vcomb, V_dibc, V_dibr = update_Ctotinv_Vdib(samp_tup,Ctotinv0.matList[1],Rs,Dscale,Vcomb_0,V_dib,scan_offset)
         
         x_comp_lst = deblend_components_all_asym(Ctotinv, Xd_obs, (V_dibr,), (V_dibc,))
         fluxlst[samp_ind] = sum(x_comp_lst[1].*waveaxis)*delLogSpace
