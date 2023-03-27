@@ -53,10 +53,10 @@ function update_Ctotinv_Vstarstarlines(svald,Ainv,simplemsk,Dscale,Vcomb_0,V_sta
     return Ctotinv, Vcomb, V_starlines_c, V_starlines_r
 end
 
-function update_Ctotinv_Vdib(samp_tup,Ainv,simplemsk,Dscale,Vcomb_0,V_dib)
+function update_Ctotinv_Vdib(samp_tup,Ainv,simplemsk,Dscale,Vcomb_0,V_dib,scan_offset)
     (svald,sigvald) = samp_tup
-    rval = indInt(svald)
-    tval = indTenth(svald)
+    rval = indInt(svald+scan_offset)
+    tval = indTenth(svald+scan_offset)
     sigindx = sigScanFun(sigvald)
     V_dibc = circshift(view(V_dib,:,:,sigindx,tval),(rval,0)) # this needs NaNs or something... VBAD
     V_dibr = Dscale*ShiftedArrays.circshift(view(V_dib,:,:,sigindx,tval),(rval,0))[simplemsk,:]
@@ -65,10 +65,10 @@ function update_Ctotinv_Vdib(samp_tup,Ainv,simplemsk,Dscale,Vcomb_0,V_dib)
     return Ctotinv, Vcomb, V_dibc, V_dibr
 end
 
-function update_Ctotinv_Vdib_asym(samp_tup,Ainv,simplemsk,Dscale,Vcomb_0,V_dib,V_dib_noLSF)
+function update_Ctotinv_Vdib_asym(samp_tup,Ainv,simplemsk,Dscale,Vcomb_0,V_dib,V_dib_noLSF,scan_offset)
     (svald,sigvald) = samp_tup
-    rval = indInt(svald)
-    tval = indTenth(svald)
+    rval = indInt(svald+scan_offset)
+    tval = indTenth(svald+scan_offset)
     sigindx = sigScanFun(sigvald)
     V_dibc = circshift(view(V_dib_noLSF,:,:,sigindx,tval),(rval,0)) # this needs NaNs or something... VBAD
     V_dibr = Dscale*ShiftedArrays.circshift(view(V_dib,:,:,sigindx,tval),(rval,0))[simplemsk,:]
