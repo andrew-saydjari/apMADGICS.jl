@@ -245,7 +245,7 @@ end
 
             # Compute some final components for export (still need to implement DIB iterative refinement)
             Ctotinv_fut, Vcomb_fut, V_dibc, V_dibr = update_Ctotinv_Vdib_asym(
-                opt_tup,Ctotinv_cur.matList[1],simplemsk,starFull_Mscale,Vcomb_cur,V_dib,V_dib_noLSF)
+                opt_tup,Ctotinv_cur.matList[1],simplemsk,starFull_Mscale,Vcomb_cur,V_dib,V_dib_noLSF,scan_offset)
 
             x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
                 (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r, V_dibr),
