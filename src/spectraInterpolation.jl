@@ -1,13 +1,14 @@
 ## Spectra Interpolation Module
 
 function find_yinx(x,y)
+    lx = length(x)
     ly = length(y)
     out = zeros(Int,ly)
     @inbounds for i=1:length(y)
         ind = searchsortedfirst(x,y[i])
         if ind == 1
             out[i] = ind
-        elseif ind > ly
+        elseif ind > lx
             out[i] = ind-1
         else
             if abs(x[ind]-y[i]) < abs(x[ind-1]-y[i])
