@@ -52,8 +52,7 @@
         (A, Vgauss_r),
         (A, Vgauss_c),
     )
-    x_comp_lst = deblend_components_all_asym_tot(Ctotinv, Xd_obs, 
-        (A, Vgauss_r),
+    x_comp_lst = deblend_components_all_tot(Ctotinv, Xd_obs, 
         (A, Vgauss_r),
     );
     
