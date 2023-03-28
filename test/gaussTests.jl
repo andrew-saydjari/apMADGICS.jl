@@ -94,6 +94,7 @@
     Xd_obs = x_data[simplemsk]; 
     wave_obs = waveobs[simplemsk]
     obsBit = fullBit[simplemsk]
+    pixindx = (1:length(waveobs))[simplemsk]
 
     Rinv = generateInterpMatrix_sparse_inv(wave_obs,obsBit,wavemodel,pixindx)
     normvec = dropdims(sum(Rinv,dims=2),dims=2)
