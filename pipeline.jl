@@ -186,8 +186,9 @@ end
         Ctotinv_cur = LowRankMultMatIP([Ainv,Vcomb_cur],wood_precomp_mult_mat([Ainv,Vcomb_cur],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
         x_comp_lst = deblend_components_all(Ctotinv_cur, Xd_obs, (V_starCont_r,))
 
-        starCont_Mscale = Diagonal(x_comp_lst[1])
-        chi2_wrapper_partial = Base.Fix2(chi2_wrapper,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix))
+        starCont_Mscale = x_comp_lst[1]
+        pre_Vslice = zeros(count(simplemsk),size(V_subpix,2))
+        chi2_wrapper_partial = Base.Fix2(chi2_wrapper,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice))
         lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=1//10,stepx=1)
         push!(out,lout) # 1
 
@@ -196,7 +197,7 @@ end
         for i=1:refine_iters
             Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix)
             x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,))
-            starCont_Mscale = Diagonal(x_comp_lst[1])
+            starCont_Mscale = x_comp_lst[1]
         end
         Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix)
         
@@ -213,20 +214,21 @@ end
                 
         # prepare multiplicative factors for DIB prior
         x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,V_starlines_r))
-        starCont_Mscale = Diagonal(x_comp_lst[1]) 
-        starFull_Mscale = Diagonal(x_comp_lst[1].+x_comp_lst[2])
+        starCont_Mscale = x_comp_lst[1]
+        starFull_Mscale = x_comp_lst[1].+x_comp_lst[2]
         
         Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix)
         Ctotinv_cur, Ctotinv_fut = Ctotinv_fut, Ctotinv_cur; Vcomb_cur, Vcomb_fut = Vcomb_fut, Vcomb_cur # swap to updated covariance finally
         
         # currently, this is modeling each DIB seperately... I think we want to change this later, just easier parallel structure
+        pre_Vslice = zeros(count(simplemsk),size(V_dib,2))
         for dib_ind = 1:length(dib_center_lst) # eventually need to decide if these are cumulative or not
             dib_center = dib_center_lst[dib_ind]
             scan_offset = findmin(abs.(wavetarg.-dib_center_lst[dib_ind]))[2].-findmin(abs.(wavetarg.-dib_center_lst[1]))[2]
             
             ## Solve DIB parameters (for just 15273), not any more, just a single DIB
             # one of the main questions is how many time to compute components and where
-            chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,dib_center,scan_offset))
+            chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,pre_Vslice,dib_center,scan_offset))
             lout = sampler_2d_hierarchy_var(chi2_wrapper_partial,lvltuple)
             opt_tup = lout[1][3]
             push!(out,lout) # 5, 9
@@ -237,7 +239,7 @@ end
             sigMarg = shift_trim_range(sigMarg0,opt_tup[2]; minv=4//10, maxv=4)
             samp_lst = Iterators.product(svalMarg,sigMarg)
 
-            intupf = (simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,dib_center,scan_offset)
+            intupf = (simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,pre_Vslice,dib_center,scan_offset)
             chi2lst, fluxlst, dfluxlst = sample_chi2_flux_dflux(samp_lst,intupf) #shouldn't this take chi2_wrapper_partial as an argument?
             refchi2val = minimum(chi2lst) #this should just be set to the min found at the 2d step
             lout = marginalize_flux_err(chi2lst, fluxlst, dfluxlst, refchi2val)
