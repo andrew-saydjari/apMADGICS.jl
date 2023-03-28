@@ -153,9 +153,9 @@ function sampler_1d_hierarchy_var(chi2_fun,lvltup;minres=1//10,stepx=1)
     global_minInd = 1
     global_flag = 0
     for (lvlind,lvl) in enumerate(lvltup)
-        if lvlind == 1
-            uprng = lvl
-        else
+        
+        uprng = lvl
+        if lvlind != 1
             uprng = shift_range(lvl,round_step(global_minVal_interp,minres))
         end
         ((minVal_interp, minChi_interp, minVal, minChi, minInd, flag), valrng, chi2out) = sampler_1d_dense(chi2_fun,uprng)
@@ -245,10 +245,9 @@ function sampler_2d_hierarchy_var(chi2_fun,lvltup;step1=1,step2=1,minres1=1//10,
     global_minInd = CartesianIndex(1,1)
     global_flag = 0
     for (lvlind,lvl) in enumerate(lvltup)
-        if lvlind == 1
-            uprng1 = lvl[1]
-            uprng2 = lvl[2]
-        else
+        uprng1 = lvl[1]
+        uprng2 = lvl[2]
+        if lvlind != 1
             uprng1 = shift_range(lvl[1],round_step(global_minVal_interp1,minres1))
             uprng2 = shift_trim_range(lvl[2],round_step(global_minVal_interp2,minres2))
         end
