@@ -35,7 +35,7 @@ flush(stdout)
     BLAS.set_num_threads(1)
 end
 
-BLAS.get_config()
+println(BLAS.get_config())
 flush(stdout)
 
 using LibGit2
