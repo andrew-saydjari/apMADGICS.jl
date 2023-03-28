@@ -146,31 +146,33 @@ function sampler_1d_hierarchy_var(chi2_fun,lvltup;minres=1//10,stepx=1)
     lvllen = length(lvltup)
     out = []
     
-    global_minVal_interp = 0
+    global_minVal_interp = NaN
     global_minChi_interp = 0
-    global_minVal = 0
+    global_minVal = NaN
     global_minChi = 0
     global_minInd = 1
     global_flag = 0
     for (lvlind,lvl) in enumerate(lvltup)
-        uprng = if lvlind == 1
-            lvl
-        else
-            shift_range(lvl,round_step(global_minVal_interp,minres))
-        end
-        ((minVal_interp, minChi_interp, minVal, minChi, minInd, flag), valrng, chi2out) = sampler_1d_dense(chi2_fun,uprng)
-        push!(out,((minVal_interp, minChi_interp, minVal, minChi, minInd, flag), valrng, chi2out))
-        if minChi < global_minChi # this should not be the interpolated value, it should be the min measured chi2 value
+        if lvlind == 1
+            ((minVal_interp, minChi_interp, minVal, minChi, minInd, flag), valrng, chi2out) = sampler_1d_dense(chi2_fun,lvl)
+            push!(out,((minVal_interp, minChi_interp, minVal, minChi, minInd, flag), valrng, chi2out))
             global_minVal_interp, global_minChi_interp, global_minVal, global_minChi, global_minInd, global_flag = minVal_interp, minChi_interp, minVal, minChi, minInd, flag
+        else
+            uprng = shift_range(lvl,round_step(global_minVal_interp,minres))
+            ((minVal_interp, minChi_interp, minVal, minChi, minInd, flag), valrng, chi2out) = sampler_1d_dense(chi2_fun,uprng)
+            push!(out,((minVal_interp, minChi_interp, minVal, minChi, minInd, flag), valrng, chi2out))
+            if minChi < global_minChi # this should not be the interpolated value, it should be the min measured chi2 value
+                global_minVal_interp, global_minChi_interp, global_minVal, global_minChi, global_minInd, global_flag = minVal_interp, minChi_interp, minVal, minChi, minInd, flag
+            end
         end
         if lvlind == lvllen
             varx = err1d(lvl,chi2out,minInd,stepx=stepx)
-            if isnan(varx)
-                global_flag += 2^3 #var off grid
-            end
-            if varx<=0
-                global_flag += 2^5 #bad error curvature
-            end
+                if isnan(varx)
+                    global_flag += 2^3 #var off grid
+                end
+                if varx<=0
+                    global_flag += 2^5 #bad error curvature
+                end
             return ((global_minVal_interp, global_minChi_interp, global_minVal, global_minChi, global_minInd, global_flag, varx), out)
         end
     end
@@ -236,29 +238,27 @@ function sampler_2d_hierarchy_var(chi2_fun,lvltup;step1=1,step2=1,minres1=1//10,
     lvllen = length(lvltup)
     out = []
 
-    global_minVal_interp1 = 0
-    global_minVal_interp2 = 0
+    global_minVal_interp1 = NaN
+    global_minVal_interp2 = NaN
     global_minChi_interp = 0
-    global_minVal1 = 0
-    global_minVal2 = 0
+    global_minVal1 = NaN
+    global_minVal2 = NaN
     global_minChi = 0
     global_minInd = CartesianIndex(1,1)
     global_flag = 0
-    for (lvlind,lvl) in enumerate(lvltup)  
-        uprng1 = if lvlind == 1
-            lvl[1]
-        else
-            shift_range(lvl[1],round_step(global_minVal_interp1,minres1))
-        end
-        uprng2 = if lvlind == 1
-            lvl[2]
-        else
-            shift_trim_range(lvl[2],round_step(global_minVal_interp2,minres2))
-        end 
-        (((minVal_interp1, minVal_interp2), minChi_interp, (minVal1, minVal2), minChi, minInd, flag), valrng, chi2out) = sampler_2d_dense(chi2_fun,(uprng1,uprng2))
-        push!(out,(((minVal_interp1, minVal_interp2), minChi_interp, (minVal1, minVal2), minChi, minInd, flag), valrng, chi2out))
-        if minChi < global_minChi # this should not be the interpolated value, it should be the min measured chi2 value
+    for (lvlind,lvl) in enumerate(lvltup)
+        if lvlind == 1
+            (((minVal_interp1, minVal_interp2), minChi_interp, (minVal1, minVal2), minChi, minInd, flag), valrng, chi2out) = sampler_2d_dense(chi2_fun,lvl)
+            push!(out,(((minVal_interp1, minVal_interp2), minChi_interp, (minVal1, minVal2), minChi, minInd, flag), valrng, chi2out))
             (global_minVal_interp1, global_minVal_interp2), global_minChi_interp, (global_minVal1, global_minVal2), global_minChi, global_minInd, global_flag = (minVal_interp1, minVal_interp2), minChi_interp, (minVal1, minVal2), minChi, minInd, flag
+        else
+            uprng1 = shift_range(lvl[1],round_step(global_minVal_interp1,minres1))
+            uprng2 = shift_trim_range(lvl[2],round_step(global_minVal_interp2,minres2))
+            (((minVal_interp1, minVal_interp2), minChi_interp, (minVal1, minVal2), minChi, minInd, flag), valrng, chi2out) = sampler_2d_dense(chi2_fun,(uprng1,uprng2))
+            push!(out,(((minVal_interp1, minVal_interp2), minChi_interp, (minVal1, minVal2), minChi, minInd, flag), valrng, chi2out))
+            if minChi < global_minChi # this should not be the interpolated value, it should be the min measured chi2 value
+            (global_minVal_interp1, global_minVal_interp2), global_minChi_interp, (global_minVal1, global_minVal2), global_minChi, global_minInd, global_flag = (minVal_interp1, minVal_interp2), minChi_interp, (minVal1, minVal2), minChi, minInd, flag
+            end
         end
         if lvlind == lvllen
             if lvlind == 1
