@@ -46,7 +46,7 @@ function returnWeights(modCoordAll,targVal,cindx;kernsize=4,kerntrim=true)
     end
 end
 
-function returnWeights_inv(obsCoordall,obsBitMsk,pixindx,targVal,cindx;kernsize=4,kerntrim=true)
+function returnWeights_inv(obsCoordall::AbstractVector,obsBitMsk::Vector{Int},pixindx::AbstractVector,targVal::Float64,cindx::Int;kernsize::Int=4,kerntrim::Bool=true)
     obslen = length(obsCoordall)
     diffwav = diff(obsCoordall[maximum([1,(cindx-1)]):minimum([(cindx+1),obslen])])
     diffpixind = diff(pixindx[maximum([1,(cindx-1)]):minimum([(cindx+1),obslen])])
@@ -83,24 +83,6 @@ function returnWeights_inv(obsCoordall,obsBitMsk,pixindx,targVal,cindx;kernsize=
     end
 end
 
-function generateInterpMatrix_sparse_inv(waveobs,obsBitMsk,wavemod,pixindx;kernsize=4,kerntrim=true)
-    obslen = length(waveobs)
-    modlen = length(wavemod)
-    cindx = find_yinx(waveobs,wavemod)
-    row, col, val = Int[], Int[], Float64[]
-    for (modind, modval) in enumerate(wavemod)
-        indxvec, wvec = returnWeights_inv(waveobs,obsBitMsk,pixindx,modval,cindx[modind],kernsize=kernsize,kerntrim=kerntrim)
-        if !isnan(wvec[1])
-            wvec ./= sum(wvec)
-            nz = (wvec.!=0)
-            push!(row, (modind.*ones(Int,length(indxvec[nz])))...)
-            push!(col, indxvec[nz]...)
-            push!(val, wvec[nz]...)
-        end
-    end
-    return sparse(row,col,val,modlen,obslen)
-end
-
 function generateInterpMatrix_sparse(waveobs,wavemod;kernsize=4,kerntrim=true)
     obslen = length(waveobs)
     modlen = length(wavemod)
@@ -113,6 +95,24 @@ function generateInterpMatrix_sparse(waveobs,wavemod;kernsize=4,kerntrim=true)
             push!(row, indxvec...)
             push!(col, (obsin.*ones(Int,length(indxvec)))...)
             push!(val, wvec...)
+        end
+    end
+    return sparse(row,col,val,modlen,obslen)
+end
+
+function generateInterpMatrix_sparse_inv(waveobs::AbstractVector,obsBitMsk::Vector{Int},wavemod::AbstractVector,pixindx::AbstractVector;kernsize::Int=4,kerntrim::Bool=true)
+    obslen = length(waveobs)
+    modlen = length(wavemod)
+    cindx = find_yinx(waveobs,wavemod)
+    row, col, val = Int[], Int[], Float64[]
+    for (modind, modval) in enumerate(wavemod)
+        indxvec, wvec = returnWeights_inv(waveobs,obsBitMsk,pixindx,modval,cindx[modind],kernsize=kernsize,kerntrim=kerntrim)
+        if !isnan(wvec[1])
+            wvec ./= sum(wvec)
+            nz = (wvec.!=0)
+            push!(row, (modind.*ones(Int,length(indxvec[nz])))...)
+            push!(col, indxvec[nz]...)
+            push!(val, wvec[nz]...)
         end
     end
     return sparse(row,col,val,modlen,obslen)
