@@ -4,7 +4,7 @@
 import Pkg
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 
-using Distributed, SlurmClusterManager, LibGit2
+using Distributed, SlurmClusterManager
 addprocs(SlurmManager(launch_timeout=960.0))
         
 @everywhere println("hello from $(myid()):$(gethostname())")
@@ -31,10 +31,15 @@ flush(stdout)
     include(src_dir*"src/chi2Wrappers.jl")
     
     using StatsBase, LinearAlgebra, ProgressMeter
+    using BLISBLAS
     BLAS.set_num_threads(1)
 end
 
-git_dir = "./"
+BLAS.get_config()
+flush(stdout)
+
+using LibGit2
+git_dir = src_dir
 git_commit = LibGit2.head(git_dir)
 git_repo = LibGit2.GitRepo(git_dir)
 git_head = LibGit2.head(git_repo)
