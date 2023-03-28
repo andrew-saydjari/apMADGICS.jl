@@ -16,3 +16,4 @@ include(src_dir*"src/spectraInterpolation.jl")
 include(src_dir*"src/chi2Wrappers.jl")
 
 include("gridSearch.jl")
+include("spectraInterpolation.jl")

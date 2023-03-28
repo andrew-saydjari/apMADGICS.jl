@@ -35,8 +35,8 @@ function sample_chi2_flux_dflux(samp_lst,intup;waveaxis=wavetarg,delLogSpace=del
     chi2lst = zeros(lenit)
     fluxlst = zeros(lenit)
     dfluxlst = zeros(lenit)
-    (Rs,Ctotinv0,Xd_obs,wave_obs,Dscale,Vcomb_0,V_dib,dib_center,scan_offset) = intup
-    chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(Rs,Ctotinv0,Xd_obs,wave_obs,Dscale,Vcomb_0,V_dib,dib_center,scan_offset))
+    (Rs,Ctotinv0,Xd_obs,wave_obs,Dscale,Vcomb_0,V_dib,pre_Vslice,dib_center,scan_offset) = intup
+    chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(Rs,Ctotinv0,Xd_obs,wave_obs,Dscale,Vcomb_0,V_dib,pre_Vslice,dib_center,scan_offset))
     
     for (samp_ind, samp_tup) in enumerate(samp_lst)
         chi2lst[samp_ind] = chi2_wrapper_partial(samp_tup)
