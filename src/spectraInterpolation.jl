@@ -46,9 +46,11 @@ function returnWeights(modCoordAll,targVal,cindx;kernsize=4,kerntrim=true)
     end
 end
 
-function returnWeights_inv(obsCoordall,obsBitMsk,targVal,cindx;kernsize=4)
+function returnWeights_inv(obsCoordall,obsBitMsk,pixindx,targVal,cindx;kernsize=4,kerntrim=true)
     obslen = length(obsCoordall)
-    pscale = minimum(abs.(diff(obsCoordall[maximum([1,(cindx-1)]):minimum([(cindx+1),obslen])])))
+    diffwav = diff(obsCoordall[maximum([1,(cindx-1)]):minimum([(cindx+1),obslen])])
+    diffpixind = diff(pixindx[maximum([1,(cindx-1)]):minimum([(cindx+1),obslen])])
+    pscale = minimum(abs.(diffwav./diffpixind))
     offset = (obsCoordall[cindx].-targVal)/pscale
     cbit = obsBitMsk[cindx]
     if (cbit .& 2^1)!=0
@@ -65,29 +67,35 @@ function returnWeights_inv(obsCoordall,obsBitMsk,targVal,cindx;kernsize=4)
     indvec = (-kernsize:kernsize) .+ cindx
     offvec = (-kernsize:kernsize) .+ offset
     msk = (1 .<= indvec .<= obslen) # within bounds range
-    msk .&= (-kernsize .< offvec .< kernsize) # within kernel bounds
+    msk .&= (-kernsize .<= offvec .<= kernsize) # within kernel bounds
     indvecr = indvec[msk]
 
     mskb = ((obsBitMsk[indvecr] .& 2^cchip).!=0) # same chip mask
     mskb .&= ((obsBitMsk[indvecr] .& 2^4).==0) #bad pix mask
+    mskb .&= (-kernsize .<= (pixindx[indvecr].- pixindx[cindx]) .<= kernsize)
     indvecrr = indvecr[mskb]
-
     wvec = Interpolations.lanczos.(offvec[msk][mskb],kernsize)
-    return indvecrr, wvec
+    
+    if kerntrim .& (count(mskb) < 2*kernsize)
+        return zeros(Int,2*kernsize), NaN*ones(2*kernsize)
+    else
+        return indvecrr, wvec
+    end
 end
 
-function generateInterpMatrix_sparse_inv(waveobs,obsBitMsk,wavemod)
+function generateInterpMatrix_sparse_inv(waveobs,obsBitMsk,wavemod,pixindx;kernsize=4,kerntrim=true)
     obslen = length(waveobs)
     modlen = length(wavemod)
     cindx = find_yinx(waveobs,wavemod)
     row, col, val = Int[], Int[], Float64[]
     for (modind, modval) in enumerate(wavemod)
-        indxvec, wvec = returnWeights_inv(waveobs,obsBitMsk,modval,cindx[modind])
-        wvec ./= sum(wvec)
-        if length(indxvec) > 7
-            push!(row, (modind.*ones(Int,length(indxvec)))...)
-            push!(col, indxvec...)
-            push!(val, wvec...)
+        indxvec, wvec = returnWeights_inv(waveobs,obsBitMsk,pixindx,modval,cindx[modind],kernsize=kernsize,kerntrim=kerntrim)
+        if !isnan(wvec[1])
+            wvec ./= sum(wvec)
+            nz = (wvec.!=0)
+            push!(row, (modind.*ones(Int,length(indxvec[nz])))...)
+            push!(col, indxvec[nz]...)
+            push!(val, wvec[nz]...)
         end
     end
     return sparse(row,col,val,modlen,obslen)
@@ -108,21 +116,4 @@ function generateInterpMatrix_sparse(waveobs,wavemod;kernsize=4,kerntrim=true)
         end
     end
     return sparse(row,col,val,modlen,obslen)
-end
-
-function generateSelectMatrix_sparse(waveobs,obsBitMsk)
-    obslen = length(waveobs)
-    goodpix = ((obsBitMsk .& 2^4).==0)
-    goodlen = count(goodpix)
-    row, col, val = Int[], Int[], Float64[]
-    gindx = 1
-    for ind=1:obslen
-        if goodpix[ind]
-            push!(row, ind)
-            push!(col, gindx)
-            push!(val, 1)
-            gindx +=1
-        end
-    end
-    return sparse(row,col,val,obslen,goodlen)
 end
