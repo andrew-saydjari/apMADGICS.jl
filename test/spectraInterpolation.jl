@@ -5,6 +5,8 @@
   function checkfindmin(x)
     return findmin(abs.(wavetarg.-x))[2]
   end
+  targind = find_yinx(wavetarg,testset)
+  refind = checkfindmin.(testset)
   
-  @test find_yinx(wavetarg,testset) == checkfindmin.(testset)
+  @test targind == refind 
 end
