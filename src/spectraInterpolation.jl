@@ -1,6 +1,6 @@
 ## Spectra Interpolation Module
 
-function find_yinx(x,y)
+function find_yinx(x::Vector{Float64},y::Vector{Float64})
     lx = length(x)
     ly = length(y)
     out = zeros(Int,ly)
