@@ -21,31 +21,6 @@ function find_yinx(x::AbstractVector,y::AbstractVector)
     return out
 end
 
-function returnWeights(modCoordAll,targVal,cindx;kernsize=4,kerntrim=true)
-    modlen = length(modCoordAll)
-    pscale = minimum(abs.(diff(modCoordAll[maximum([1,(cindx-1)]):minimum([(cindx+1),modlen])])))
-    offset = (modCoordAll[cindx].-targVal)/pscale
-
-    indvec = (-kernsize:kernsize) .+ cindx
-    offvec = (-kernsize:kernsize) .+ offset
-    msk = (1 .<= indvec .<= modlen) # within bounds range
-    msk .&= (-kernsize .<= offvec .<= kernsize) # within kernel bounds
-
-    if kerntrim
-        if count(msk) >= 2*kernsize
-            indvecr = indvec[msk]
-            wvec = Interpolations.lanczos.(offvec[msk],kernsize)
-            return indvecr, wvec
-        else
-            return zeros(Int,2*kernsize), NaN*ones(2*kernsize)
-        end
-    else
-        indvecr = indvec[msk]
-        wvec = Interpolations.lanczos.(offvec[msk],kernsize)
-        return indvecr, wvec
-    end
-end
-
 function returnWeights_inv(obsCoordall::AbstractVector,obsBitMsk::Vector{Int},pixindx::AbstractVector,targVal::Float64,cindx::Int;kernsize::Int=4,kerntrim::Bool=true)
     obslen = length(obsCoordall)
     diffwav = diff(obsCoordall[maximum([1,(cindx-1)]):minimum([(cindx+1),obslen])])
@@ -83,23 +58,6 @@ function returnWeights_inv(obsCoordall::AbstractVector,obsBitMsk::Vector{Int},pi
     end
 end
 
-function generateInterpMatrix_sparse(waveobs,wavemod;kernsize=4,kerntrim=true)
-    obslen = length(waveobs)
-    modlen = length(wavemod)
-    cindx = find_yinx(wavemod,waveobs)
-    row, col, val = Int[], Int[], Float64[]
-    for (obsin, obsval) in enumerate(waveobs)
-        indxvec, wvec = returnWeights(wavemod,obsval,cindx[obsin],kernsize=kernsize,kerntrim=kerntrim)
-        if !isnan(wvec[1])
-            wvec ./= sum(wvec)
-            push!(row, indxvec...)
-            push!(col, (obsin.*ones(Int,length(indxvec)))...)
-            push!(val, wvec...)
-        end
-    end
-    return sparse(row,col,val,modlen,obslen)
-end
-
 function generateInterpMatrix_sparse_inv(waveobs::AbstractVector,obsBitMsk::Vector{Int},wavemod::AbstractVector,pixindx::AbstractVector;kernsize::Int=4,kerntrim::Bool=true)
     obslen = length(waveobs)
     modlen = length(wavemod)
@@ -117,3 +75,47 @@ function generateInterpMatrix_sparse_inv(waveobs::AbstractVector,obsBitMsk::Vect
     end
     return sparse(row,col,val,modlen,obslen)
 end
+
+## This is very useful if you want to do the inference through interpolation to the 
+## native dataspace (instead of regridding and stacking as is required by the APOGEE frame SNR)
+# function returnWeights(modCoordAll,targVal,cindx;kernsize=4,kerntrim=true)
+#     modlen = length(modCoordAll)
+#     pscale = minimum(abs.(diff(modCoordAll[maximum([1,(cindx-1)]):minimum([(cindx+1),modlen])])))
+#     offset = (modCoordAll[cindx].-targVal)/pscale
+
+#     indvec = (-kernsize:kernsize) .+ cindx
+#     offvec = (-kernsize:kernsize) .+ offset
+#     msk = (1 .<= indvec .<= modlen) # within bounds range
+#     msk .&= (-kernsize .<= offvec .<= kernsize) # within kernel bounds
+
+#     if kerntrim
+#         if count(msk) >= 2*kernsize
+#             indvecr = indvec[msk]
+#             wvec = Interpolations.lanczos.(offvec[msk],kernsize)
+#             return indvecr, wvec
+#         else
+#             return zeros(Int,2*kernsize), NaN*ones(2*kernsize)
+#         end
+#     else
+#         indvecr = indvec[msk]
+#         wvec = Interpolations.lanczos.(offvec[msk],kernsize)
+#         return indvecr, wvec
+#     end
+# end
+
+# function generateInterpMatrix_sparse(waveobs,wavemod;kernsize=4,kerntrim=true)
+#     obslen = length(waveobs)
+#     modlen = length(wavemod)
+#     cindx = find_yinx(wavemod,waveobs)
+#     row, col, val = Int[], Int[], Float64[]
+#     for (obsin, obsval) in enumerate(waveobs)
+#         indxvec, wvec = returnWeights(wavemod,obsval,cindx[obsin],kernsize=kernsize,kerntrim=kerntrim)
+#         if !isnan(wvec[1])
+#             wvec ./= sum(wvec)
+#             push!(row, indxvec...)
+#             push!(col, (obsin.*ones(Int,length(indxvec)))...)
+#             push!(val, wvec...)
+#         end
+#     end
+#     return sparse(row,col,val,modlen,obslen)
+# end
