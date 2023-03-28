@@ -1,4 +1,4 @@
-@testset "gridSearch.jl" begin
+@testset "gaussTests.jl" begin
     
     ### Gaussian peak gap reconstruction
     function gauss1d(amp,x0,sigma,pixcoord)
