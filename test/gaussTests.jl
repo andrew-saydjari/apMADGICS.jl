@@ -11,6 +11,9 @@
 
     wavemodel = 15220:0.1:15320
     minw, maxw = extrema(wavemodel)
+    
+    simplemsk = ones(Bool,length(wavemodel))
+    simplemsk[560:620] .= false
 
     Vgauss = zeros(length(wavemodel),2)
     cwave_cent = 15273
