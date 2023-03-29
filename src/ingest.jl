@@ -73,48 +73,43 @@ function stack_out(intup)
         fill!(pixmsk_stack,0)
         fill!(telluric_stack,0)
         fill!(fullBit,0)
-        # try
-            for (chipind,chip) in enumerate(["c","b","a"]) #needs to be c,b,a for chip ind to be right
-                fname = build_framepath(mjd,imid,chip)
-                f = FITS(fname)
-                Xd = read(f[2],:,fiber);
-                Xd_stack[(1:2048).+(chipind-1)*2048] .= Xd[end:-1:1]
-                Xd_std = read(f[3],:,fiber);
-                Xd_std_stack[(1:2048).+(chipind-1)*2048] .= Xd_std[end:-1:1]
-                pixmsk = read(f[4],:,fiber);
-                pixmsk_stack[(1:2048).+(chipind-1)*2048] .= pixmsk[end:-1:1]
-                waveobsa = read(f[5],:,fiber);
-                waveobs_stack[(1:2048).+(chipind-1)*2048] .= waveobsa[end:-1:1]
-                fullBit[(1:2048).+(chipind-1)*2048] .+= 2^chipind
-                close(f)
-            end
-            fullBit[((pixmsk_stack .& 2^0).!=0)] .+= 2^4 # call pixmask bit 0 bad
-            fullBit[fullBit.==0] .+= 2^4 # call chip gaps bad for alt space
+        for (chipind,chip) in enumerate(["c","b","a"]) #needs to be c,b,a for chip ind to be right
+            fname = build_framepath(mjd,imid,chip)
+            f = FITS(fname)
+            Xd = read(f[2],:,fiber);
+            Xd_stack[(1:2048).+(chipind-1)*2048] .= Xd[end:-1:1]
+            Xd_std = read(f[3],:,fiber);
+            Xd_std_stack[(1:2048).+(chipind-1)*2048] .= Xd_std[end:-1:1]
+            pixmsk = read(f[4],:,fiber);
+            pixmsk_stack[(1:2048).+(chipind-1)*2048] .= pixmsk[end:-1:1]
+            waveobsa = read(f[5],:,fiber);
+            waveobs_stack[(1:2048).+(chipind-1)*2048] .= waveobsa[end:-1:1]
+            fullBit[(1:2048).+(chipind-1)*2048] .+= 2^chipind
+            close(f)
+        end
+        fullBit[((pixmsk_stack .& 2^0).!=0)] .+= 2^4 # call pixmask bit 0 bad
+        fullBit[fullBit.==0] .+= 2^4 # call chip gaps bad for alt space
 
-            goodpix = ((pixmsk_stack .& 2^0).==0) .& ((fullBit .& 2^4).==0)
+        goodpix = ((pixmsk_stack .& 2^0).==0) .& ((fullBit .& 2^4).==0)
 
-            obsBit = fullBit[goodpix]
-            Xd_obs = Xd_stack[goodpix]
-            Xd_std_obs = Xd_std_stack[goodpix];
-            waveobs = waveobs_stack[goodpix];
+        obsBit = fullBit[goodpix]
+        Xd_obs = Xd_stack[goodpix]
+        Xd_std_obs = Xd_std_stack[goodpix];
+        waveobs = waveobs_stack[goodpix];
+        pixindx = (1:length(waveobs_stack))[goodpix]
 
-            # might be able to get away from this Rs... revisit when revisit the wholw
-            # interpolation module for the re-gridding
-            Rinv = generateInterpMatrix_sparse_inv(waveobs_stack,fullBit,wavetarg);
-            Rs = generateSelectMatrix_sparse(waveobs_stack,fullBit);
+        Rinv = generateInterpMatrix_sparse_inv(waveobs,obsBit,wavetarg,pixindx)
+        normvec = dropdims(sum(Rinv,dims=2),dims=2)
+        msk_inter = (normvec.!=0)
 
-            msk_inter = (Rinv*goodpix .!=0)
-            fullvec = Rinv*(Rs*Xd_obs)
-            fullvec[.!msk_inter] .= 0
-            varvec =  (Rinv.^2)*(Rs*Xd_std_obs.^2)
-            varvec[.!msk_inter] .= 0
+        fullvec = Rinv*Xd_obs
+        fullvec[.!msk_inter] .= 0
+        varvec =  (Rinv.^2)*(Xd_std_obs.^2)
+        varvec[.!msk_inter] .= 0
 
-            outvec .+= fullvec
-            outvar .+= varvec
-            cntvec .+= msk_inter
-        # catch
-        #     println("$imid is missing!")
-        # end
+        outvec .+= fullvec
+        outvar .+= varvec
+        cntvec .+= msk_inter
     end
     return outvec, outvar, cntvec
 end
