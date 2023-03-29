@@ -21,7 +21,8 @@ function find_yinx(x::AbstractVector,y::AbstractVector)
     return out
 end
 
-function returnWeights_inv(obsCoordall::AbstractVector,obsBitMsk::Vector{Int},pixindx::AbstractVector,targVal::Float64,cindx::Int;kernsize::Int=4,kerntrim::Bool=true)
+function returnWeights_inv(obsCoordall::AbstractVector,obsBitMsk::Vector{Int},pixindx::AbstractVector,targVal::Float64,cindx::Int;
+        kernsize::Int=4,linFallBack::Bool=true)
     obslen = length(obsCoordall)
     diffwav = diff(obsCoordall[maximum([1,(cindx-1)]):minimum([(cindx+1),obslen])])
     diffpixind = diff(pixindx[maximum([1,(cindx-1)]):minimum([(cindx+1),obslen])])
@@ -49,23 +50,40 @@ function returnWeights_inv(obsCoordall::AbstractVector,obsBitMsk::Vector{Int},pi
     mskb .&= ((obsBitMsk[indvecr] .& 2^4).==0) #bad pix mask
     mskb .&= (-kernsize .<= (pixindx[indvecr].- pixindx[cindx]) .<= kernsize)
     indvecrr = indvecr[mskb]
-    wvec = Interpolations.lanczos.(offvec[msk][mskb],kernsize)
     
-    if kerntrim .& (count(mskb) < 2*kernsize)
-        return zeros(Int,2*kernsize), NaN*ones(2*kernsize)
-    else
-        return indvecrr, wvec
+    if offset == 0
+        return cindx, 1.0
     end
+    if (count(mskb) >= 2*kernsize)
+        if (maximum(diff((pixindx[indvecr].- pixindx[cindx])[mskb]))==1)
+            wvec = Interpolations.lanczos.(offvec[msk][mskb],kernsize)
+            return indvecrr, wvec
+        end
+    end
+    if linFallBack & (count(mskb) > 1)
+        pixOffset = pixindx[indvecrr].- pixindx[cindx]
+        obsOffset = offvec[msk][mskb]
+        lindx = findlast(obsOffset.<=0)
+        rindx = findfirst(obsOffset.>=0)
+        if !isnothing(lindx) & !isnothing(rindx)
+            if (pixOffset[lindx]>=-1) & (pixOffset[rindx]<=1)
+                offlst = offvec[msk][mskb]
+                totoff = offlst[rindx].-offlst[lindx]
+                return [indvecrr[lindx],indvecrr[rindx]],[1-abs(offlst[lindx])/totoff, 1-abs(offlst[rindx])/totoff]
+            end
+        end
+    end
+    return zeros(Int,2*kernsize), NaN*ones(2*kernsize)
 end
 
-function generateInterpMatrix_sparse_inv(waveobs::AbstractVector,obsBitMsk::Vector{Int},wavemod::AbstractVector,pixindx::AbstractVector;kernsize::Int=4,kerntrim::Bool=true)
+function generateInterpMatrix_sparse_inv(waveobs::AbstractVector,obsBitMsk::Vector{Int},wavemod::AbstractVector,pixindx::AbstractVector;kernsize::Int=4,linFallBack::Bool=true)
     obslen = length(waveobs)
     modlen = length(wavemod)
     cindx = find_yinx(waveobs,wavemod)
     row, col, val = Int[], Int[], Float64[]
     for (modind, modval) in enumerate(wavemod)
-        indxvec, wvec = returnWeights_inv(waveobs,obsBitMsk,pixindx,modval,cindx[modind],kernsize=kernsize,kerntrim=kerntrim)
-        if !isnan(wvec[1])
+        indxvec, wvec = returnWeights_inv(waveobs,obsBitMsk,pixindx,modval,cindx[modind],kernsize=kernsize,linFallBack=linFallBack)
+        if !isnan(wvec[1]) .& (wvec[1].!=1.0)
             wvec ./= sum(wvec)
             nz = (wvec.!=0)
             push!(row, (modind.*ones(Int,length(indxvec[nz])))...)
