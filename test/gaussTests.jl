@@ -103,6 +103,7 @@
     @test maximum((Rinv*x_data_clean[simplemsk].-x_targ)[propmsk]) .< 3e-5
     @test sum((Rinv*x_data_clean[simplemsk].-x_targ)[propmsk]) .< 5e-5
     
+    ### Interpolate quad -> log and infer
     waveobs = (sqrt(15220):0.0007:sqrt(15320)).^2
     wavemodel = 10 .^(log10(15220):3e-6:log10(15320))
     minw, maxw = extrema(wavemodel)
