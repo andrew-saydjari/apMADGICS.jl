@@ -28,7 +28,7 @@
     amp = -0.1
     noiseFac = 1e-3
     rng = MersenneTwister(2025)
-    var_vec = (noiseFac.*range(1,2,length(wavemodel))).^2
+    var_vec = (noiseFac.*range(1,2,length=length(wavemodel))).^2
     x_data_clean = gauss1d(amp,x0,sigma,wavemodel)
     x_noise_vec = sqrt.(var_vec).*randn(rng,length(wavemodel));
     x_data = x_data_clean .+ x_noise_vec;
