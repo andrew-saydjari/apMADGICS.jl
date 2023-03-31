@@ -220,8 +220,8 @@ end
         )
         push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 2
         x_comp_out = [nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
-                nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk),
-                x_comp_lst[5]]
+                        nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk),
+                        x_comp_lst[5:end]...]
         push!(out,x_comp_out) # 3
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
         push!(out,dflux_starlines) # 4
