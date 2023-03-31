@@ -170,7 +170,11 @@ end
         fvec./=maximum(cntvec)
         fvarvec./=(maximum(cntvec)^2)
         
-        starscale = abs(nanmedian(fvec[simplemsk]))
+        starscale = if count(simplemsk)==0
+            NaN
+        else
+            abs(nanmedian(fvec[simplemsk]))
+        end
 
         ## Select data for use (might want to handle mean more generally)
         Xd_obs = (fvec.-meanLocSky)[simplemsk]; #I think an outvec to fvec here was the key caching issue
