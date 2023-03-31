@@ -75,16 +75,20 @@ end
 # This overhead is going to depend on fiber number soon, so this will move inside the multispectra wrapper
 @everywhere begin
     # pretty happy at here, revisit if we incoporate tellurics more consistently
-    f = h5open(prior_dir*"2023_02_28/APOGEE_skycont_svd_150_f295.h5")
+    f = h5open(prior_dir*"2023_03_29/APOGEE_skycont_svd_150_f295.h5")
     V_skycont = f["Vmat"][:,1:30]
+    chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
     close(f)
 
     # pretty happy here, could be convinced to decrease a little bit
-    f = h5open(prior_dir*"2023_02_28/APOGEE_skyline_kry_150_f295.h5")
+    f = h5open(prior_dir*"2023_03_29/APOGEE_skyline_svd_150_f295.h5")
     V_skyline = f["Vmat"][:,1:100]
+    submsk = convert.(Bool,read(f["submsk"]))
     close(f)
+    
+    skymsk = chebmsk_exp .& submsk;
 
-    f = h5open(prior_dir*"2023_03_03/APOGEE_starcont_svd_150_f295.h5")
+    f = h5open(prior_dir*"2023_03_29/APOGEE_starcont_svd_150_f295.h5")
     V_starcont = f["Vmat"][:,1:60]
     close(f)
 
@@ -163,6 +167,9 @@ end
             end
         end
         simplemsk = (cntvec.==maximum(cntvec));
+        fvec./=maximum(cntvec)
+        fvarvec./=(maximum(cntvec)^2)
+        
         starscale = abs(nanmedian(fvec[simplemsk]))
 
         ## Select data for use (might want to handle mean more generally)
