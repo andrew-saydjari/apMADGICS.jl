@@ -30,8 +30,8 @@ function returnWeights_inv(obsCoordall::AbstractVector,obsBitMsk::Vector{Int},pi
         pscale = minimum(abs.(diffwav./diffpixind))
     catch
         println(maximum([1,(cindx-1)]),minimum([(cindx+1),obslen]),cindx,obslen)
-        pscale = minimum(abs.(diffwav./diffpixind))
     end
+    pscale = minimum(abs.(diffwav./diffpixind))
     offset = (obsCoordall[cindx].-targVal)/pscale
     cbit = obsBitMsk[cindx]
     if (cbit .& 2^1)!=0
