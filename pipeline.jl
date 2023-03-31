@@ -149,9 +149,9 @@ end
         else
 #             try
                 meanLocSky, VLocSky = getSky4visit(intup)
-#                 if caching
-#                     serialize(skycache,[meanLocSky, VLocSky])
-#                 end
+                if caching
+                    serialize(skycache,[meanLocSky, VLocSky])
+                end
 #             catch
 #                 println(intup)
 #             end
