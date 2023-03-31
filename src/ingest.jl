@@ -30,7 +30,7 @@ function getSky4visit(intup)
             contvec = sky_decomp(fvec, fvarvec, simplemsk)
             # do we want to save the other components to disk?
             outcont[:,findx] .= contvec
-        else
+        catch
             # we should figure out how often this happens and why
             outcont[:,findx] .= 0
         end
