@@ -24,6 +24,9 @@ end
 function returnWeights_inv(obsCoordall::AbstractVector,obsBitMsk::Vector{Int},pixindx::AbstractVector,targVal::Float64,cindx::Int;
         kernsize::Int=4,linFallBack::Bool=true)
     obslen = length(obsCoordall)
+    if obslen == 0 #when is this happening and why?
+        return zeros(Int,2*kernsize), NaN*ones(2*kernsize)
+    end
     diffwav = diff(obsCoordall[maximum([1,(cindx-1)]):minimum([(cindx+1),obslen])])
     diffpixind = diff(pixindx[maximum([1,(cindx-1)]):minimum([(cindx+1),obslen])])
     pscale = minimum(abs.(diffwav./diffpixind))
