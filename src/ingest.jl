@@ -23,7 +23,9 @@ function getSky4visit(intup)
         tintup = (tele,field,plate,mjd,file,plateFile,fiberind)
         fvec, fvarvec, cntvec = stack_out(tintup)
         # do we want to save that to disk
-        simplemsk = (cntvec.==maximum(cntvec));
+        simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
+        fvec./=maximum(cntvec)
+        fvarvec./=(maximum(cntvec)^2)
         contvec = sky_decomp(fvec, fvarvec, simplemsk)
         # do we want to save the other components to disk?
         outcont[:,findx] .= contvec
