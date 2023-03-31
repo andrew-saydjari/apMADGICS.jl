@@ -166,7 +166,7 @@ end
                 serialize(starcache,[fvec, fvarvec, cntvec])
             end
         end
-        simplemsk = (cntvec.==maximum(cntvec));
+        simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
         fvec./=maximum(cntvec)
         fvarvec./=(maximum(cntvec)^2)
         
