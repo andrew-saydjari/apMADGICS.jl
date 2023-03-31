@@ -170,7 +170,7 @@ end
         fvec./=maximum(cntvec)
         fvarvec./=(maximum(cntvec)^2)
         
-        starscale = if count(simplemsk)==0
+        starscale = if count(simplemsk .& (.!isnan.(fvec)))==0
             NaN
         else
             abs(nanmedian(fvec[simplemsk]))
