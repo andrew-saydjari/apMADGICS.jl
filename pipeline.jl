@@ -279,7 +279,8 @@ end
 #         push!(out,(meanLocSky, VLocSky))
         return out
     end
-
+end
+@everywhere begin
     function multi_spectra_batch(indsubset; fibnum=295, out_dir="../outdir/")
         out = []
         for (ind,indval) in enumerate(indsubset)
