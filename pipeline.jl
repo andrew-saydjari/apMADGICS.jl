@@ -147,14 +147,14 @@ end
         if (isfile(skycache) & caching)
             meanLocSky, VLocSky = deserialize(skycache)
         else
-            try
+#             try
                 meanLocSky, VLocSky = getSky4visit(intup)
-                if caching
-                    serialize(skycache,[meanLocSky, VLocSky])
-                end
-            catch
-                println(intup)
-            end
+#                 if caching
+#                     serialize(skycache,[meanLocSky, VLocSky])
+#                 end
+#             catch
+#                 println(intup)
+#             end
         end
 
         starcache = cache_starname(intup,cache_dir=cache_dir)
