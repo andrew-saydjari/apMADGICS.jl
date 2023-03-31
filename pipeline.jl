@@ -216,10 +216,12 @@ end
         # do a component save without the 15273 DIB
         x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
             (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r),
-            (A, V_skyline_c, V_locSky_c, V_starCont_c, V_starlines_c),
+            (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_c),
         )
         push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 2
-        x_comp_out = [nanify(x_comp_lst[1],simplemsk), x_comp_lst[2], x_comp_lst[3].+meanLocSky, x_comp_lst[4:end]...]
+        x_comp_out = [nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
+                nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk),
+                x_comp_lst[5]]
         push!(out,x_comp_out) # 3
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
         push!(out,dflux_starlines) # 4
@@ -263,13 +265,15 @@ end
 
             x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
                 (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r, V_dibr),
-                (A, V_skyline_c, V_locSky_c, V_starCont_c, V_starlines_c, V_dibc),
+                (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_c, V_dibc),
             )
             push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 7, 11
             # I am not sure that during production we really want to run and output full sets of components per DIB
             # I would like to fill NaNs in chip gaps for the sky/continuum components
             # revisit that when we revisit the interpolations before making other fiber priors
-            x_comp_out = [nanify(x_comp_lst[1],simplemsk), x_comp_lst[2], x_comp_lst[3].+meanLocSky, x_comp_lst[4:end]...]
+            x_comp_out = [nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
+                        nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk),
+                        x_comp_lst[5:end]...]
 
             push!(out,x_comp_out) # 8, 12
         end
