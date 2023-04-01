@@ -21,12 +21,19 @@ function getSky4visit(intup)
     # Decompose all of the Sky Fibers
     for (findx,fiberind) in enumerate(skyinds)
         tintup = (tele,field,plate,mjd,file,plateFile,fiberind)
-        fvec, fvarvec, cntvec = stack_out(tintup)
-        # do we want to save that to disk
-        simplemsk = (cntvec.==maximum(cntvec));
-        contvec = sky_decomp(fvec, fvarvec, simplemsk)
-        # do we want to save the other components to disk?
-        outcont[:,findx] .= contvec
+        try
+            fvec, fvarvec, cntvec = stack_out(tintup)
+            # do we want to save that to disk
+            simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
+            fvec./=maximum(cntvec)
+            fvarvec./=(maximum(cntvec)^2)
+            contvec = sky_decomp(fvec, fvarvec, simplemsk)
+            # do we want to save the other components to disk?
+            outcont[:,findx] .= contvec
+        catch
+            # we should figure out how often this happens and why
+            outcont[:,findx] .= 0
+        end
     end
 
     msk = (dropdims(nansum(outcont,1),dims=1)) .> 0

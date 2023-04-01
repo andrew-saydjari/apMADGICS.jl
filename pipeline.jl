@@ -75,16 +75,20 @@ end
 # This overhead is going to depend on fiber number soon, so this will move inside the multispectra wrapper
 @everywhere begin
     # pretty happy at here, revisit if we incoporate tellurics more consistently
-    f = h5open(prior_dir*"2023_02_28/APOGEE_skycont_svd_150_f295.h5")
+    f = h5open(prior_dir*"2023_03_30/APOGEE_skycont_svd_150_f295.h5")
     V_skycont = f["Vmat"][:,1:30]
+    chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
     close(f)
 
     # pretty happy here, could be convinced to decrease a little bit
-    f = h5open(prior_dir*"2023_02_28/APOGEE_skyline_kry_150_f295.h5")
+    f = h5open(prior_dir*"2023_03_30/APOGEE_skyline_svd_150_f295.h5")
     V_skyline = f["Vmat"][:,1:100]
+    submsk = convert.(Bool,read(f["submsk"]))
     close(f)
+    
+    skymsk = chebmsk_exp .& submsk;
 
-    f = h5open(prior_dir*"2023_03_03/APOGEE_starcont_svd_150_f295.h5")
+    f = h5open(prior_dir*"2023_03_30/APOGEE_starcont_svd_150_f295.h5")
     V_starcont = f["Vmat"][:,1:60]
     close(f)
 
@@ -143,14 +147,14 @@ end
         if (isfile(skycache) & caching)
             meanLocSky, VLocSky = deserialize(skycache)
         else
-            try
+#             try
                 meanLocSky, VLocSky = getSky4visit(intup)
                 if caching
                     serialize(skycache,[meanLocSky, VLocSky])
                 end
-            catch
-                println(intup)
-            end
+#             catch
+#                 println(intup)
+#             end
         end
 
         starcache = cache_starname(intup,cache_dir=cache_dir)
@@ -162,8 +166,15 @@ end
                 serialize(starcache,[fvec, fvarvec, cntvec])
             end
         end
-        simplemsk = (cntvec.==maximum(cntvec));
-        starscale = abs(nanmedian(fvec[simplemsk]))
+        simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
+        fvec./=maximum(cntvec)
+        fvarvec./=(maximum(cntvec)^2)
+        
+        starscale = if count(simplemsk .& (.!isnan.(fvec)))==0
+            NaN
+        else
+            abs(nanmedian(fvec[simplemsk]))
+        end
 
         ## Select data for use (might want to handle mean more generally)
         Xd_obs = (fvec.-meanLocSky)[simplemsk]; #I think an outvec to fvec here was the key caching issue
@@ -209,10 +220,12 @@ end
         # do a component save without the 15273 DIB
         x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
             (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r),
-            (A, V_skyline_c, V_locSky_c, V_starCont_c, V_starlines_c),
+            (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_c),
         )
         push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 2
-        x_comp_out = [nanify(x_comp_lst[1],simplemsk), x_comp_lst[2], x_comp_lst[3].+meanLocSky, x_comp_lst[4:end]...]
+        x_comp_out = [nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
+                        nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk),
+                        x_comp_lst[5:end]...]
         push!(out,x_comp_out) # 3
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
         push!(out,dflux_starlines) # 4
@@ -256,13 +269,15 @@ end
 
             x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
                 (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r, V_dibr),
-                (A, V_skyline_c, V_locSky_c, V_starCont_c, V_starlines_c, V_dibc),
+                (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_c, V_dibc),
             )
             push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 7, 11
             # I am not sure that during production we really want to run and output full sets of components per DIB
             # I would like to fill NaNs in chip gaps for the sky/continuum components
             # revisit that when we revisit the interpolations before making other fiber priors
-            x_comp_out = [nanify(x_comp_lst[1],simplemsk), x_comp_lst[2], x_comp_lst[3].+meanLocSky, x_comp_lst[4:end]...]
+            x_comp_out = [nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
+                        nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk),
+                        x_comp_lst[5:end]...]
 
             push!(out,x_comp_out) # 8, 12
         end
@@ -272,7 +287,8 @@ end
 #         push!(out,(meanLocSky, VLocSky))
         return out
     end
-
+end
+@everywhere begin
     function multi_spectra_batch(indsubset; fibnum=295, out_dir="../outdir/")
         out = []
         for (ind,indval) in enumerate(indsubset)
