@@ -81,7 +81,7 @@ function stack_out(intup)
         fill!(telluric_stack,0)
         fill!(fullBit,0)
         for (chipind,chip) in enumerate(["c","b","a"]) #needs to be c,b,a for chip ind to be right
-            fname = build_framepath(mjd,imid,chip)
+            fname = build_framepath(tele,mjd,imid,chip)
             f = FITS(fname)
             Xd = read(f[2],:,fiber);
             Xd_stack[(1:2048).+(chipind-1)*2048] .= Xd[end:-1:1]

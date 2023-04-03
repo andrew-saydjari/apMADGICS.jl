@@ -17,11 +17,18 @@ function getFramesFromPlate(x)
     return framenum
 end
 
-function build_framepath(mjd,imid,chip)
+function build_framepath(tele,mjd,imid,chip)
     imids = lpad(imid,8,"0")
-    base = "/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/redux/dr17/exposures/apogee-n"
-    fname = "ap1D-$chip-$imids"*".fits"
-    return join([base,mjd,fname],"/")
+    base = "/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/redux/dr17/exposures"
+    if tele=="apo25m"
+        supfold = "apogee-n"
+        fname = "ap1D-$chip-$imids"*".fits"
+        return join([base,supfold,mjd,fname],"/")
+    else
+        supfold = "apogee-s"
+        fname = "as1D-$chip-$imids"*".fits"
+        return join([base,supfold,mjd,fname],"/")
+    end
 end
 
 function build_visitpath(intup)
