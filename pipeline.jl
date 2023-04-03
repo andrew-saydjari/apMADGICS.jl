@@ -147,14 +147,14 @@ end
         if (isfile(skycache) & caching)
             meanLocSky, VLocSky = deserialize(skycache)
         else
-#             try
+            # try
                 meanLocSky, VLocSky = getSky4visit(intup)
                 if caching
                     serialize(skycache,[meanLocSky, VLocSky])
                 end
-#             catch
-#                 println(intup)
-#             end
+            # catch
+                # println(intup)
+            # end
         end
 
         starcache = cache_starname(intup,cache_dir=cache_dir)
@@ -283,20 +283,28 @@ end
         end
                         
         push!(out,count(simplemsk)) # 13
-#         push!(out,(wave_obs,fvarvec[simplemsk],simplemsk))
-#         push!(out,(meanLocSky, VLocSky))
+        # push!(out,(wave_obs,fvarvec[simplemsk],simplemsk))
+        # push!(out,(meanLocSky, VLocSky))
         return out
     end
 end
 @everywhere begin
-    function multi_spectra_batch(indsubset; fibnum=295, out_dir="../outdir/")
+    function multi_spectra_batch(indsubset; out_dir="../outdir")
         out = []
+        startind = indsubset[1][1]
+        fibnum = indsubset[1][end]
+
+        ### Need to load the priors here
+
         for (ind,indval) in enumerate(indsubset)
             push!(out,pipeline_single_spectra(indval; caching=true))
         end
 
-        startind = indsubset[1][1]
-        savename = out_dir*"apMADGICS_fiber_"*lpad(fibnum,3,"0")*"_batch_"*lpad(startind,7,"0")*".h5"
+        savename = join([out_dir,lpad(fibnum,3,"0"),"apMADGICS_fiber_"*lpad(fibnum,3,"0")*"_batch_"*lpad(startind,7,"0")*".h5"],"/")
+        dirName = splitdir(savename)[1]
+        if !ispath(dirName)
+            mkpath(dirName)
+        end
         
         RVind = 1
         RVchi = 2
@@ -308,10 +316,10 @@ end
         DIBch1 = 7
         DIBco1 = 8
             
-#         DIBin2 = 9
-#         EWind2 = 10
-#         DIBch2 = 11
-#         DIBco2 = 12
+        # DIBin2 = 9
+        # EWind2 = 10
+        # DIBch2 = 11
+        # DIBco2 = 12
             
         metai = 9 #13
         extractlst = [
@@ -346,8 +354,8 @@ end
             (x->x[DIBin1][2][2][3],                  "DIB_p5delchi2_lvl2_15273"),
             (x->x[DIBin1][2][3][3],                  "DIB_p5delchi2_lvl3_15273"),
             # These do not have fixed sizing because they can hit the grid edge for sigma... need to ponder if/how to handle
-#             (x->x[DIBin][2][4][3],      "DIB_p5delchi2_lvl4"),
-#             (x->x[DIBin][2][5][3],      "DIB_p5delchi2_lvl5"),
+            # (x->x[DIBin][2][4][3],      "DIB_p5delchi2_lvl4"),
+            # (x->x[DIBin][2][5][3],      "DIB_p5delchi2_lvl5"),
 
             (x->x[EWind1][1],                        "EW_dib_15273"),
             (x->x[EWind1][2],                        "EW_dib_err_15273"),
@@ -362,28 +370,28 @@ end
             (x->x[DIBco1][6],                        "x_dib_v1_15273"),
             (x->x[DIBco1][7],                        "tot_p5chi2_v1_15273"),
                 
-#             (x->Float64.(x[DIBin2][1][1][1]),        "DIB_pixoff_final_15673"),
-#             (x->Float64.(x[DIBin2][1][1][2]),        "DIB_sigval_final_15673"),
-#             (x->x[DIBin2][1][2],                     "DIB_minchi2_final_15673"),
-#             (x->x[DIBin2][1][6],                     "DIB_flag_15673"),
-#             (x->[x[DIBin2][1][7:11]...],             "DIB_hess_var_15673"),
+            # (x->Float64.(x[DIBin2][1][1][1]),        "DIB_pixoff_final_15673"),
+            # (x->Float64.(x[DIBin2][1][1][2]),        "DIB_sigval_final_15673"),
+            # (x->x[DIBin2][1][2],                     "DIB_minchi2_final_15673"),
+            # (x->x[DIBin2][1][6],                     "DIB_flag_15673"),
+            # (x->[x[DIBin2][1][7:11]...],             "DIB_hess_var_15673"),
                                 
-#             (x->x[DIBin2][2][1][3],                  "DIB_p5delchi2_lvl1_15673"),
-#             (x->x[DIBin2][2][2][3],                  "DIB_p5delchi2_lvl2_15673"),
-#             (x->x[DIBin2][2][3][3],                  "DIB_p5delchi2_lvl3_15673"),
+            # (x->x[DIBin2][2][1][3],                  "DIB_p5delchi2_lvl1_15673"),
+            # (x->x[DIBin2][2][2][3],                  "DIB_p5delchi2_lvl2_15673"),
+            # (x->x[DIBin2][2][3][3],                  "DIB_p5delchi2_lvl3_15673"),
 
-#             (x->x[EWind2][1],                        "EW_dib_15673"),
-#             (x->x[EWind2][2],                        "EW_dib_err_15673"),
+            # (x->x[EWind2][1],                        "EW_dib_15673"),
+            # (x->x[EWind2][2],                        "EW_dib_err_15673"),
                                 
-#             (x->x[DIBch2][1],                        "DIBchi2_residuals_15673"),
+            # (x->x[DIBch2][1],                        "DIBchi2_residuals_15673"),
 
-#             (x->x[DIBco2][1],                        "x_residuals_v1_15673"),
-#             (x->x[DIBco2][2],                        "x_skyLines_v1_15673"),
-#             (x->x[DIBco2][3],                        "x_skyContinuum_v1_15673"),
-#             (x->x[DIBco2][4],                        "x_starContinuum_v1_15673"),
-#             (x->x[DIBco2][5],                        "x_starLines_v1_15673"),
-#             (x->x[DIBco2][6],                        "x_dib_v1_15673"),
-#             (x->x[DIBco2][7],                        "tot_p5chi2_v1_15673"),
+            # (x->x[DIBco2][1],                        "x_residuals_v1_15673"),
+            # (x->x[DIBco2][2],                        "x_skyLines_v1_15673"),
+            # (x->x[DIBco2][3],                        "x_skyContinuum_v1_15673"),
+            # (x->x[DIBco2][4],                        "x_starContinuum_v1_15673"),
+            # (x->x[DIBco2][5],                        "x_starLines_v1_15673"),
+            # (x->x[DIBco2][6],                        "x_dib_v1_15673"),
+            # (x->x[DIBco2][7],                        "tot_p5chi2_v1_15673"),
                                 
             (x->x[metai],                           "data_pix_cnt"), #this is a DOF proxy, but I think our more careful info/pixel analysis would be better
         ]
@@ -412,14 +420,20 @@ end
         end
         h5write(savename,elename,outmat)
     end
-    
 end
 
-input_list = deserialize("../input_list.jl")
-itarg = Iterators.partition(input_list,10)
-larg = length(itarg)
+batchsize = 40
+iterlst = []
+lenargs = 0
+@showprogress for adjfibindx=295:295 #1:300
+    subiter = deserialize("../2023_04_01/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+    subiterpart = Iterators.partition(subiter,batchsize)
+    lenargs += length(subiterpart)
+    push!(iterlst,subiterpart)
+end
+ittot = Iterators.flatten(iterlst)
 nwork = length(workers())
-println("Batches to Do: $larg, number of workers: $nwork")
+println("Batches to Do: $lenargs, number of workers: $nwork")
 flush(stdout)
 
-@showprogress pmap(multi_spectra_batch,itarg)
+@showprogress pmap(multi_spectra_batch,ittot)
