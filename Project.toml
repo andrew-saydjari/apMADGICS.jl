@@ -1,7 +1,7 @@
 name = "apMADGICS"
 uuid = "3883ed4c-82a0-4091-a108-0ec9373ee70d"
 authors = ["andrew-saydjari"]
-version = "0.1.3"
+version = "0.1.4"
 
 [deps]
 BLISBLAS = "6f275bd8-fec0-4d39-945b-7e95a765fa1e"
