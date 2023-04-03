@@ -37,12 +37,19 @@ function build_visitpath(intup)
     return join([base,tele,field,string(parse(Int,plate)),mjd,file],"/")
 end
 
-function visit2cframe(fname,imid,chip)
+function visit2cframe(fname,tele,imid,chip)
     imids = lpad(imid,8,"0")
-    file = "apCframe-$chip-$imids"*".fits"
-    sname = split(fname,"/")
-    sname[end] = file
-    return join(sname,"/")
+    if tele=="apo25m"
+        file = "apCframe-$chip-$imids"*".fits"
+        sname = split(fname,"/")
+        sname[end] = file
+        return join(sname,"/")
+    else
+        file = "asCframe-$chip-$imids"*".fits"
+        sname = split(fname,"/")
+        sname[end] = file
+        return join(sname,"/")
+    end
 end
 
 function platepath2intuple(plate_path)

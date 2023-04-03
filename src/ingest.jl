@@ -11,7 +11,7 @@ function getSky4visit(intup)
     # idk, seems fairly robust
     frame_lst = getFramesFromPlate(plateFile)
 
-    fname = visit2cframe(vname,frame_lst[1],"a")
+    fname = visit2cframe(vname,tele,frame_lst[1],"a")
     f = FITS(fname)
     objtype = read(f[12],"OBJTYPE")
     close(f)
