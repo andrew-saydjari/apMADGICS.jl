@@ -7,7 +7,7 @@ Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 using Distributed, SlurmClusterManager, Suppressor, ParallelDataTransfer, DataFrames
 addprocs(SlurmManager(launch_timeout=960.0))
 
-@suppress begin
+activateout = @capture_out begin
     @everywhere begin
         import Pkg
         Pkg.activate("./")
@@ -37,9 +37,9 @@ end
 getinfo_worker(workerid::Int) = @getfrom workerid myid(), gethostname()
 idlst = getinfo_worker.(workers()); df = DataFrame(workerid=Int[],hostname=String[]); push!(df,idlst...)
 gdf = groupby(df,:hostname); dfc = combine(gdf, nrow, :workerid => minimum, :workerid => maximum)
-println("Main on $(gethostname())")
+println("$(gethostname()) running Main")
 for row in Tables.namedtupleiterator(dfc)
-    println("Running $(row.nrow) workers on $(row.hostname):$(row.workerid_minimum)->$(row.workerid_maximum)")
+    println("$(row.hostname) running $(row.nrow) workers: $(row.workerid_minimum)->$(row.workerid_maximum)")
 end
 flush(stdout)
 
@@ -441,7 +441,7 @@ end
 
 batchsize = 10 #40
 iterlst = []
-global lenargs = 0
+Base.length(f::Iterators.Flatten) = sum(length, f.it)
 @showprogress for adjfibindx=295:295 #1:300
     subiter = deserialize(prior_dir*"2023_04_01/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
@@ -450,6 +450,7 @@ global lenargs = 0
 end
 ittot = Iterators.flatten(iterlst)
 nwork = length(workers())
+lenargs = length(ittot)
 println("Batches to Do: $lenargs, number of workers: $nwork")
 flush(stdout)
 
