@@ -283,10 +283,13 @@ end
 
         skymsk = chebmsk_exp .& submsk;
 
-        f = h5open(prior_dir*"2023_04_03/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
-        V_starcont = read(f["Vmat"])
-        close(f)
+        # f = h5open(prior_dir*"2023_04_03/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
+        # V_starcont = read(f["Vmat"])
+        # close(f)
 
+        ### THIS IS VERY BAD ### HARD CODED TO 295 FOR TESTING
+        # hard to test and decide to decrease without doing a batch over a large range of stellar types
+        # can consider dropping at the full fiber reduction stage
         f = h5open(prior_dir*"2023_03_30/APOGEE_starcont_svd_150_f295.h5")
         V_starcont = f["Vmat"][:,1:60]
         close(f)
