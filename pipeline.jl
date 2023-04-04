@@ -7,15 +7,6 @@ Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 using Distributed, SlurmClusterManager, Suppressor, ParallelDataTransfer, DataFrames
 addprocs(SlurmManager(launch_timeout=960.0))
 
-# Helpful Worker Info Printing
-getinfo_worker(workerid::Int) = @getfrom workerid myid(), gethostname()
-idlst = getinfo_worker.(workers()); df = DataFrame(workerid=Int[],hostname=String[]); push!(df,idlst...)
-gdf = groupby(df,:hostname); dfc = combine(gdf, nrow, :workerid => minimum, :workerid => maximum)
-for row in Tables.namedtupleiterator(dfc)
-    println("Running $(row.nrow) workers on $(row.hostname):$(row.workerid_minimum)->$(row.workerid_maximum)")
-end
-flush(stdout)
-
 @suppress begin
     @everywhere begin
         import Pkg
@@ -41,6 +32,16 @@ end
     using BLISBLAS
     BLAS.set_num_threads(1)
 end
+
+# Helpful Worker Info Printing
+getinfo_worker(workerid::Int) = @getfrom workerid myid(), gethostname()
+idlst = getinfo_worker.(workers()); df = DataFrame(workerid=Int[],hostname=String[]); push!(df,idlst...)
+gdf = groupby(df,:hostname); dfc = combine(gdf, nrow, :workerid => minimum, :workerid => maximum)
+println("Main on $(gethostname())")
+for row in Tables.namedtupleiterator(dfc)
+    println("Running $(row.nrow) workers on $(row.hostname):$(row.workerid_minimum)->$(row.workerid_maximum)")
+end
+flush(stdout)
 
 println(BLAS.get_config())
 flush(stdout)
@@ -440,11 +441,11 @@ end
 
 batchsize = 10 #40
 iterlst = []
-lenargs = 0
+global lenargs = 0
 @showprogress for adjfibindx=295:295 #1:300
     subiter = deserialize(prior_dir*"2023_04_01/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
-    lenargs += length(subiterpart)
+    global lenargs += length(subiterpart)
     push!(iterlst,subiterpart)
 end
 ittot = Iterators.flatten(iterlst)
