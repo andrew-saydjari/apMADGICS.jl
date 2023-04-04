@@ -4,14 +4,14 @@ function cache_skyname(intup; cache_dir="../local_cache")
     (tele,field,plate,mjd,file,plateFile,fiberindx) = intup
     teleind = (tele == "lco25m") ? 2 : 1
     adjfibindx = (teleind-1)*300 + fiberindx
-    join([cache_dir,lpad(adjfibindx,3,"0"),mjd,join(["sky",tele,field,plate,mjd],"_")],"/")*".jdat"
+    join([cache_dir,mjd,join(["sky",tele,field,plate,mjd],"_")],"/")*".jdat"
 end
 
 function cache_starname(intup; cache_dir="../local_cache")
     (tele,field,plate,mjd,file,plateFile,fiberindx) = intup
     teleind = (tele == "lco25m") ? 2 : 1
     adjfibindx = (teleind-1)*300 + fiberindx
-    join([cache_dir,lpad(adjfibindx,3,"0"),mjd,join(["star",tele,field,plate,mjd,fiberindx],"_")],"/")*".jdat"
+    join([cache_dir,mjd,lpad(adjfibindx,3,"0"),join(["star",tele,field,plate,mjd,fiberindx],"_")],"/")*".jdat"
 end
 
 function getFramesFromPlate(x)
