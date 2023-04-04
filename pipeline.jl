@@ -70,7 +70,7 @@ flush(stdout)
 
     # nothing to do on size here, if anything expand
     f = h5open(prior_dir*"2023_03_07/precomp_dust_2_analyticDeriv.h5")
-    V_dib_noLSF = read(f["Vmat"])
+    global V_dib_noLSF = read(f["Vmat"])
     close(f)
 
     Xd_stack = zeros(3*2048)
@@ -147,7 +147,7 @@ end
                 serialize(starcache,[fvec, fvarvec, cntvec])
             end
         end
-        simplemsk = (cntvec.==maximum(cntvec)) .& skymskg;
+        simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
         fvec./=maximum(cntvec)
         fvarvec./=(maximum(cntvec)^2)
         
@@ -282,37 +282,30 @@ end
 
         ### Need to load the priors here
         f = h5open(prior_dir*"2023_04_01/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
-        V_skycont = read(f["Vmat"])
+        global V_skycont = read(f["Vmat"])
         chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
         close(f)
 
         f = h5open(prior_dir*"2023_04_01/sky_priors/APOGEE_skyline_svd_100_f"*lpad(adjfibindx,3,"0")*".h5")
-        V_skyline = read(f["Vmat"])
+        global V_skyline = read(f["Vmat"])
         submsk = convert.(Bool,read(f["submsk"]))
         close(f)
 
-        global skymskg = chebmsk_exp .& submsk;
+        global skymsk = chebmsk_exp .& submsk;
 
-        # f = h5open(prior_dir*"2023_04_03/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
-        # V_starcont = read(f["Vmat"])
-        # close(f)
-
-        ### THIS IS VERY BAD ### HARD CODED TO 295 FOR TESTING
-        # hard to test and decide to decrease without doing a batch over a large range of stellar types
-        # can consider dropping at the full fiber reduction stage
-        f = h5open(prior_dir*"2023_03_30/APOGEE_starcont_svd_150_f295.h5")
-        V_starcont = f["Vmat"][:,1:60]
+        f = h5open(prior_dir*"2023_04_03/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
+        global V_starcont = read(f["Vmat"])
         close(f)
 
         ### THIS IS VERY BAD ### HARD CODED TO 295 FOR TESTING
         # hard to test and decide to decrease without doing a batch over a large range of stellar types
         # can consider dropping at the full fiber reduction stage
         f = h5open(prior_dir*"2023_03_06/APOGEE_stellar_svd_50_f295_lite_subpix_zerocent.h5")
-        V_subpix = read(f["Vmat"])
+        global V_subpix = read(f["Vmat"])
         close(f)
 
         f = h5open(prior_dir*"2023_04_03/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
-        V_dib = read(f["Vmat"])
+        global V_dib = read(f["Vmat"])
         close(f)
 
         ### Single spectrum loop
