@@ -275,7 +275,9 @@ end
         ### Set up
         out = []
         startind = indsubset[1][1]
+        tele = indsubset[1][2]
         fiberindx = indsubset[1][end]
+        teleind = (tele == "lco25m") ? 2 : 1
         adjfibindx = (teleind-1)*300 + fiberindx
 
         ### Need to load the priors here
@@ -442,14 +444,14 @@ end
 batchsize = 10 #40
 iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
-@showprogress for adjfibindx=295:295 #1:300
-    subiter = deserialize(prior_dir*"2023_04_01/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+for adjfibindx=295:295 #1:300
+    subiter = deserialize(prior_dir*"2023_04_04/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end
 ittot = Iterators.flatten(iterlst)
-nwork = length(workers())
 lenargs = length(ittot)
+nwork = length(workers())
 println("Batches to Do: $lenargs, number of workers: $nwork")
 flush(stdout)
 
