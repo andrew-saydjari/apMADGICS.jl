@@ -147,7 +147,7 @@ end
                 serialize(starcache,[fvec, fvarvec, cntvec])
             end
         end
-        simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
+        simplemsk = (cntvec.==maximum(cntvec)) .& skymskg;
         fvec./=maximum(cntvec)
         fvarvec./=(maximum(cntvec)^2)
         
@@ -291,7 +291,7 @@ end
         submsk = convert.(Bool,read(f["submsk"]))
         close(f)
 
-        skymsk = chebmsk_exp .& submsk;
+        global skymskg = chebmsk_exp .& submsk;
 
         # f = h5open(prior_dir*"2023_04_03/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
         # V_starcont = read(f["Vmat"])
