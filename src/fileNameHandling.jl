@@ -17,11 +17,18 @@ function getFramesFromPlate(x)
     return framenum
 end
 
-function build_framepath(mjd,imid,chip)
+function build_framepath(tele,mjd,imid,chip)
     imids = lpad(imid,8,"0")
-    base = "/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/redux/dr17/exposures/apogee-n"
-    fname = "ap1D-$chip-$imids"*".fits"
-    return join([base,mjd,fname],"/")
+    base = "/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/redux/dr17/exposures"
+    if tele=="apo25m"
+        supfold = "apogee-n"
+        fname = "ap1D-$chip-$imids"*".fits"
+        return join([base,supfold,mjd,fname],"/")
+    else
+        supfold = "apogee-s"
+        fname = "as1D-$chip-$imids"*".fits"
+        return join([base,supfold,mjd,fname],"/")
+    end
 end
 
 function build_visitpath(intup)
@@ -30,12 +37,19 @@ function build_visitpath(intup)
     return join([base,tele,field,string(parse(Int,plate)),mjd,file],"/")
 end
 
-function visit2cframe(fname,imid,chip)
+function visit2cframe(fname,tele,imid,chip)
     imids = lpad(imid,8,"0")
-    file = "apCframe-$chip-$imids"*".fits"
-    sname = split(fname,"/")
-    sname[end] = file
-    return join(sname,"/")
+    if tele=="apo25m"
+        file = "apCframe-$chip-$imids"*".fits"
+        sname = split(fname,"/")
+        sname[end] = file
+        return join(sname,"/")
+    else
+        file = "asCframe-$chip-$imids"*".fits"
+        sname = split(fname,"/")
+        sname[end] = file
+        return join(sname,"/")
+    end
 end
 
 function platepath2intuple(plate_path)
