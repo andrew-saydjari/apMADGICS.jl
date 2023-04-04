@@ -445,7 +445,6 @@ Base.length(f::Iterators.Flatten) = sum(length, f.it)
 @showprogress for adjfibindx=295:295 #1:300
     subiter = deserialize(prior_dir*"2023_04_01/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
-    global lenargs += length(subiterpart)
     push!(iterlst,subiterpart)
 end
 ittot = Iterators.flatten(iterlst)
