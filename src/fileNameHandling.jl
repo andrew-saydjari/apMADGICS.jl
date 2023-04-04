@@ -2,12 +2,16 @@
 
 function cache_skyname(intup; cache_dir="../local_cache")
     (tele,field,plate,mjd,file,plateFile,fiberindx) = intup
-    join([cache_dir,join(["sky",tele,field,plate,mjd],"_")],"/")*".jdat"
+    teleind = (tele == "lco25m") ? 2 : 1
+    adjfibindx = (teleind-1)*300 + fiberindx
+    join([cache_dir,lpad(adjfibindx,3,"0"),mjd,join(["sky",tele,field,plate,mjd],"_")],"/")*".jdat"
 end
 
 function cache_starname(intup; cache_dir="../local_cache")
     (tele,field,plate,mjd,file,plateFile,fiberindx) = intup
-    join([cache_dir,join(["star",tele,field,plate,mjd,fiberindx],"_")],"/")*".jdat"
+    teleind = (tele == "lco25m") ? 2 : 1
+    adjfibindx = (teleind-1)*300 + fiberindx
+    join([cache_dir,lpad(adjfibindx,3,"0"),mjd,join(["star",tele,field,plate,mjd,fiberindx],"_")],"/")*".jdat"
 end
 
 function getFramesFromPlate(x)
@@ -52,9 +56,17 @@ function visit2cframe(fname,tele,imid,chip)
     end
 end
 
-function platepath2intuple(plate_path)
+function plate2visit(plate_path,fiberindx)
+    fibnum = lpad(301-fiberindx,3,"0")
     sname = split(plate_path,"/")
-    field, plate, mjd = sname[end-3], sname[end-2], sname[end-1]
-    file = replace(replace(replace(replace(replace(sname[end],"apPlate"=>"apVisit"),"-a-"=>"-dr17-"),"-b-"=>"-dr17-"),"-c-"=>"-dr17-"),".fits"=>"-006.fits")
-    return ("apo25m",field,plate,mjd,file,295)
+    tele, field, plate, mjd = sname[end-4], sname[end-3], sname[end-2], sname[end-1]
+    file = replace(sname[end],"apPlate"=>"apVisit")
+    file = replace(file,"asPlate"=>"asVisit")
+    
+    file = replace(file,"-a-"=>"-dr17-")
+    file = replace(file,"-b-"=>"-dr17-")
+    file = replace(file,"-c-"=>"-dr17-")
+    
+    file = replace(file,".fits"=>"-"*fibnum*".fits")
+    return file
 end

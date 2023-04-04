@@ -60,6 +60,11 @@ flush(stdout)
     delLog = 6e-6; 
     pixscale = (10^(delLog)-1)*c;
 
+    # nothing to do on size here, if anything expand
+    f = h5open(prior_dir*"2023_03_07/precomp_dust_2_analyticDeriv.h5")
+    V_dib_noLSF = read(f["Vmat"])
+    close(f)
+
     Xd_stack = zeros(3*2048)
     Xd_std_stack = zeros(3*2048)
     waveobs_stack = zeros(3*2048)
@@ -72,43 +77,7 @@ flush(stdout)
     cntvec = zeros(Int,length(wavetarg));
 end
 
-# This overhead is going to depend on fiber number soon, so this will move inside the multispectra wrapper
-@everywhere begin
-    # pretty happy at here, revisit if we incoporate tellurics more consistently
-    f = h5open(prior_dir*"2023_03_30/APOGEE_skycont_svd_150_f295.h5")
-    V_skycont = f["Vmat"][:,1:30]
-    chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
-    close(f)
-
-    # pretty happy here, could be convinced to decrease a little bit
-    f = h5open(prior_dir*"2023_03_30/APOGEE_skyline_svd_150_f295.h5")
-    V_skyline = f["Vmat"][:,1:100]
-    submsk = convert.(Bool,read(f["submsk"]))
-    close(f)
-    
-    skymsk = chebmsk_exp .& submsk;
-
-    f = h5open(prior_dir*"2023_03_30/APOGEE_starcont_svd_150_f295.h5")
-    V_starcont = f["Vmat"][:,1:60]
-    close(f)
-
-    # hard to test and decide to decrease without doing a batch over a large range of stellar types
-    # can consider dropping at the full fiber reduction stage
-    f = h5open(prior_dir*"2023_03_06/APOGEE_stellar_svd_50_f295_lite_subpix_zerocent.h5")
-    V_subpix = read(f["Vmat"])
-    close(f)
-
-    # nothing to do on size here, if anything expand
-    f = h5open(prior_dir*"2023_03_07/precomp_dust_2_analyticDeriv.h5")
-    V_dib_noLSF = read(f["Vmat"])
-    close(f)
-        
-    f = h5open(prior_dir*"2023_03_23/precomp_dust_2_analyticDerivLSF.h5")
-    V_dib = read(f["Vmat"])
-    close(f)
-end
-
-# it would be great to move this into a parameter file that is red for each run
+# it would be great to move this into a parameter file that is read for each run
 @everywhere begin
     refine_iters = 1
     
@@ -147,14 +116,14 @@ end
         if (isfile(skycache) & caching)
             meanLocSky, VLocSky = deserialize(skycache)
         else
-            # try
-                meanLocSky, VLocSky = getSky4visit(intup)
-                if caching
-                    serialize(skycache,[meanLocSky, VLocSky])
+            meanLocSky, VLocSky = getSky4visit(intup)
+            if caching
+                dirName = splitdir(skycache)[1]
+                if !ispath(dirName)
+                    mkpath(dirName)
                 end
-            # catch
-                # println(intup)
-            # end
+                serialize(skycache,[meanLocSky, VLocSky])
+            end
         end
 
         starcache = cache_starname(intup,cache_dir=cache_dir)
@@ -163,6 +132,10 @@ end
         else
             fvec, fvarvec, cntvec = stack_out(intup)
             if caching
+                dirName = splitdir(starcache)[1]
+                if !ispath(dirName)
+                    mkpath(dirName)
+                end
                 serialize(starcache,[fvec, fvarvec, cntvec])
             end
         end
@@ -288,19 +261,54 @@ end
         return out
     end
 end
+
 @everywhere begin
     function multi_spectra_batch(indsubset; out_dir="../outdir")
+        ### Set up
         out = []
         startind = indsubset[1][1]
-        fibnum = indsubset[1][end]
+        fiberindx = indsubset[1][end]
+        adjfibindx = (teleind-1)*300 + fiberindx
 
         ### Need to load the priors here
+        f = h5open(prior_dir*"2023_04_01/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
+        V_skycont = read(f["Vmat"])
+        chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
+        close(f)
 
+        f = h5open(prior_dir*"2023_04_01/sky_priors/APOGEE_skyline_svd_100_f"*lpad(adjfibindx,3,"0")*".h5")
+        V_skyline = read(f["Vmat"])
+        submsk = convert.(Bool,read(f["submsk"]))
+        close(f)
+
+        skymsk = chebmsk_exp .& submsk;
+
+        f = h5open(prior_dir*"2023_04_03/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
+        V_starcont = read(f["Vmat"])
+        close(f)
+
+        f = h5open(prior_dir*"2023_03_30/APOGEE_starcont_svd_150_f295.h5")
+        V_starcont = f["Vmat"][:,1:60]
+        close(f)
+
+        ### THIS IS VERY BAD ### HARD CODED TO 295 FOR TESTING
+        # hard to test and decide to decrease without doing a batch over a large range of stellar types
+        # can consider dropping at the full fiber reduction stage
+        f = h5open(prior_dir*"2023_03_06/APOGEE_stellar_svd_50_f295_lite_subpix_zerocent.h5")
+        V_subpix = read(f["Vmat"])
+        close(f)
+
+        f = h5open(prior_dir*"2023_04_03/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
+        V_dib = read(f["Vmat"])
+        close(f)
+
+        ### Single spectrum loop
         for (ind,indval) in enumerate(indsubset)
             push!(out,pipeline_single_spectra(indval; caching=true))
         end
 
-        savename = join([out_dir,lpad(fibnum,3,"0"),"apMADGICS_fiber_"*lpad(fibnum,3,"0")*"_batch_"*lpad(startind,7,"0")*".h5"],"/")
+        ### Save handling (could improve cleanliness)
+        savename = join([out_dir,lpad(adjfibindx,3,"0"),"apMADGICS_fiber_"*lpad(adjfibindx,3,"0")*"_batch_"*lpad(startind,7,"0")*".h5"],"/")
         dirName = splitdir(savename)[1]
         if !ispath(dirName)
             mkpath(dirName)
@@ -400,11 +408,9 @@ end
                 "pipeline"=>"apMADGICS.jl",
                 "git_branch"=>git_branch,   
                 "git_commit"=>git_commit,
-        )
-                        
+        )           
         h5write(savename,"hdr","This is only a header")
-        h5writeattr(savename,"hdr",hdr_dict)
-                        
+        h5writeattr(savename,"hdr",hdr_dict)        
         for elelst in extractlst
             extractor(out,elelst[1],elelst[2],savename)
         end
@@ -422,7 +428,7 @@ end
     end
 end
 
-batchsize = 40
+batchsize = 10 #40
 iterlst = []
 lenargs = 0
 @showprogress for adjfibindx=295:295 #1:300
