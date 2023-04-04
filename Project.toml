@@ -5,6 +5,7 @@ version = "0.1.4"
 
 [deps]
 BLISBLAS = "6f275bd8-fec0-4d39-945b-7e95a765fa1e"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 EllipsisNotation = "da5c29d0-fa7d-589e-88eb-ea29b0a81949"
 FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
@@ -20,6 +21,7 @@ ShiftedArrays = "1277b4bf-5013-50f5-be3d-901d8477a67a"
 SlurmClusterManager = "c82cd089-7bf7-41d7-976b-6b5d413cbe0a"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 
 [compat]
 BLISBLAS = "0.1"
@@ -36,8 +38,8 @@ StatsBase = "0.33"
 julia = "1.6"
 
 [extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test","Random"]
+test = ["Test", "Random"]

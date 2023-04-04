@@ -17,3 +17,7 @@
 # ------------------------------------------------------------------------------
 
 julia pipeline.jl
+
+mkdir -p slurm_logs
+mv ${SLURM_JOB_NAME}_${SLURM_JOBID}.out slurm_logs/${SLURM_JOB_NAME}_${SLURM_JOBID}.out
+mv ${SLURM_JOB_NAME}_${SLURM_JOBID}.err slurm_logs/${SLURM_JOB_NAME}_${SLURM_JOBID}.err
