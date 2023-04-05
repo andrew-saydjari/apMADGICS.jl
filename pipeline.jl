@@ -205,7 +205,7 @@ end
             (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_c),
         )
         push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 3
-        x_comp_out = [nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
+        x_comp_out = [nanify(x_comp_lst[1],simplemsk)./sqrt.(fvarvec), nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
                         nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk),
                         x_comp_lst[5:end]...]
         push!(out,x_comp_out) # 4
@@ -257,7 +257,7 @@ end
             # I am not sure that during production we really want to run and output full sets of components per DIB
             # I would like to fill NaNs in chip gaps for the sky/continuum components
             # revisit that when we revisit the interpolations before making other fiber priors
-            x_comp_out = [nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
+            x_comp_out = [nanify(x_comp_lst[1],simplemsk)./sqrt.(fvarvec), nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
                         nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk),
                         x_comp_lst[5:end]...]
 
@@ -327,6 +327,7 @@ end
         RVextract = [
             # meta info
             (x->x[metai],                           "data_pix_cnt"), #this is a DOF proxy, but I think our more careful info/pixel analysis would be better
+            (x->adjfibindx,                         "adjfiberindx"),
 
             (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
             (x->x[RVind][1][2],                     "RV_minchi2_final"),
@@ -339,12 +340,13 @@ end
             (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
             (x->x[RVind][2][3][3],                  "RV_p5delchi2_lvl3"),
 
-            (x->x[RVcom][1],                        "x_residuals_v0"),
-            (x->x[RVcom][2],                        "x_skyLines_v0"),
-            (x->x[RVcom][3],                        "x_skyContinuum_v0"),
-            (x->x[RVcom][4],                        "x_starContinuum_v0"),
-            (x->x[RVcom][5],                        "x_starLines_v0"),
-            (x->x[RVcom][6],                        "tot_p5chi2_v0"),       
+            (x->x[RVcom][1],                        "x_residuals_z_v0"),
+            (x->x[RVcom][2],                        "x_residuals_v0"),
+            (x->x[RVcom][3],                        "x_skyLines_v0"),
+            (x->x[RVcom][4],                        "x_skyContinuum_v0"),
+            (x->x[RVcom][5],                        "x_starContinuum_v0"),
+            (x->x[RVcom][6],                        "x_starLines_v0"),
+            (x->x[RVcom][7],                        "tot_p5chi2_v0"),       
                                 
             (x->x[strpo],                           "x_starLines_err_v0"),    
         ]
@@ -356,7 +358,7 @@ end
             # Further chi2 refinement does not have fixed sizing because can hit grid edge
             (x->Float64.(x[DIBind+dibsavesz*(dibindx-1)][1][1][1]),        "DIB_pixoff_final_$dib"),
             (x->Float64.(x[DIBind+dibsavesz*(dibindx-1)][1][1][2]),        "DIB_sigval_final_$dib"),
-            (x->x[DIBind+dibsavesz*(dibindx-1)][1][2],                     "DIB_minchi2_final_1$dib"),
+            (x->x[DIBind+dibsavesz*(dibindx-1)][1][2],                     "DIB_minchi2_final_$dib"),
             (x->x[DIBind+dibsavesz*(dibindx-1)][1][6],                     "DIB_flag_$dib"),
             (x->[x[DIBind+dibsavesz*(dibindx-1)][1][7:11]...],             "DIB_hess_var_$dib"),
                                 
@@ -369,13 +371,14 @@ end
                                 
             (x->x[DIBchi+dibsavesz*(dibindx-1)][1],                        "DIBchi2_residuals_$dib"),
 
-            (x->x[DIBcom+dibsavesz*(dibindx-1)][1],                        "x_residuals_v1_$dib"),
-            (x->x[DIBcom+dibsavesz*(dibindx-1)][2],                        "x_skyLines_v1_$dib"),
-            (x->x[DIBcom+dibsavesz*(dibindx-1)][3],                        "x_skyContinuum_v1_$dib"),
-            (x->x[DIBcom+dibsavesz*(dibindx-1)][4],                        "x_starContinuum_v1_$dib"),
-            (x->x[DIBcom+dibsavesz*(dibindx-1)][5],                        "x_starLines_v1_$dib"),
-            (x->x[DIBcom+dibsavesz*(dibindx-1)][6],                        "x_dib_v1_$dib"),
-            (x->x[DIBcom+dibsavesz*(dibindx-1)][7],                        "tot_p5chi2_v1_$dib"),
+            (x->x[DIBcom+dibsavesz*(dibindx-1)][1],                        "x_residuals_z_v1_$dib"),
+            (x->x[DIBcom+dibsavesz*(dibindx-1)][2],                        "x_residuals_v1_$dib"),
+            (x->x[DIBcom+dibsavesz*(dibindx-1)][3],                        "x_skyLines_v1_$dib"),
+            (x->x[DIBcom+dibsavesz*(dibindx-1)][4],                        "x_skyContinuum_v1_$dib"),
+            (x->x[DIBcom+dibsavesz*(dibindx-1)][5],                        "x_starContinuum_v1_$dib"),
+            (x->x[DIBcom+dibsavesz*(dibindx-1)][6],                        "x_starLines_v1_$dib"),
+            (x->x[DIBcom+dibsavesz*(dibindx-1)][7],                        "x_dib_v1_$dib"),
+            (x->x[DIBcom+dibsavesz*(dibindx-1)][8],                        "tot_p5chi2_v1_$dib"),
             ])
         end
         extractlst = vcat(RVextract...,DIBextract...)
