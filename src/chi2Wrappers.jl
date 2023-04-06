@@ -9,13 +9,13 @@ minoffset0  = round(Int,sigrng[1] / sigstep0)-1
 sigScanFun(x; step = sigstep0, minoffset = minoffset0)  = round(Int,x / step) .-minoffset
 
 #MDispatch to handle nothing finds (suspect missing chip case)
-function slicer(lindx::Int,rindx::Int,widx::Int)
+function slicer(lindx::Int,rindx::Int,widx)
     return lindx:rindx
 end
-function slicer(lindx::Int,rindx::Nothing,widx::Int)
+function slicer(lindx::Int,rindx::Nothing,widx)
     return lindx:(lindx+widx)
 end
-function slicer(lindx::Nothing,rindx::Int,widx::Int)
+function slicer(lindx::Nothing,rindx::Int,widx)
     return (rindx-widx):rindx
 end
 
