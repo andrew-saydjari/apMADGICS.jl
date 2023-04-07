@@ -25,6 +25,7 @@ Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 
 [compat]
 BLISBLAS = "0.1"
+DataFrames = "1"
 EllipsisNotation = "1"
 FITSIO = "0.17"
 HDF5 = "0.16"
