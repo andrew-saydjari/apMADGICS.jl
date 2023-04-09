@@ -282,118 +282,120 @@ end
         teleind = (tele == "lco25m") ? 2 : 1
         adjfibindx = (teleind-1)*300 + fiberindx
 
-        ### Need to load the priors here
-        f = h5open(prior_dir*"2023_04_01/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
-        global V_skycont = read(f["Vmat"])
-        chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
-        close(f)
-
-        f = h5open(prior_dir*"2023_04_01/sky_priors/APOGEE_skyline_svd_100_f"*lpad(adjfibindx,3,"0")*".h5")
-        global V_skyline = read(f["Vmat"])
-        submsk = convert.(Bool,read(f["submsk"]))
-        close(f)
-
-        global skymsk = chebmsk_exp .& submsk;
-
-        f = h5open(prior_dir*"2023_04_04/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
-        global V_starcont = read(f["Vmat"])
-        close(f)
-
-        # can consider changing dimension at the full DR17 reduction stage
-        f = h5open(prior_dir*"2023_04_05/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
-        global V_subpix = read(f["Vmat"])
-        close(f)
-
-        f = h5open(prior_dir*"2023_04_03/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
-        global V_dib = read(f["Vmat"])
-        close(f)
-
-        ### Single spectrum loop
-        for (ind,indval) in enumerate(indsubset)
-            push!(out,pipeline_single_spectra(indval; caching=true))
-        end
-
-        ### Save handling
+        ### Save and cache restart handling
         savename = join([out_dir,lpad(adjfibindx,3,"0"),"apMADGICS_fiber_"*lpad(adjfibindx,3,"0")*"_batch_"*lpad(startind,7,"0")*".h5"],"/")
         dirName = splitdir(savename)[1]
         if !ispath(dirName)
             mkpath(dirName)
         end
+        if !isfile(savename)
+            ### Need to load the priors here
+            f = h5open(prior_dir*"2023_04_01/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
+            global V_skycont = read(f["Vmat"])
+            chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
+            close(f)
 
-        metai = 1
-        RVind, RVchi, RVcom, strpo = 2, 3, 4, 5
-        DIBind, EWind, DIBchi, DIBcom = 6, 7, 8, 9
-        dibsavesz = 4
+            f = h5open(prior_dir*"2023_04_01/sky_priors/APOGEE_skyline_svd_100_f"*lpad(adjfibindx,3,"0")*".h5")
+            global V_skyline = read(f["Vmat"])
+            submsk = convert.(Bool,read(f["submsk"]))
+            close(f)
 
-        ## RV Block
-        RVextract = [
-            # meta info
-            (x->x[metai],                           "data_pix_cnt"), #this is a DOF proxy, but I think our more careful info/pixel analysis would be better
-            (x->adjfibindx,                         "adjfiberindx"),
+            global skymsk = chebmsk_exp .& submsk;
 
-            (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
-            (x->x[RVind][1][2],                     "RV_minchi2_final"),
-            (x->x[RVind][1][6],                     "RV_flag"),
-            (x->x[RVind][1][7],                     "RV_pix_var"),
-                                
-            (x->x[RVchi][1],                        "RVchi2_residuals"),
-                                
-            (x->x[RVind][2][1][3],                  "RV_p5delchi2_lvl1"),
-            (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
-            (x->x[RVind][2][3][3],                  "RV_p5delchi2_lvl3"),
+            f = h5open(prior_dir*"2023_04_04/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
+            global V_starcont = read(f["Vmat"])
+            close(f)
 
-            (x->x[RVcom][1],                        "x_residuals_z_v0"),
-            (x->x[RVcom][2],                        "x_residuals_v0"),
-            (x->x[RVcom][3],                        "x_skyLines_v0"),
-            (x->x[RVcom][4],                        "x_skyContinuum_v0"),
-            (x->x[RVcom][5],                        "x_starContinuum_v0"),
-            (x->x[RVcom][6],                        "x_starLines_v0"),
-            (x->x[RVcom][7],                        "tot_p5chi2_v0"),       
-                                
-            (x->x[strpo],                           "x_starLines_err_v0"),    
-        ]
-        ## DIB Block
-        DIBextract = []
-        for (dibindx,dibw) in enumerate(dib_center_lst)
-            dib = string(round(Int,dibw))
-            push!(DIBextract,[
-            # Further chi2 refinement does not have fixed sizing because can hit grid edge
-            (x->Float64.(x[DIBind+dibsavesz*(dibindx-1)][1][1][1]),        "DIB_pixoff_final_$dib"),
-            (x->Float64.(x[DIBind+dibsavesz*(dibindx-1)][1][1][2]),        "DIB_sigval_final_$dib"),
-            (x->x[DIBind+dibsavesz*(dibindx-1)][1][2],                     "DIB_minchi2_final_$dib"),
-            (x->x[DIBind+dibsavesz*(dibindx-1)][1][6],                     "DIB_flag_$dib"),
-            (x->[x[DIBind+dibsavesz*(dibindx-1)][1][7:11]...],             "DIB_hess_var_$dib"),
-                                
-            (x->x[DIBind+dibsavesz*(dibindx-1)][2][1][3],                  "DIB_p5delchi2_lvl1_$dib"),
-            (x->x[DIBind+dibsavesz*(dibindx-1)][2][2][3],                  "DIB_p5delchi2_lvl2_$dib"),
-            (x->x[DIBind+dibsavesz*(dibindx-1)][2][3][3],                  "DIB_p5delchi2_lvl3_$dib"),
+            # can consider changing dimension at the full DR17 reduction stage
+            f = h5open(prior_dir*"2023_04_05/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+            global V_subpix = read(f["Vmat"])
+            close(f)
 
-            (x->x[EWind+dibsavesz*(dibindx-1)][1],                         "EW_dib_$dib"),
-            (x->x[EWind+dibsavesz*(dibindx-1)][2],                         "EW_dib_err_$dib"),
-                                
-            (x->x[DIBchi+dibsavesz*(dibindx-1)][1],                        "DIBchi2_residuals_$dib"),
+            f = h5open(prior_dir*"2023_04_03/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
+            global V_dib = read(f["Vmat"])
+            close(f)
 
-            (x->x[DIBcom+dibsavesz*(dibindx-1)][1],                        "x_residuals_z_v1_$dib"),
-            (x->x[DIBcom+dibsavesz*(dibindx-1)][2],                        "x_residuals_v1_$dib"),
-            (x->x[DIBcom+dibsavesz*(dibindx-1)][3],                        "x_skyLines_v1_$dib"),
-            (x->x[DIBcom+dibsavesz*(dibindx-1)][4],                        "x_skyContinuum_v1_$dib"),
-            (x->x[DIBcom+dibsavesz*(dibindx-1)][5],                        "x_starContinuum_v1_$dib"),
-            (x->x[DIBcom+dibsavesz*(dibindx-1)][6],                        "x_starLines_v1_$dib"),
-            (x->x[DIBcom+dibsavesz*(dibindx-1)][7],                        "x_dib_v1_$dib"),
-            (x->x[DIBcom+dibsavesz*(dibindx-1)][8],                        "tot_p5chi2_v1_$dib"),
-            ])
-        end
-        extractlst = vcat(RVextract...,DIBextract...)
-             
-        hdr_dict = Dict(   
-                "pipeline"=>"apMADGICS.jl",
-                "git_branch"=>git_branch,   
-                "git_commit"=>git_commit,
-        )           
-        h5write(savename,"hdr","This is only a header")
-        h5writeattr(savename,"hdr",hdr_dict)        
-        for elelst in extractlst
-            extractor(out,elelst[1],elelst[2],savename)
+            ### Single spectrum loop
+            for (ind,indval) in enumerate(indsubset)
+                push!(out,pipeline_single_spectra(indval; caching=true))
+            end
+
+            ### Save Exporting
+            metai = 1
+            RVind, RVchi, RVcom, strpo = 2, 3, 4, 5
+            DIBind, EWind, DIBchi, DIBcom = 6, 7, 8, 9
+            dibsavesz = 4
+
+            ## RV Block
+            RVextract = [
+                # meta info
+                (x->x[metai],                           "data_pix_cnt"), #this is a DOF proxy, but I think our more careful info/pixel analysis would be better
+                (x->adjfibindx,                         "adjfiberindx"),
+
+                (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
+                (x->x[RVind][1][2],                     "RV_minchi2_final"),
+                (x->x[RVind][1][6],                     "RV_flag"),
+                (x->x[RVind][1][7],                     "RV_pix_var"),
+                                    
+                (x->x[RVchi][1],                        "RVchi2_residuals"),
+                                    
+                (x->x[RVind][2][1][3],                  "RV_p5delchi2_lvl1"),
+                (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
+                (x->x[RVind][2][3][3],                  "RV_p5delchi2_lvl3"),
+
+                (x->x[RVcom][1],                        "x_residuals_z_v0"),
+                (x->x[RVcom][2],                        "x_residuals_v0"),
+                (x->x[RVcom][3],                        "x_skyLines_v0"),
+                (x->x[RVcom][4],                        "x_skyContinuum_v0"),
+                (x->x[RVcom][5],                        "x_starContinuum_v0"),
+                (x->x[RVcom][6],                        "x_starLines_v0"),
+                (x->x[RVcom][7],                        "tot_p5chi2_v0"),       
+                                    
+                (x->x[strpo],                           "x_starLines_err_v0"),    
+            ]
+            ## DIB Block
+            DIBextract = []
+            for (dibindx,dibw) in enumerate(dib_center_lst)
+                dib = string(round(Int,dibw))
+                push!(DIBextract,[
+                # Further chi2 refinement does not have fixed sizing because can hit grid edge
+                (x->Float64.(x[DIBind+dibsavesz*(dibindx-1)][1][1][1]),        "DIB_pixoff_final_$dib"),
+                (x->Float64.(x[DIBind+dibsavesz*(dibindx-1)][1][1][2]),        "DIB_sigval_final_$dib"),
+                (x->x[DIBind+dibsavesz*(dibindx-1)][1][2],                     "DIB_minchi2_final_$dib"),
+                (x->x[DIBind+dibsavesz*(dibindx-1)][1][6],                     "DIB_flag_$dib"),
+                (x->[x[DIBind+dibsavesz*(dibindx-1)][1][7:11]...],             "DIB_hess_var_$dib"),
+                                    
+                (x->x[DIBind+dibsavesz*(dibindx-1)][2][1][3],                  "DIB_p5delchi2_lvl1_$dib"),
+                (x->x[DIBind+dibsavesz*(dibindx-1)][2][2][3],                  "DIB_p5delchi2_lvl2_$dib"),
+                (x->x[DIBind+dibsavesz*(dibindx-1)][2][3][3],                  "DIB_p5delchi2_lvl3_$dib"),
+
+                (x->x[EWind+dibsavesz*(dibindx-1)][1],                         "EW_dib_$dib"),
+                (x->x[EWind+dibsavesz*(dibindx-1)][2],                         "EW_dib_err_$dib"),
+                                    
+                (x->x[DIBchi+dibsavesz*(dibindx-1)][1],                        "DIBchi2_residuals_$dib"),
+
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][1],                        "x_residuals_z_v1_$dib"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][2],                        "x_residuals_v1_$dib"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][3],                        "x_skyLines_v1_$dib"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][4],                        "x_skyContinuum_v1_$dib"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][5],                        "x_starContinuum_v1_$dib"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][6],                        "x_starLines_v1_$dib"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][7],                        "x_dib_v1_$dib"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][8],                        "tot_p5chi2_v1_$dib"),
+                ])
+            end
+            extractlst = vcat(RVextract...,DIBextract...)
+                
+            hdr_dict = Dict(   
+                    "pipeline"=>"apMADGICS.jl",
+                    "git_branch"=>git_branch,   
+                    "git_commit"=>git_commit,
+            )           
+            h5write(savename,"hdr","This is only a header")
+            h5writeattr(savename,"hdr",hdr_dict)        
+            for elelst in extractlst
+                extractor(out,elelst[1],elelst[2],savename)
+            end
         end
     end
 

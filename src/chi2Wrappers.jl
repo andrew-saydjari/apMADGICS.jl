@@ -8,6 +8,17 @@ sigstep0 = step(sigrng)
 minoffset0  = round(Int,sigrng[1] / sigstep0)-1
 sigScanFun(x; step = sigstep0, minoffset = minoffset0)  = round(Int,x / step) .-minoffset
 
+#MDispatch to handle nothing finds (suspect missing chip case)
+function slicer(lindx::Int,rindx::Int,widx)
+    return lindx:rindx
+end
+function slicer(lindx::Int,rindx::Nothing,widx)
+    return lindx:(lindx+widx)
+end
+function slicer(lindx::Nothing,rindx::Int,widx)
+    return (rindx-widx):rindx
+end
+
 # passing Vcomb_0 is new to some of the codes, we need to revisit having to pass these intups
 function chi2_wrapper2d(svals,intup;sigslice=4)
     sval1, sval2 = svals
@@ -20,7 +31,8 @@ function chi2_wrapper2d(svals,intup;sigslice=4)
     # calculate window where DIB has support (speed up computation)
     lindx = findfirst(wave_obs .>= (new_center*10^(sval1*6e-6) - sigslice*sval2))
     rindx = findlast(wave_obs .<= (new_center*10^(sval1*6e-6) + sigslice*sval2))
-    slrng = lindx:rindx
+    widx = round(Int,sigslice*sval2/0.22)
+    slrng = slicer(lindx,rindx,widx)
     pre_Vslice .= view(ShiftedArrays.circshift(view(V_new,:,:,sigindx,tval),(rval,0)),simplemsk,:)
     pre_Vslice .*= Dscale 
     return woodbury_update_inv_tst_sub(
