@@ -4,7 +4,7 @@
 import Pkg
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 
-using Distributed, SlurmClusterManager, Suppressor, ParallelDataTransfer, DataFrames
+using Distributed, SlurmClusterManager, Suppressor, DataFrames
 addprocs(SlurmManager(launch_timeout=960.0))
 
 activateout = @capture_out begin
@@ -15,7 +15,7 @@ activateout = @capture_out begin
 end
 
 @everywhere begin
-    using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays, ParallelDataTransfer
+    using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays, ParallelDataTransfer, ThreadPinning
     prior_dir = "../../"
     src_dir = "./"
     include(src_dir*"src/utils.jl")
@@ -33,13 +33,20 @@ end
     BLAS.set_num_threads(1)
 end
 
+# Task-Affinity CPU Locking in multinode SlurmContext
+getinfo_worker(workerid::Int) = @getfrom workerid myid(), ThreadPinning.sched_getcpu(), gethostname()
+idlst = getinfo_worker.(workers()); df = DataFrame(workerid=Int[],physcpu=Int[],hostname=String[]); push!(df,idlst...)
+gdf = groupby(df,:hostname)
+for sgdf in gdf, (sindx, sworker) in enumerate(sgdf.workerid)
+    sendto(sworker, sindx=sindx)
+    @spawnat sworker ThreadPinning.pinthread(sindx-1)
+end
 # Helpful Worker Info Printing
-getinfo_worker(workerid::Int) = @getfrom workerid myid(), gethostname()
-idlst = getinfo_worker.(workers()); df = DataFrame(workerid=Int[],hostname=String[]); push!(df,idlst...)
-gdf = groupby(df,:hostname); dfc = combine(gdf, nrow, :workerid => minimum, :workerid => maximum)
-println("$(gethostname()) running Main")
+idlst = getinfo_worker.(workers()); df = DataFrame(workerid=Int[],physcpu=Int[],hostname=String[]); push!(df,idlst...)
+gdf = groupby(df,:hostname); dfc = combine(gdf, nrow, :workerid => minimum, :workerid => maximum, :physcpu => minimum, :physcpu => maximum)
+println("$(gethostname()) running Main on worker: $(myid()) cpu: $(ThreadPinning.sched_getcpu())")
 for row in Tables.namedtupleiterator(dfc)
-    println("$(row.hostname) running $(row.nrow) workers: $(row.workerid_minimum)->$(row.workerid_maximum)")
+    println("$(row.hostname) running $(row.nrow) workers: $(row.workerid_minimum)->$(row.workerid_maximum) cpus: $(row.physcpu_minimum)->$(row.physcpu_maximum)")
 end
 flush(stdout)
 
@@ -414,7 +421,7 @@ end
 batchsize = 10 #40
 iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
-for adjfibindx=1:300
+for adjfibindx=295:295 #1:300
     subiter = deserialize(prior_dir*"2023_04_04/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
