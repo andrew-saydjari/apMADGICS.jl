@@ -1,4 +1,4 @@
-# apMADGICS
+# apMADGICS <img src="docs/src/assets/logo.png" alt="MADGICS Logo" width="100" align="right"/>
 
 [![Build Status](https://github.com/andrew-saydjari/apMADGICS.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/andrew-saydjari/apMADGICS.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/andrew-saydjari/apMADGICS.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/andrew-saydjari/apMADGICS.jl)
