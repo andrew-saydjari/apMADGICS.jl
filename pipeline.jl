@@ -218,7 +218,7 @@ end
             (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_c),
         )
         push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 3
-        x_comp_out = [nanify(simplemsk[simplemsk],simplemsk)./fvarvec, nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
+        x_comp_out = [nanify(ones(count(simplemsk)),simplemsk)./fvarvec, nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
                         nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk),
                         x_comp_lst[5:end]...]
         push!(out,x_comp_out) # 4
@@ -270,7 +270,7 @@ end
             # I am not sure that during production we really want to run and output full sets of components per DIB
             # I would like to fill NaNs in chip gaps for the sky/continuum components
             # revisit that when we revisit the interpolations before making other fiber priors
-            x_comp_out = [nanify(simplemsk[simplemsk],simplemsk)./fvarvec, nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
+            x_comp_out = [nanify(ones(count(simplemsk)),simplemsk)./fvarvec, nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
                         nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk),
                         x_comp_lst[5:end]...] #now this 1/variance is redundant
 
@@ -352,7 +352,7 @@ end
                 (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
                 (x->x[RVind][2][3][3],                  "RV_p5delchi2_lvl3"),
 
-                (x->x[RVcom][1],                        "x_residuals_z_v0"),
+                (x->x[RVcom][1],                        "x_ivar_v0"),
                 (x->x[RVcom][2],                        "x_residuals_v0"),
                 (x->x[RVcom][3],                        "x_skyLines_v0"),
                 (x->x[RVcom][4],                        "x_skyContinuum_v0"),
@@ -383,7 +383,7 @@ end
                                     
                 (x->x[DIBchi+dibsavesz*(dibindx-1)][1],                        "DIBchi2_residuals_$dib"),
 
-                (x->x[DIBcom+dibsavesz*(dibindx-1)][1],                        "x_residuals_z_v1_$dib"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][1],                        "x_ivar_v1_$dib"),
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][2],                        "x_residuals_v1_$dib"),
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][3],                        "x_skyLines_v1_$dib"),
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][4],                        "x_skyContinuum_v1_$dib"),
