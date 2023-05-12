@@ -16,7 +16,8 @@ end
 
 @everywhere begin
     using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays, ParallelDataTransfer, ThreadPinning
-    prior_dir = "../../"
+    prior_dir = "/uufs/chpc.utah.edu/common/home/u6039752/scratch/working/"
+    prior_dir2 = "/uufs/chpc.utah.edu/common/home/u6039752/scratch1/working/"
     src_dir = "./"
     include(src_dir*"src/utils.jl")
     include(src_dir*"src/gridSearch.jl")
@@ -80,8 +81,9 @@ flush(stdout)
     global V_dib_noLSF = read(f["Vmat"])
     close(f)
 
-    f = h5open(prior_dir*"2023_04_05/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
-    global V_subpix_refLSF = read(f["Vmat"])
+    alpha = 1;
+    f = h5open(prior_dir2*"2023_05_10/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
+    global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
     Xd_stack = zeros(3*2048)
@@ -314,8 +316,8 @@ end
             close(f)
 
             # can consider changing dimension at the full DR17 reduction stage
-            f = h5open(prior_dir*"2023_04_05/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
-            global V_subpix = read(f["Vmat"])
+            f = h5open(prior_dir2*"2023_05_10/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+            global V_subpix = alpha*read(f["Vmat"])
             close(f)
 
             f = h5open(prior_dir*"2023_04_03/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
@@ -421,7 +423,7 @@ end
 batchsize = 10 #40
 iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
-for adjfibindx=301:600
+for adjfibindx=295:295
     subiter = deserialize(prior_dir*"2023_04_04/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
