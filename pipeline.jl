@@ -82,7 +82,7 @@ flush(stdout)
     close(f)
 
     alpha = 1;
-    f = h5open(prior_dir2*"2023_05_10/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
+    f = h5open(prior_dir2*"2023_04_05/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
@@ -218,7 +218,7 @@ end
             (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_c),
         )
         push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 3
-        x_comp_out = [nanify(x_comp_lst[1],simplemsk)./sqrt.(fvarvec), nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
+        x_comp_out = [nanify(simplemsk[simplemsk],simplemsk)./fvarvec, nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
                         nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk),
                         x_comp_lst[5:end]...]
         push!(out,x_comp_out) # 4
@@ -270,9 +270,9 @@ end
             # I am not sure that during production we really want to run and output full sets of components per DIB
             # I would like to fill NaNs in chip gaps for the sky/continuum components
             # revisit that when we revisit the interpolations before making other fiber priors
-            x_comp_out = [nanify(x_comp_lst[1],simplemsk)./sqrt.(fvarvec), nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
+            x_comp_out = [nanify(simplemsk[simplemsk],simplemsk)./fvarvec, nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
                         nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk),
-                        x_comp_lst[5:end]...]
+                        x_comp_lst[5:end]...] #now this 1/variance is redundant
 
             push!(out,x_comp_out) # 9
         end
@@ -316,7 +316,7 @@ end
             close(f)
 
             # can consider changing dimension at the full DR17 reduction stage
-            f = h5open(prior_dir2*"2023_05_10/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+            f = h5open(prior_dir2*"2023_04_05/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
             global V_subpix = alpha*read(f["Vmat"])
             close(f)
 
