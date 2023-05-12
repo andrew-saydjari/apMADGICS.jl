@@ -82,7 +82,7 @@ flush(stdout)
     close(f)
 
     alpha = 1;
-    f = h5open(prior_dir2*"2023_04_05/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
+    f = h5open(prior_dir*"2023_04_05/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
@@ -316,7 +316,7 @@ end
             close(f)
 
             # can consider changing dimension at the full DR17 reduction stage
-            f = h5open(prior_dir2*"2023_04_05/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+            f = h5open(prior_dir*"2023_04_05/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
             global V_subpix = alpha*read(f["Vmat"])
             close(f)
 
