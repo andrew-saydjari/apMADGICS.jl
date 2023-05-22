@@ -304,12 +304,12 @@ end
         end
         if !isfile(savename)
             ### Need to load the priors here
-            f = h5open(prior_dir*"2023_04_01/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
+            f = h5open(prior_dir2*"2023_05_21/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
             global V_skycont = read(f["Vmat"])
             chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
             close(f)
 
-            f = h5open(prior_dir*"2023_04_01/sky_priors/APOGEE_skyline_svd_100_f"*lpad(adjfibindx,3,"0")*".h5")
+            f = h5open(prior_dir2*"2023_05_21/sky_priors/APOGEE_skyline_svd_100_f"*lpad(adjfibindx,3,"0")*".h5")
             global V_skyline = read(f["Vmat"])
             submsk = convert.(Bool,read(f["submsk"]))
             close(f)
