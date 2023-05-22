@@ -79,6 +79,23 @@ function update_Ctotinv_Vstarstarlines_asym(svald,Ainv,simplemsk,Dscale,Vcomb_0,
     return Ctotinv, Vcomb, V_starlines_c, V_starlines_r
 end
 
+function update_Ctotinv_Vstarstarlines2_asym(svald,Ainv,simplemsk,Dscale,Vcomb_0,V_starlines,V_starlines_refLSF,V_cor)
+    rval = indInt(svald)
+    tval = indTenth(svald)
+
+    V_starlines_c = circshift(view(V_starlines_refLSF,:,:,tval),(rval,0)) # this needs NaNs or something... VBAD
+    V_starlines_r = ShiftedArrays.circshift(view(V_starlines,:,:,tval),(rval,0))[simplemsk,:]
+    V_starlines_r .*= Dscale
+
+    V_cor_c = circshift(view(V_cor,:,:,tval),(rval,0)) # this needs NaNs or something... VBAD
+    V_cor_r = ShiftedArrays.circshift(view(V_cor,:,:,tval),(rval,0))[simplemsk,:]
+    V_cor_r .*= Dscale
+
+    Vcomb = hcat(Vcomb_0,V_starlines_r,V_cor_r);
+    Ctotinv = LowRankMultMat([Ainv,Vcomb],wood_precomp_mult,wood_fxn_mult);
+    return Ctotinv, Vcomb, V_starlines_c, V_starlines_r, V_cor_c, V_cor_r
+end
+
 function update_Ctotinv_Vdib(samp_tup,Ainv,simplemsk,Dscale,Vcomb_0,V_dib,scan_offset)
     (svald,sigvald) = samp_tup
     rval = indInt(svald+scan_offset)
