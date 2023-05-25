@@ -316,7 +316,7 @@ end
 
             global skymsk = chebmsk_exp .& submsk .& msk_starCor;
 
-            f = h5open(prior_dir*"2023_04_04/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
+            f = h5open(prior_dir2*"2023_05_24/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
             global V_starcont = read(f["Vmat"])
             close(f)
 
