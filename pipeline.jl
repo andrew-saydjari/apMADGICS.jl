@@ -86,7 +86,7 @@ flush(stdout)
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
-    f = h5open(prior_dir2*"2023_05_12/APOGEE_starCor_svd_10_subpix.h5")
+    f = h5open(prior_dir2*"2023_05_26/APOGEE_starCor_svd_50_subpix.h5")
     global V_subpix_cor = read(f["Vmat"])
     global msk_starCor = convert.(Bool,read(f["msk_starCor"]))
     close(f)
@@ -431,7 +431,7 @@ end
 batchsize = 10 #40
 iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
-for adjfibindx=295:295
+for adjfibindx in [280,295]
     subiter = deserialize(prior_dir*"2023_04_04/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
