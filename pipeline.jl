@@ -86,7 +86,7 @@ flush(stdout)
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
-    f = h5open(prior_dir2*"2023_05_12/APOGEE_starCor_svd_10_subpix.h5")
+    f = h5open(prior_dir2*"2023_05_25/APOGEE_starCor_svd_50_subpix.h5")
     global V_subpix_cor = read(f["Vmat"])
     global msk_starCor = convert.(Bool,read(f["msk_starCor"]))
     close(f)
@@ -316,7 +316,7 @@ end
 
             global skymsk = chebmsk_exp .& submsk .& msk_starCor;
 
-            f = h5open(prior_dir*"2023_04_04/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
+            f = h5open(prior_dir2*"2023_05_24/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
             global V_starcont = read(f["Vmat"])
             close(f)
 
