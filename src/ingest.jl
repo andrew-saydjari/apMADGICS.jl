@@ -119,6 +119,6 @@ function stack_out(intup;varoffset=16.6)
         cntvec .+= msk_inter
     end
     # this is a systematic correction to the variance (~ 4ADU to the uncertainties) to prevent chi2 versus frame number trends
-    varvec .+= varoffset 
+    outvar .+= varoffset 
     return outvec, outvar, cntvec
 end
