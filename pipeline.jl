@@ -15,7 +15,7 @@ activateout = @capture_out begin
 end
 
 @everywhere begin
-    using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays, ParallelDataTransfer, ThreadPinning
+    using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays, ParallelDataTransfer, ThreadPinning, AstroTime
     prior_dir = "/uufs/chpc.utah.edu/common/home/u6039752/scratch/working/"
     prior_dir2 = "/uufs/chpc.utah.edu/common/home/u6039752/scratch1/working/"
     src_dir = "./"
