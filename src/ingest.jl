@@ -128,7 +128,7 @@ function stack_out(intup; varoffset=16.6)
     outvar .+= varoffset
 
     goodframeIndx = length.(time_lsts).!=0
-    chipmidtimes = (0,0,0)
+    chipmidtimes = zeros(3)
     chipmidtimes[goodframeIndx] .= mean.(time_lsts[goodframeIndx]) #consider making this flux weighted (need to worry about skyline variance driving it)
     chipmidtimes[.!goodframeIndx] .= NaN
     return outvec, outvar, cntvec, tuple(chipmidtimes...)
