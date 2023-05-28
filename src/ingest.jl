@@ -22,13 +22,11 @@ function getSky4visit(intup)
     for (findx,fiberind) in enumerate(skyinds)
         tintup = (tele,field,plate,mjd,file,plateFile,fiberind)
         try
-            fvec, fvarvec, cntvec = stack_out(tintup)
-            # do we want to save that to disk
+            fvec, fvarvec, cntvec, chipmidtimes = stack_out(tintup)
+            # do we want to save that to disk? I really think we do!
             simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
-            fvec./=maximum(cntvec)
-            fvarvec./=(maximum(cntvec)^2)
             contvec = sky_decomp(fvec, fvarvec, simplemsk)
-            # do we want to save the other components to disk?
+            # do we want to save the other components to disk? I am not sure we do.
             outcont[:,findx] .= contvec
         catch
             # we should figure out how often this happens and why
@@ -65,7 +63,7 @@ function sky_decomp(outvec,outvar,simplemsk)
     return x_comp_lst[1]
 end
 
-function stack_out(intup)
+function stack_out(intup; varoffset=16.6)
     (tele,field,plate,mjd,file,plateFile,fiber) = intup
 
     frame_lst = getFramesFromPlate(plateFile)
@@ -73,6 +71,7 @@ function stack_out(intup)
     fill!(outvec,0)
     fill!(outvar,0)
     fill!(cntvec,0)
+    time_lsts = [[],[],[]]
     for imid in frame_lst
         fill!(Xd_stack,0)
         fill!(Xd_std_stack,0)
@@ -83,6 +82,9 @@ function stack_out(intup)
         for (chipind,chip) in enumerate(["c","b","a"]) #needs to be c,b,a for chip ind to be right
             fname = build_framepath(tele,mjd,imid,chip)
             f = FITS(fname)
+            hdr = read_header(f[1])
+            midtime = modified_julian(TAIEpoch(hdr["DATE-OBS"]))+(hdr["EXPTIME"]/2/3600/24)days #TAI or UTC?
+            push!(time_lsts[chipind],midtime)
             Xd = read(f[2],:,fiber);
             Xd_stack[(1:2048).+(chipind-1)*2048] .= Xd[end:-1:1]
             Xd_std = read(f[3],:,fiber);
@@ -118,5 +120,13 @@ function stack_out(intup)
         outvar .+= varvec
         cntvec .+= msk_inter
     end
-    return outvec, outvar, cntvec
+    ## Having made this change 05/28/2023, we now need to be careful to not divide later in any of the prior scripts
+    framecnts = maximum(cntvec)
+    outvec./=framecnts
+    outvar./=(framecnts^2)
+    # this is a systematic correction to the variance (~ 4ADU to the uncertainties) to prevent chi2 versus frame number trends
+    outvar .+= varoffset 
+
+    chipmidtimes = mean.(time_lsts) #consider making this flux weighted (need to worry about skyline variance driving it)
+    return outvec, outvar, cntvec, chipmidtimes
 end

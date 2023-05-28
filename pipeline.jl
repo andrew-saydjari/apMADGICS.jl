@@ -134,7 +134,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, cache_dir="../local_cache", varoffset=16.6)
+    function pipeline_single_spectra(argtup; caching=true, cache_dir="../local_cache")
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
@@ -154,29 +154,26 @@ end
 
         starcache = cache_starname(intup,cache_dir=cache_dir)
         if (isfile(starcache) & caching)
-            fvec, fvarvec, cntvec = deserialize(starcache)
+            fvec, fvarvec, cntvec, chipmidtimes = deserialize(starcache)
         else
-            fvec, fvarvec, cntvec = stack_out(intup)
+            fvec, fvarvec, cntvec, chipmidtimes = stack_out(intup)
             if caching
                 dirName = splitdir(starcache)[1]
                 if !ispath(dirName)
                     mkpath(dirName)
                 end
-                serialize(starcache,[fvec, fvarvec, cntvec])
+                serialize(starcache,[fvec, fvarvec, cntvec, chipmidtimes])
             end
         end
-        simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
-        fvec./=maximum(cntvec)
-        fvarvec./=(maximum(cntvec)^2)
-        # this is a systematic correction to the variance (~ 4ADU to the uncertainties) to prevent chi2 versus frame number trends
-        fvarvec .+= varoffset 
+        framecnts = maximum(cntvec)
+        simplemsk = (cntvec.==framecnts) .& skymsk;
         
         starscale = if count(simplemsk .& (.!isnan.(fvec)))==0
             NaN
         else
             abs(nanmedian(fvec[simplemsk]))
         end
-        push!(out,count(simplemsk)) # 1
+        push!(out,[count(simplemsk), starscale, framecnts, chipmidtimes]) # 1
 
         ## Select data for use (might want to handle mean more generally)
         Xd_obs = (fvec.-meanLocSky)[simplemsk]; #I think an outvec to fvec here was the key caching issue
@@ -346,7 +343,10 @@ end
             ## RV Block
             RVextract = [
                 # meta info
-                (x->x[metai],                           "data_pix_cnt"), #this is a DOF proxy, but I think our more careful info/pixel analysis would be better
+                (x->x[metai][1],                        "data_pix_cnt"),
+                (x->x[metai][2],                        "starscale"),
+                (x->x[metai][3],                        "frame_counts"),
+                (x->x[metai][4],                        "chip_midtimes"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
