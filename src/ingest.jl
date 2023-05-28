@@ -125,8 +125,11 @@ function stack_out(intup; varoffset=16.6)
     outvec./=framecnts
     outvar./=(framecnts^2)
     # this is a systematic correction to the variance (~ 4ADU to the uncertainties) to prevent chi2 versus frame number trends
-    outvar .+= varoffset 
+    outvar .+= varoffset
 
-    chipmidtimes = mean.(time_lsts) #consider making this flux weighted (need to worry about skyline variance driving it)
-    return outvec, outvar, cntvec, chipmidtimes
+    goodframeIndx = length.(time_lsts).!=0
+    chipmidtimes = (0,0,0)
+    chipmidtimes[goodframeIndx] .= mean.(time_lsts[goodframeIndx]) #consider making this flux weighted (need to worry about skyline variance driving it)
+    chipmidtimes[.!goodframeIndx] .= NaN
+    return outvec, outvar, cntvec, tuple(chipmidtimes...)
 end

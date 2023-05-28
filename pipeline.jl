@@ -173,7 +173,7 @@ end
         else
             abs(nanmedian(fvec[simplemsk]))
         end
-        push!(out,[count(simplemsk), starscale, framecnts, chipmidtimes]) # 1
+        push!(out,(count(simplemsk), starscale, framecnts, chipmidtimes)) # 1
 
         ## Select data for use (might want to handle mean more generally)
         Xd_obs = (fvec.-meanLocSky)[simplemsk]; #I think an outvec to fvec here was the key caching issue
