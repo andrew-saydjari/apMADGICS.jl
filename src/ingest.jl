@@ -65,7 +65,7 @@ function sky_decomp(outvec,outvar,simplemsk)
     return x_comp_lst[1]
 end
 
-function stack_out(intup;varoffset=16.6)
+function stack_out(intup)
     (tele,field,plate,mjd,file,plateFile,fiber) = intup
 
     frame_lst = getFramesFromPlate(plateFile)
@@ -118,7 +118,5 @@ function stack_out(intup;varoffset=16.6)
         outvar .+= varvec
         cntvec .+= msk_inter
     end
-    # this is a systematic correction to the variance (~ 4ADU to the uncertainties) to prevent chi2 versus frame number trends
-    outvar .+= varoffset 
     return outvec, outvar, cntvec
 end

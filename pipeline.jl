@@ -134,7 +134,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, cache_dir="../local_cache")
+    function pipeline_single_spectra(argtup; caching=true, cache_dir="../local_cache", varoffset=16.6)
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
@@ -168,6 +168,8 @@ end
         simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
         fvec./=maximum(cntvec)
         fvarvec./=(maximum(cntvec)^2)
+        # this is a systematic correction to the variance (~ 4ADU to the uncertainties) to prevent chi2 versus frame number trends
+        fvarvec .+= varoffset 
         
         starscale = if count(simplemsk .& (.!isnan.(fvec)))==0
             NaN
