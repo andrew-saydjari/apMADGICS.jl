@@ -230,7 +230,7 @@ end
         )
         push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 3
         x_comp_out = [nanify(x_comp_lst[1],simplemsk)./sqrt.(fvarvec), nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
-                        nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk), x_comp_lst[6:end]...]
+                        nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk), x_comp_lst[5:end]...]
         push!(out,x_comp_out) # 4
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
         push!(out,dflux_starlines) # 5
@@ -281,7 +281,7 @@ end
             # I would like to fill NaNs in chip gaps for the sky/continuum components
             # revisit that when we revisit the interpolations before making other fiber priors
             x_comp_out = [nanify(x_comp_lst[1],simplemsk)./sqrt.(fvarvec), nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
-                        nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk), x_comp_lst[6:end]...]
+                        nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk), x_comp_lst[5:end]...]
 
             push!(out,x_comp_out) # 9
         end
@@ -370,9 +370,8 @@ end
                 (x->x[RVcom][3],                        "x_skyLines_v0"),
                 (x->x[RVcom][4],                        "x_skyContinuum_v0"),
                 (x->x[RVcom][5],                        "x_starContinuum_v0"),
-                (x->x[RVcom][6],                        "x_starLineCor_v0"),
-                (x->x[RVcom][7],                        "x_starLines_v0"),
-                (x->x[RVcom][8],                        "tot_p5chi2_v0"),       
+                (x->x[RVcom][6],                        "x_starLines_v0"),
+                (x->x[RVcom][7],                        "tot_p5chi2_v0"),       
                                     
                 (x->x[strpo],                           "x_starLines_err_v0"),    
             ]
@@ -402,10 +401,9 @@ end
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][3],                        "x_skyLines_v1_$dib"),
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][4],                        "x_skyContinuum_v1_$dib"),
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][5],                        "x_starContinuum_v1_$dib"),
-                (x->x[DIBcom+dibsavesz*(dibindx-1)][6],                        "x_starLineCor_v1_$dib"),
-                (x->x[DIBcom+dibsavesz*(dibindx-1)][7],                        "x_starLines_v1_$dib"),
-                (x->x[DIBcom+dibsavesz*(dibindx-1)][8],                        "x_dib_v1_$dib"),
-                (x->x[DIBcom+dibsavesz*(dibindx-1)][9],                        "tot_p5chi2_v1_$dib"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][6],                        "x_starLines_v1_$dib"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][7],                        "x_dib_v1_$dib"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][8],                        "tot_p5chi2_v1_$dib"),
                 ])
             end
             extractlst = vcat(RVextract...,DIBextract...)
