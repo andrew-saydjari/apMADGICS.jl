@@ -86,7 +86,7 @@ flush(stdout)
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
-    beta = 10;
+    beta = 1;
     f = h5open(prior_dir2*"2023_05_25/APOGEE_starCor_svd_50_subpix.h5")
     global V_subpix_cor = beta*read(f["Vmat"])
     global msk_starCor = convert.(Bool,read(f["msk_starCor"]))
