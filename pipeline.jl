@@ -81,6 +81,12 @@ flush(stdout)
     global V_dib_noLSF = read(f["Vmat"])
     close(f)
 
+    # can consider changing dimension at the full DR17 reduction stage
+    f = h5open(prior_dir2*"2023_05_28/APOGEE_starCor_svd_100_subpix.h5")
+    global V_subpix = read(f["Vmat"])
+    close(f)
+    global V_subpix_comb = V_subpix #hcat(V_subpix,V_subpix_cor)
+
     # alpha = 1;
     # f = h5open(prior_dir2*"2023_05_10/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
     # global V_subpix_refLSF = alpha*read(f["Vmat"])
@@ -318,11 +324,11 @@ end
             global V_starcont = read(f["Vmat"])
             close(f)
 
-            # can consider changing dimension at the full DR17 reduction stage
-            f = h5open(prior_dir2*"2023_05_10/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
-            global V_subpix = alpha*read(f["Vmat"])
-            close(f)
-            global V_subpix_comb = V_subpix #hcat(V_subpix,V_subpix_cor)
+            # # can consider changing dimension at the full DR17 reduction stage
+            # f = h5open(prior_dir2*"2023_05_10/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+            # global V_subpix = alpha*read(f["Vmat"])
+            # close(f)
+            # global V_subpix_comb = V_subpix #hcat(V_subpix,V_subpix_cor)
 
             f = h5open(prior_dir*"2023_04_03/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
             global V_dib = read(f["Vmat"])
