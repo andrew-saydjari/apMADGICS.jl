@@ -84,7 +84,7 @@ function stack_out(intup; varoffset=16.6)
             f = FITS(fname)
             hdr = read_header(f[1])
             midtime = modified_julian(TAIEpoch(hdr["DATE-OBS"]))+(hdr["EXPTIME"]/2/3600/24)days #TAI or UTC?
-            push!(time_lsts[chipind],midtime)
+            push!(time_lsts[chipind],AstroTime.value(midtime))
             Xd = read(f[2],:,fiber);
             Xd_stack[(1:2048).+(chipind-1)*2048] .= Xd[end:-1:1]
             Xd_std = read(f[3],:,fiber);
@@ -131,5 +131,5 @@ function stack_out(intup; varoffset=16.6)
     chipmidtimes = zeros(3)
     chipmidtimes[goodframeIndx] .= mean.(time_lsts[goodframeIndx]) #consider making this flux weighted (need to worry about skyline variance driving it)
     chipmidtimes[.!goodframeIndx] .= NaN
-    return outvec, outvar, cntvec, tuple(chipmidtimes...)
+    return outvec, outvar, cntvec, chipmidtimes
 end
