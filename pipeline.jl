@@ -15,7 +15,7 @@ activateout = @capture_out begin
 end
 
 @everywhere begin
-    using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays, ParallelDataTransfer, ThreadPinning
+    using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays, ParallelDataTransfer, ThreadPinning, AstroTime
     prior_dir = "/uufs/chpc.utah.edu/common/home/u6039752/scratch/working/"
     prior_dir2 = "/uufs/chpc.utah.edu/common/home/u6039752/scratch1/working/"
     src_dir = "./"
@@ -86,8 +86,9 @@ flush(stdout)
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
-    f = h5open(prior_dir2*"2023_05_12/APOGEE_starCor_svd_10_subpix.h5")
-    global V_subpix_cor = read(f["Vmat"])
+    beta = 10;
+    f = h5open(prior_dir2*"2023_05_25/APOGEE_starCor_svd_50_subpix.h5")
+    global V_subpix_cor = beta*read(f["Vmat"])
     global msk_starCor = convert.(Bool,read(f["msk_starCor"]))
     close(f)
 
@@ -154,27 +155,26 @@ end
 
         starcache = cache_starname(intup,cache_dir=cache_dir)
         if (isfile(starcache) & caching)
-            fvec, fvarvec, cntvec = deserialize(starcache)
+            fvec, fvarvec, cntvec, chipmidtimes = deserialize(starcache)
         else
-            fvec, fvarvec, cntvec = stack_out(intup)
+            fvec, fvarvec, cntvec, chipmidtimes = stack_out(intup)
             if caching
                 dirName = splitdir(starcache)[1]
                 if !ispath(dirName)
                     mkpath(dirName)
                 end
-                serialize(starcache,[fvec, fvarvec, cntvec])
+                serialize(starcache,[fvec, fvarvec, cntvec, chipmidtimes])
             end
         end
-        simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
-        fvec./=maximum(cntvec)
-        fvarvec./=(maximum(cntvec)^2)
+        framecnts = maximum(cntvec)
+        simplemsk = (cntvec.==framecnts) .& skymsk;
         
         starscale = if count(simplemsk .& (.!isnan.(fvec)))==0
             NaN
         else
             abs(nanmedian(fvec[simplemsk]))
         end
-        push!(out,count(simplemsk)) # 1
+        push!(out,(count(simplemsk), starscale, framecnts, chipmidtimes)) # 1
 
         ## Select data for use (might want to handle mean more generally)
         Xd_obs = (fvec.-meanLocSky)[simplemsk]; #I think an outvec to fvec here was the key caching issue
@@ -316,7 +316,7 @@ end
 
             global skymsk = chebmsk_exp .& submsk .& msk_starCor;
 
-            f = h5open(prior_dir*"2023_04_04/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
+            f = h5open(prior_dir2*"2023_05_24/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
             global V_starcont = read(f["Vmat"])
             close(f)
 
@@ -344,7 +344,10 @@ end
             ## RV Block
             RVextract = [
                 # meta info
-                (x->x[metai],                           "data_pix_cnt"), #this is a DOF proxy, but I think our more careful info/pixel analysis would be better
+                (x->x[metai][1],                        "data_pix_cnt"),
+                (x->x[metai][2],                        "starscale"),
+                (x->x[metai][3],                        "frame_counts"),
+                (x->x[metai][4],                        "chip_midtimes"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),

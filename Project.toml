@@ -4,6 +4,7 @@ authors = ["andrew-saydjari"]
 version = "0.1.4"
 
 [deps]
+AstroTime = "c61b5328-d09d-5e37-a9a8-0eb41c39009c"
 BLISBLAS = "6f275bd8-fec0-4d39-945b-7e95a765fa1e"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
