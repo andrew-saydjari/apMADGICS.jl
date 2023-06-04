@@ -239,7 +239,7 @@ end
         starCont_Mscale = x_comp_lst[1]
         starFull_Mscale = x_comp_lst[1].+x_comp_lst[2]
         
-        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines2_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
+        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
         Ctotinv_cur, Ctotinv_fut = Ctotinv_fut, Ctotinv_cur; Vcomb_cur, Vcomb_fut = Vcomb_fut, Vcomb_cur # swap to updated covariance finally
         
         # currently, this is modeling each DIB seperately... I think we want to change this later, just easier parallel structure
