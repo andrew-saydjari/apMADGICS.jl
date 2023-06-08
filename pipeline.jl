@@ -117,7 +117,7 @@ end
     # tuple1dprint(slvl_tuple)
 
     # (Wave, Sig) DIB
-    dib_center_lst = [15273, 15273]#, 15653]
+    dib_center_lst = [] #[15273, 15273]#, 15653]
     lvl1d = ((-150:4:150),(18//10:18//10))
     lvl2d = ((0:0), (-7//5:4//100:11//5))
     lvl3d = ((-18:2//10:18), (0:0))
@@ -139,7 +139,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, cache_dir="../local_cache")
+    function pipeline_single_spectra(argtup; caching=true, cache_dir="../../2023_06_04/local_cache")
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
@@ -223,27 +223,27 @@ end
         
         # do a component save without the 15273 DIB
         x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
-            (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r),
-            (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_c),
+            (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r, V_starlines_r),
+            (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_c, I),
         )
         push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 3
         x_comp_out = [nanify(x_comp_lst[1],simplemsk)./sqrt.(fvarvec), nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
                         nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk),
                         x_comp_lst[5:end]...]
         push!(out,x_comp_out) # 4
-        dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
-        push!(out,dflux_starlines) # 5
+        # dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
+        # push!(out,dflux_starlines) # 5
                 
-        # prepare multiplicative factors for DIB prior
-        x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,V_starlines_r))
-        starCont_Mscale = x_comp_lst[1]
-        starFull_Mscale = x_comp_lst[1].+x_comp_lst[2]
+        # # prepare multiplicative factors for DIB prior
+        # x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,V_starlines_r))
+        # starCont_Mscale = x_comp_lst[1]
+        # starFull_Mscale = x_comp_lst[1].+x_comp_lst[2]
         
-        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
-        Ctotinv_cur, Ctotinv_fut = Ctotinv_fut, Ctotinv_cur; Vcomb_cur, Vcomb_fut = Vcomb_fut, Vcomb_cur # swap to updated covariance finally
+        # Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
+        # Ctotinv_cur, Ctotinv_fut = Ctotinv_fut, Ctotinv_cur; Vcomb_cur, Vcomb_fut = Vcomb_fut, Vcomb_cur # swap to updated covariance finally
         
-        # currently, this is modeling each DIB seperately... I think we want to change this later, just easier parallel structure
-        pre_Vslice = zeros(count(simplemsk),size(V_dib,2))
+        # # currently, this is modeling each DIB seperately... I think we want to change this later, just easier parallel structure
+        # pre_Vslice = zeros(count(simplemsk),size(V_dib,2))
         for dib_ind = 1:length(dib_center_lst) # eventually need to decide if these are cumulative or not
             lvltuple_dib = lvltuple_lst[dib_ind]
             dib_center = dib_center_lst[dib_ind]
@@ -361,22 +361,23 @@ end
                 (x->x[RVind][1][6],                     "RV_flag"),
                 (x->x[RVind][1][7],                     "RV_pix_var"),
                                     
-                (x->x[RVchi][1],                        "RVchi2_residuals"),
+                # (x->x[RVchi][1],                        "RVchi2_residuals"),
                                     
-                (x->x[RVind][2][1][3],                  "RV_p5delchi2_lvl1"),
-                (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
-                (x->x[RVind][2][3][3],                  "RV_p5delchi2_lvl3"),
+                # (x->x[RVind][2][1][3],                  "RV_p5delchi2_lvl1"),
+                # (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
+                # (x->x[RVind][2][3][3],                  "RV_p5delchi2_lvl3"),
 
-                (x->x[RVcom][1],                        "x_residuals_z_v0"),
-                (x->x[RVcom][2],                        "x_residuals_v0"),
-                (x->x[RVcom][3],                        "x_skyLines_v0"),
-                (x->x[RVcom][4],                        "x_skyContinuum_v0"),
-                (x->x[RVcom][5],                        "x_starContinuum_v0"),
-                # (x->x[RVcom][6],                        "x_starLineCor_v0"),
+                # (x->x[RVcom][1],                        "x_residuals_z_v0"),
+                # (x->x[RVcom][2],                        "x_residuals_v0"),
+                # (x->x[RVcom][3],                        "x_skyLines_v0"),
+                # (x->x[RVcom][4],                        "x_skyContinuum_v0"),
+                # (x->x[RVcom][5],                        "x_starContinuum_v0"),
+                ## (x->x[RVcom][6],                        "x_starLineCor_v0"),
                 (x->x[RVcom][6],                        "x_starLines_v0"),
-                (x->x[RVcom][7],                        "tot_p5chi2_v0"),       
+                (x->x[RVcom][7],                        "x_starLineCof_v0"),
+                (x->x[RVcom][8],                        "tot_p5chi2_v0"),       
                                     
-                (x->x[strpo],                           "x_starLines_err_v0"),    
+                # (x->x[strpo],                           "x_starLines_err_v0"),    
             ]
             ## DIB Block
             DIBextract = []
@@ -411,7 +412,7 @@ end
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][8],                        "tot_p5chi2_v1_$(dibind)_$(dib)"),
                 ])
             end
-            extractlst = vcat(RVextract...,DIBextract...)
+            extractlst = vcat(RVextract...) #,DIBextract...)
                 
             hdr_dict = Dict(   
                     "pipeline"=>"apMADGICS.jl",
@@ -441,9 +442,9 @@ end
 batchsize = 10 #40
 iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
-toDolst = setdiff(1:600,295)
-for adjfibindx in toDolst
-# for adjfibindx=295:295
+# toDolst = setdiff(1:600,295)
+# for adjfibindx in toDolst
+for adjfibindx=295:295
     subiter = deserialize(prior_dir*"2023_04_04/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
