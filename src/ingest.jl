@@ -68,9 +68,9 @@ function stack_out(intup; varoffset=16.6)
 
     # hardcoded flux-dep variance correction (empitical IPC + LSF correction)
     (p, c) = if (tele == "apo25m")
-        (1.146, 3.93e-4)    
+        (2.0, 1.23e-2)    
     else
-        (1.165, 4.38e-3)
+        (2.0, 3.45e-2)
     end
 
     frame_lst = getFramesFromPlate(plateFile)
@@ -141,7 +141,7 @@ function stack_out(intup; varoffset=16.6)
     # this is a systematic correction to the variance (~ 4ADU to the uncertainties) to prevent chi2 versus frame number trends
     outvar .+= varoffset
     # this is an empirical LSF and IPC correction to the variance
-    outvar .*= (1 + c.*(starscale.^p))
+    outvar .+= (c*(starscale^p))
 
     goodframeIndx = length.(time_lsts).!=0
     chipmidtimes = zeros(3)
