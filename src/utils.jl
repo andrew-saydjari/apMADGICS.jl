@@ -57,3 +57,23 @@ function nanify(x,msk)
     out[.!msk] .= NaN
     return out
 end
+
+# Task-Affinity CPU Locking in multinode SlurmContext
+function slurm_cpu_lock()
+    getinfo_worker(workerid::Int) = @getfrom workerid myid(), ThreadPinning.sched_getcpu(), gethostname()
+    idlst = getinfo_worker.(workers()); df = DataFrame(workerid=Int[],physcpu=Int[],hostname=String[]); push!(df,idlst...)
+    gdf = groupby(df,:hostname)
+    @spawnat 1 ThreadPinning.pinthread(1)
+    for sgdf in gdf, (sindx, sworker) in enumerate(sgdf.workerid)
+        sendto(sworker, sindx=sindx)
+        @spawnat sworker ThreadPinning.pinthread(sindx-1)
+    end
+    # Helpful Worker Info Printing
+    idlst = getinfo_worker.(workers()); df = DataFrame(workerid=Int[],physcpu=Int[],hostname=String[]); push!(df,idlst...)
+    gdf = groupby(df,:hostname); dfc = combine(gdf, nrow, :workerid => minimum, :workerid => maximum, :physcpu => minimum, :physcpu => maximum)
+    println("$(gethostname()) running Main on worker: $(myid()) cpu: $(ThreadPinning.sched_getcpu())")
+    for row in Tables.namedtupleiterator(dfc)
+        println("$(row.hostname) running $(row.nrow) workers: $(row.workerid_minimum)->$(row.workerid_maximum) cpus: $(row.physcpu_minimum)->$(row.physcpu_maximum)")
+    end
+    flush(stdout)
+end

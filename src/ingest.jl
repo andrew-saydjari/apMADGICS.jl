@@ -66,6 +66,13 @@ end
 function stack_out(intup; varoffset=16.6)
     (tele,field,plate,mjd,file,plateFile,fiber) = intup
 
+    # hardcoded flux-dep variance correction (empitical IPC + LSF correction)
+    (p, c) = if (tele == "apo25m")
+        (1.146, 3.93e-4)    
+    else
+        (1.165, 4.38e-3)
+    end
+
     frame_lst = getFramesFromPlate(plateFile)
 
     fill!(outvec,0)
@@ -124,12 +131,22 @@ function stack_out(intup; varoffset=16.6)
     framecnts = maximum(cntvec)
     outvec./=framecnts
     outvar./=(framecnts^2)
+    
+    simplemsk = (cntvec.==framecnts)
+    starscale = if count(simplemsk .& (.!isnan.(outvec)))==0
+        NaN
+    else
+        abs(nanmedian(outvec[simplemsk]))
+    end
     # this is a systematic correction to the variance (~ 4ADU to the uncertainties) to prevent chi2 versus frame number trends
     outvar .+= varoffset
+    # this is an empirical LSF and IPC correction to the variance
+    outvar .+= c.*(starscale.^p)
 
     goodframeIndx = length.(time_lsts).!=0
     chipmidtimes = zeros(3)
     chipmidtimes[goodframeIndx] .= mean.(time_lsts[goodframeIndx]) #consider making this flux weighted (need to worry about skyline variance driving it)
     chipmidtimes[.!goodframeIndx] .= NaN
-    return outvec, outvar, cntvec, chipmidtimes
+    metaexport = (starscale,framecnts,varoffset,c.*(starscale.^p))
+    return outvec, outvar, cntvec, chipmidtimes, metaexport
 end
