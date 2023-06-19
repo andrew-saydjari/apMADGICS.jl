@@ -141,7 +141,7 @@ function stack_out(intup; varoffset=16.6)
     # this is a systematic correction to the variance (~ 4ADU to the uncertainties) to prevent chi2 versus frame number trends
     outvar .+= varoffset
     # this is an empirical LSF and IPC correction to the variance
-    outvar .+= c.*(starscale.^p)
+    outvar .*= (1 + c.*(starscale.^p))
 
     goodframeIndx = length.(time_lsts).!=0
     chipmidtimes = zeros(3)
