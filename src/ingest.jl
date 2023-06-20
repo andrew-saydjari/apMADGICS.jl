@@ -67,17 +67,11 @@ function stack_out(intup; varoffset=16.6)
     (tele,field,plate,mjd,file,plateFile,fiber) = intup
 
     # # hardcoded flux-dep variance correction (empitical IPC + LSF correction)
-    # (p, c) = if (tele == "apo25m")
-    #     (2.154, 5.806e-3)    
-    # else
-    #     (2.102, 2.275e-2)
-    # end
-
     # power 2 model
     (p, c) = if (tele == "apo25m")
-        (2.0, 1.158e-2)    
+        (2.0, 1.7e-2)    
     else
-        (2.0, 3.391e-2)
+        (2.0, 3.4e-2)
     end
 
     frame_lst = getFramesFromPlate(plateFile)
