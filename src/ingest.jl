@@ -148,6 +148,6 @@ function stack_out(intup; varoffset=16.6)
     chipmidtimes = zeros(3)
     chipmidtimes[goodframeIndx] .= mean.(time_lsts[goodframeIndx]) #consider making this flux weighted (need to worry about skyline variance driving it)
     chipmidtimes[.!goodframeIndx] .= NaN
-    metaexport = (starscale,framecnts,varoffset,c.*(starscale.^p))
+    metaexport = (starscale,framecnts,varoffset,(c^2*starscale^p))
     return outvec, outvar, cntvec, chipmidtimes, metaexport
 end

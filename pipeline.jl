@@ -159,7 +159,7 @@ end
         end
         simplemsk = (cntvec.==framecnts) .& skymsk;
         
-        push!(out,(count(simplemsk), starscale, framecnts, chipmidtimes, varoffset, varflux, nanify(fvec[simplemsk],simplemsk))) # 1
+        push!(out,(count(simplemsk), starscale, framecnts, chipmidtimes, varoffset, varflux, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
 
         ## Select data for use (might want to handle mean more generally)
         Xd_obs = (fvec.-meanLocSky)[simplemsk]; #I think an outvec to fvec here was the key caching issue
@@ -338,6 +338,7 @@ end
                 (x->x[metai][5],                        "varoffset"),
                 (x->x[metai][6],                        "varflux"),
                 (x->x[metai][7],                        "flux"),
+                (x->x[metai][8],                        "fluxerr2"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
