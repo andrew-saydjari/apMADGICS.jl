@@ -68,9 +68,9 @@ function stack_out(intup; varoffset=16.6)
 
     # hardcoded flux-dep variance correction (empitical IPC + LSF correction)
     (p, c) = if (tele == "apo25m")
-        (2.063, 9.24e-3)    
+        (2.154, 5.806e-3)    
     else
-        (2.074, 2.58e-2)
+        (2.102, 2.275e-2)
     end
 
     frame_lst = getFramesFromPlate(plateFile)
