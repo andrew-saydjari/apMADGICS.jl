@@ -35,22 +35,7 @@ end
 end
 
 # Task-Affinity CPU Locking in multinode SlurmContext
-getinfo_worker(workerid::Int) = @getfrom workerid myid(), ThreadPinning.sched_getcpu(), gethostname()
-idlst = getinfo_worker.(workers()); df = DataFrame(workerid=Int[],physcpu=Int[],hostname=String[]); push!(df,idlst...)
-gdf = groupby(df,:hostname)
-for sgdf in gdf, (sindx, sworker) in enumerate(sgdf.workerid)
-    sendto(sworker, sindx=sindx)
-    @spawnat sworker ThreadPinning.pinthread(sindx-1)
-end
-# Helpful Worker Info Printing
-idlst = getinfo_worker.(workers()); df = DataFrame(workerid=Int[],physcpu=Int[],hostname=String[]); push!(df,idlst...)
-gdf = groupby(df,:hostname); dfc = combine(gdf, nrow, :workerid => minimum, :workerid => maximum, :physcpu => minimum, :physcpu => maximum)
-println("$(gethostname()) running Main on worker: $(myid()) cpu: $(ThreadPinning.sched_getcpu())")
-for row in Tables.namedtupleiterator(dfc)
-    println("$(row.hostname) running $(row.nrow) workers: $(row.workerid_minimum)->$(row.workerid_maximum) cpus: $(row.physcpu_minimum)->$(row.physcpu_maximum)")
-end
-flush(stdout)
-
+slurm_cpu_lock()
 println(BLAS.get_config())
 flush(stdout)
 
@@ -159,26 +144,22 @@ end
 
         starcache = cache_starname(intup,cache_dir=cache_dir)
         if (isfile(starcache) & caching)
-            fvec, fvarvec, cntvec, chipmidtimes = deserialize(starcache)
+            fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(starcache)
+            starscale,framecnts,varoffset,varflux = metaexport
         else
-            fvec, fvarvec, cntvec, chipmidtimes = stack_out(intup)
+            fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(intup)
+            starscale,framecnts,varoffset,varflux = metaexport
             if caching
                 dirName = splitdir(starcache)[1]
                 if !ispath(dirName)
                     mkpath(dirName)
                 end
-                serialize(starcache,[fvec, fvarvec, cntvec, chipmidtimes])
+                serialize(starcache,[fvec, fvarvec, cntvec, chipmidtimes, metaexport])
             end
         end
-        framecnts = maximum(cntvec)
         simplemsk = (cntvec.==framecnts) .& skymsk;
         
-        starscale = if count(simplemsk .& (.!isnan.(fvec)))==0
-            NaN
-        else
-            abs(nanmedian(fvec[simplemsk]))
-        end
-        push!(out,(count(simplemsk), starscale, framecnts, chipmidtimes)) # 1
+        push!(out,(count(simplemsk), starscale, framecnts, chipmidtimes, varoffset, varflux, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
 
         ## Select data for use (might want to handle mean more generally)
         Xd_obs = (fvec.-meanLocSky)[simplemsk]; #I think an outvec to fvec here was the key caching issue
@@ -354,6 +335,10 @@ end
                 (x->x[metai][2],                        "starscale"),
                 (x->x[metai][3],                        "frame_counts"),
                 (x->x[metai][4],                        "chip_midtimes"),
+                (x->x[metai][5],                        "varoffset"),
+                (x->x[metai][6],                        "varflux"),
+                (x->x[metai][7],                        "flux"),
+                (x->x[metai][8],                        "fluxerr2"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
@@ -441,9 +426,10 @@ end
 batchsize = 10 #40
 iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
-toDolst = setdiff(1:600,295)
-for adjfibindx in toDolst
-# for adjfibindx=295:295
+# toDolst = setdiff(1:600,295)
+# for adjfibindx in toDolst
+for adjfibindx=295:295
+# for adjfibindx=345:345
     subiter = deserialize(prior_dir*"2023_04_04/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)

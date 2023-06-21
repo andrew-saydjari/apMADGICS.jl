@@ -1,11 +1,10 @@
 #!/bin/bash
 #SBATCH --account=sdss-kp
 #SBATCH --partition=sdss-kp
-#SBATCH --nodes=8
+#SBATCH --nodes=11
 #SBATCH --ntasks-per-node=16
-#SBATCH --mem-per-cpu=3750
 
-#SBATCH --exclude=kp127
+#SBATCH --mem-per-cpu=3750
 
 #SBATCH --time=24:00:00
 #SBATCH --job-name=apMADGICS
