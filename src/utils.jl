@@ -1,4 +1,6 @@
 # Utils Module
+using ParallelDataTransfer
+
 nanmean(x) = mean(filter(!isnan,x))
 nanmean(x,y) = mapslices(nanmean,x,dims=y)
 
