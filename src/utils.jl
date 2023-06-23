@@ -1,5 +1,5 @@
 # Utils Module
-using ParallelDataTransfer
+using ParallelDataTransfer, Distributed
 
 nanmean(x) = mean(filter(!isnan,x))
 nanmean(x,y) = mapslices(nanmean,x,dims=y)
