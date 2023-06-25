@@ -68,9 +68,9 @@ flush(stdout)
     close(f)
 
     alpha = 1;
-    f = h5open(prior_dir2*"2023_05_10/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
-    global V_subpix_refLSF = alpha*read(f["Vmat"])
-    close(f)
+    # f = h5open(prior_dir2*"2023_05_10/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
+    # global V_subpix_refLSF = alpha*read(f["Vmat"])
+    # close(f)
 
     # beta = 1;
     # f = h5open(prior_dir2*"2023_05_25/APOGEE_starCor_svd_50_subpix.h5")
@@ -196,11 +196,11 @@ end
         # update the Ctotinv to include the stellar line component (iterate to refine starCont_Mscale)
         svalc = lout[1][3]
         for i=1:refine_iters
-            Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
+            Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix)
             x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,))
             starCont_Mscale = x_comp_lst[1]
         end
-        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
+        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix)
         
         # do a component save without the 15273 DIB
         x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
@@ -220,7 +220,7 @@ end
         starCont_Mscale = x_comp_lst[1]
         starFull_Mscale = x_comp_lst[1].+x_comp_lst[2]
         
-        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
+        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix)
         Ctotinv_cur, Ctotinv_fut = Ctotinv_fut, Ctotinv_cur; Vcomb_cur, Vcomb_fut = Vcomb_fut, Vcomb_cur # swap to updated covariance finally
         
         # currently, this is modeling each DIB seperately... I think we want to change this later, just easier parallel structure
@@ -307,7 +307,8 @@ end
             close(f)
 
             # can consider changing dimension at the full DR17 reduction stage
-            f = h5open(prior_dir2*"2023_05_10/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+            # this only exists for the 295 fiber for the moment (can easily batch generate the rest)
+            f = h5open(prior_dir2*"2023_06_20/APOGEE_starCor_svd_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
             global V_subpix = alpha*read(f["Vmat"])
             close(f)
             # global V_subpix_comb = hcat(V_subpix,V_subpix_cor)
