@@ -201,7 +201,8 @@ function sampler_2d_dense(chi2_fun,valrngtup;save_zero2=false)
     else
         if (save_zero2 & (valrng2[1] == 0) & (lval2!=1))
             chi2out_pad = padarray_fix(chi2out,ImageFiltering.Pad(:reflect,(0,1)))
-            minChi_interp, minVal_interp, flag = quadratic_interp3_2d(valrngtup,chi2out_pad,minInd;step1=1,step2=1)
+            valrng2_0 = OffsetArray(range(valrng2.start-step(valrng2),stop=valrng2.stop,length=(length(valrng2)+1)),-1)
+            minChi_interp, minVal_interp, flag = quadratic_interp3_2d((valrng1,valrng2_0),chi2out_pad,minInd;step1=1,step2=1)
             return (((minVal_interp[1], minVal_interp[2]), minChi_interp, (valrng1[minInd[1]], valrng2[minInd[2]]), minChi, minInd, flag), valrngtup, chi2out)
         else
             minChi_interp, minVal_interp, flag = quadratic_interp3_2d(valrngtup,chi2out,minInd;step1=1,step2=1)
