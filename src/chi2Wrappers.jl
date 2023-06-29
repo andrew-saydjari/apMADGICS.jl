@@ -8,6 +8,11 @@ sigstep0 = step(sigrng)
 minoffset0  = round(Int,sigrng[1] / sigstep0)-1
 sigScanFun(x; step = sigstep0, minoffset = minoffset0)  = round(Int,x / step) .-minoffset
 
+vsinirng = range(0,stop=10//1,length=51)
+vsinistep0 = step(vsinirng)
+minvsinioffset0  = round(Int,(vsinirng[1]) / vsinistep0)-1
+vsiniScanFun(x; step = vsinistep0, minoffset = minvsinioffset0) = round(Int,(x) / step) .-minoffset
+
 #MDispatch to handle nothing finds (suspect missing chip case)
 function slicer(lindx::Int,rindx::Int,widx)
     return lindx:rindx
@@ -40,6 +45,24 @@ function chi2_wrapper2d(svals,intup;sigslice=4)
         Xd_obs,
         pre_Vslice,
         slrng
+    )
+end
+
+function chi2_wrapper_vsini(svals,intup)
+    sval1, sval2 = svals
+    (simplemsk,Ctotinv,Xd_obs,Dscale,V_new,pre_Vslice) = intup
+    # transform val to index
+    rval = indInt(sval1)
+    tval = indTenth(sval1)
+
+    vsiniindx = vsiniScanFun(sval2)
+
+    pre_Vslice .= view(ShiftedArrays.circshift(view(V_new,:,:,vsiniindx,tval),(rval,0)),simplemsk,:)
+    pre_Vslice .*= Dscale 
+    return woodbury_update_inv_tst(
+        Ctotinv,
+        Xd_obs,
+        pre_Vslice
     )
 end
 
@@ -94,6 +117,19 @@ function update_Ctotinv_Vstarstarlines2_asym(svald,Ainv,simplemsk,Dscale,Vcomb_0
     Vcomb = hcat(Vcomb_0,V_starlines_r,V_cor_r);
     Ctotinv = LowRankMultMat([Ainv,Vcomb],wood_precomp_mult,wood_fxn_mult);
     return Ctotinv, Vcomb, V_starlines_c, V_starlines_r, V_cor_c, V_cor_r
+end
+
+function update_Ctotinv_Vstarstarlines_vsini_asym(samp_tup,Ainv,simplemsk,Dscale,Vcomb_0,V_starlines,V_starlines_refLSF)
+    (svald,vsinid) = samp_tup
+    rval = indInt(svald)
+    tval = indTenth(svald)
+    vsiniindx = vsiniScanFun(vsinid)
+    V_starlines_c = circshift(view(V_starlines_refLSF,:,:,vsiniindx,tval),(rval,0)) # this needs NaNs or something... VBAD
+    V_starlines_r = ShiftedArrays.circshift(view(V_starlines,:,:,vsiniindx,tval),(rval,0))[simplemsk,:]
+    V_starlines_r .*= Dscale
+    Vcomb = hcat(Vcomb_0,V_starlines_r);
+    Ctotinv = LowRankMultMat([Ainv,Vcomb],wood_precomp_mult,wood_fxn_mult);
+    return Ctotinv, Vcomb, V_starlines_c, V_starlines_r
 end
 
 function update_Ctotinv_Vdib(samp_tup,Ainv,simplemsk,Dscale,Vcomb_0,V_dib,scan_offset)

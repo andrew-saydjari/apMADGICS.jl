@@ -29,7 +29,7 @@ end
     include(src_dir*"src/spectraInterpolation.jl")
     include(src_dir*"src/chi2Wrappers.jl")
     
-    using StatsBase, LinearAlgebra, ProgressMeter
+    using StatsBase, LinearAlgebra, ProgressMeter, ImageFiltering
     using BLISBLAS
     BLAS.set_num_threads(1)
 end
@@ -68,15 +68,9 @@ flush(stdout)
     close(f)
 
     alpha = 1;
-    f = h5open(prior_dir2*"2023_05_10/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
+    f = h5open(prior_dir2*"2023_06_28/starLine_priors/APOGEE_stellar_kry_vsini_50_subpix_th22500.h5")
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
-
-    # beta = 1;
-    # f = h5open(prior_dir2*"2023_05_25/APOGEE_starCor_svd_50_subpix.h5")
-    # global V_subpix_cor = beta*read(f["Vmat"])
-    # global msk_starCor = convert.(Bool,read(f["msk_starCor"]))
-    # close(f)
 
     Xd_stack = zeros(3*2048)
     Xd_std_stack = zeros(3*2048)
@@ -100,6 +94,14 @@ end
     lvl3 = -3:1//10:3
     slvl_tuple = (lvl1,lvl2,lvl3)
     # tuple1dprint(slvl_tuple)
+
+    lvl1_vsini = ((-70:1//2:70),(0//1:0//1))
+    lvl2_vsini = ((-8:2//10:8),(0//1:0//1))
+    lvl3_vsini = ((-3:1//10:3),(0//1:0//1))
+    lvl4_vsini = ((0//1:0//1),(vsinirng))
+    lvl5_vsini = ((-4//10:1//10:4//10),(-4//5:1//5:4//5))
+    svsinilvl_tuple = (lvl1_vsini,lvl2_vsini,lvl3_vsini,lvl4_vsini,lvl5_vsini);
+    # tuple2dprint(svsinilvl_tuple)
 
     # (Wave, Sig) DIB
     dib_center_lst = [15273, 15273]#, 15653]
@@ -189,18 +191,18 @@ end
 
         starCont_Mscale = x_comp_lst[1]
         pre_Vslice = zeros(count(simplemsk),size(V_subpix_comb,2))
-        chi2_wrapper_partial = Base.Fix2(chi2_wrapper,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix_comb,pre_Vslice))
-        lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=1//10,stepx=1)
+        chi2_wrapper_partial = Base.Fix2(chi2_wrapper_vsini,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix_comb,pre_Vslice))
+        lout = sampler_2d_hierarchy_var(chi2_wrapper_partial,svsinilvl_tuple,minres1=1//10,step1=1,minres2=vsinistep0,step2=1,save_zero2=true,minv2=vsinirng[1],maxv2=vsinirng[end])
         push!(out,lout) # 2
 
         # update the Ctotinv to include the stellar line component (iterate to refine starCont_Mscale)
         svalc = lout[1][3]
         for i=1:refine_iters
-            Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
+            Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_vsini_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
             x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,))
             starCont_Mscale = x_comp_lst[1]
         end
-        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
+        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_vsini_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
         
         # do a component save without the 15273 DIB
         x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
@@ -220,7 +222,7 @@ end
         starCont_Mscale = x_comp_lst[1]
         starFull_Mscale = x_comp_lst[1].+x_comp_lst[2]
         
-        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
+        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_vsini_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
         Ctotinv_cur, Ctotinv_fut = Ctotinv_fut, Ctotinv_cur; Vcomb_cur, Vcomb_fut = Vcomb_fut, Vcomb_cur # swap to updated covariance finally
         
         # currently, this is modeling each DIB seperately... I think we want to change this later, just easier parallel structure
@@ -233,7 +235,7 @@ end
             ## Solve DIB parameters (for just 15273), not any more, just a single DIB
             # one of the main questions is how many time to compute components and where
             chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,pre_Vslice,dib_center,scan_offset))
-            lout = sampler_2d_hierarchy_var(chi2_wrapper_partial,lvltuple_dib)
+            lout = sampler_2d_hierarchy_var(chi2_wrapper_partial,lvltuple_dib,step1=1,step2=1,minres1=1//10,minres2=sigstep0,minv2=sigrng[1],maxv2=sigrng[end])
             opt_tup = lout[1][3]
             push!(out,lout) # 6
 
@@ -307,7 +309,7 @@ end
             close(f)
 
             # can consider changing dimension at the full DR17 reduction stage
-            f = h5open(prior_dir2*"2023_05_10/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+            f = h5open(prior_dir2*"2023_06_28/starLine_priors/APOGEE_stellar_kry_vsini_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
             global V_subpix = alpha*read(f["Vmat"])
             close(f)
             # global V_subpix_comb = hcat(V_subpix,V_subpix_cor)
@@ -341,10 +343,11 @@ end
                 (x->x[metai][8],                        "fluxerr2"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
-                (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
+                (x->Float64.(x[RVind][1][1][1]),        "RV_pixoff_final"),
+                (x->Float64.(x[RVind][1][1][2]),        "RV_sqrtvsini_final"), # we probably want to convert this and the error soon (before export)
                 (x->x[RVind][1][2],                     "RV_minchi2_final"),
                 (x->x[RVind][1][6],                     "RV_flag"),
-                (x->x[RVind][1][7],                     "RV_pix_var"),
+                (x->[x[RVind][1][7:11]...],             "RV_pix_hess_var"),
                                     
                 (x->x[RVchi][1],                        "RVchi2_residuals"),
                                     
@@ -374,7 +377,7 @@ end
                 (x->Float64.(x[DIBind+dibsavesz*(dibindx-1)][1][1][2]),        "DIB_sigval_final_$(dibind)_$(dib)"),
                 (x->x[DIBind+dibsavesz*(dibindx-1)][1][2],                     "DIB_minchi2_final_$(dibind)_$(dib)"),
                 (x->x[DIBind+dibsavesz*(dibindx-1)][1][6],                     "DIB_flag_$(dibind)_$(dib)"),
-                (x->[x[DIBind+dibsavesz*(dibindx-1)][1][7:11]...],             "DIB_hess_var_$(dibind)_$(dib)"),
+                (x->[x[DIBind+dibsavesz*(dibindx-1)][1][7:11]...],             "DIB_hess_var_$(dibind)_$(dib)"), #have I really just been using RVerr from here... make easier
                                     
                 (x->x[DIBind+dibsavesz*(dibindx-1)][2][1][3],                  "DIB_p5delchi2_lvl1_$(dibind)_$(dib)"),
                 (x->x[DIBind+dibsavesz*(dibindx-1)][2][2][3],                  "DIB_p5delchi2_lvl2_$(dibind)_$(dib)"),

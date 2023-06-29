@@ -5,7 +5,7 @@ function shift_range(inrng,shift)
     return range(start+shift,stop+shift,step=step1)
 end
 
-function shift_trim_range(inrng,shift; minv=4//10, maxv=4)
+function shift_trim_range(inrng,shift; minv=4//10, maxv=4//1)
     start, stop, step1 = inrng[1], inrng[end], step(inrng)
     return range(maximum((start+shift,minv)),minimum((stop+shift,maxv)),step=step1)
 end
@@ -178,11 +178,12 @@ function sampler_1d_hierarchy_var(chi2_fun,lvltup;minres=1//10,stepx=1)
     end
 end
 
-function sampler_2d_dense(chi2_fun,valrngtup)
+function sampler_2d_dense(chi2_fun,valrngtup;save_zero2=false)
     valrng1, valrng2 = valrngtup
     lval1 = length(valrng1)
     lval2 = length(valrng2)
     chi2out = zeros(lval1,lval2)
+    
     for (ind2,val2) in enumerate(valrng2)
         for (ind1,val1) in enumerate(valrng1)
             chi2out[ind1,ind2] = chi2_fun((val1,val2))
@@ -190,12 +191,22 @@ function sampler_2d_dense(chi2_fun,valrngtup)
     end
     minChi, minInd = findmin(chi2out)
     # now we have a gridx and gridy edge bit (might need to update bit identities)
-    flag = (2^1)*((minInd[1] == 1) | (minInd[1] == lval1))*(lval1!=1) + (2^2)*((minInd[2] == 1) | (minInd[2] == lval2))*(lval2!=1)
+    flag = if (save_zero2 & (valrng2[1] == 0) & (lval2!=1))
+        (2^1)*((minInd[1] == 1) | (minInd[1] == lval1))*(lval1!=1) + (2^2)*((minInd[2] == lval2))*(lval2!=1)
+    else
+        (2^1)*((minInd[1] == 1) | (minInd[1] == lval1))*(lval1!=1) + (2^2)*((minInd[2] == 1) | (minInd[2] == lval2))*(lval2!=1)
+    end
     if flag !=0
         return (((valrng1[minInd[1]], valrng2[minInd[2]]), minChi, (valrng1[minInd[1]], valrng2[minInd[2]]), minChi, minInd, flag), valrngtup, chi2out)
     else
-        minChi_interp, minVal_interp, flag = quadratic_interp3_2d(valrngtup,chi2out,minInd;step1=1,step2=1)
-        return (((minVal_interp[1], minVal_interp[2]), minChi_interp, (valrng1[minInd[1]], valrng2[minInd[2]]), minChi, minInd, flag), valrngtup, chi2out)
+        if (save_zero2 & (valrng2[1] == 0) & (lval2!=1))
+            chi2out_pad = padarray_fix(chi2out,ImageFiltering.Pad(:reflect,(0,1)))
+            minChi_interp, minVal_interp, flag = quadratic_interp3_2d(valrngtup,chi2out_pad,minInd;step1=1,step2=1)
+            return (((minVal_interp[1], minVal_interp[2]), minChi_interp, (valrng1[minInd[1]], valrng2[minInd[2]]), minChi, minInd, flag), valrngtup, chi2out)
+        else
+            minChi_interp, minVal_interp, flag = quadratic_interp3_2d(valrngtup,chi2out,minInd;step1=1,step2=1)
+            return (((minVal_interp[1], minVal_interp[2]), minChi_interp, (valrng1[minInd[1]], valrng2[minInd[2]]), minChi, minInd, flag), valrngtup, chi2out)
+        end
     end
     # we may want 1d quadratic interpolations here on if cases
 end
@@ -234,7 +245,7 @@ function sampler_2d_dense_var(chi2_fun,valrngtup;step1=1,step2=1)
     end
 end
 
-function sampler_2d_hierarchy_var(chi2_fun,lvltup;step1=1,step2=1,minres1=1//10,minres2=1//100)
+function sampler_2d_hierarchy_var(chi2_fun,lvltup;step1=1,step2=1,minres1=1//10,minres2=1//100,save_zero2=false,minv2=4//10,maxv2=4) #might want to make save_zero options for 2d_var and 1d versions
     lvllen = length(lvltup)
     out = []
 
@@ -248,13 +259,13 @@ function sampler_2d_hierarchy_var(chi2_fun,lvltup;step1=1,step2=1,minres1=1//10,
     global_flag = 0
     for (lvlind,lvl) in enumerate(lvltup)
         if lvlind == 1
-            (((minVal_interp1, minVal_interp2), minChi_interp, (minVal1, minVal2), minChi, minInd, flag), valrng, chi2out) = sampler_2d_dense(chi2_fun,lvl)
+            (((minVal_interp1, minVal_interp2), minChi_interp, (minVal1, minVal2), minChi, minInd, flag), valrng, chi2out) = sampler_2d_dense(chi2_fun,lvl,save_zero2=save_zero2)
             push!(out,(((minVal_interp1, minVal_interp2), minChi_interp, (minVal1, minVal2), minChi, minInd, flag), valrng, chi2out))
             (global_minVal_interp1, global_minVal_interp2), global_minChi_interp, (global_minVal1, global_minVal2), global_minChi, global_minInd, global_flag = (minVal_interp1, minVal_interp2), minChi_interp, (minVal1, minVal2), minChi, minInd, flag
         else
             uprng1 = shift_range(lvl[1],round_step(global_minVal_interp1,minres1))
-            uprng2 = shift_trim_range(lvl[2],round_step(global_minVal_interp2,minres2))
-            (((minVal_interp1, minVal_interp2), minChi_interp, (minVal1, minVal2), minChi, minInd, flag), valrng, chi2out) = sampler_2d_dense(chi2_fun,(uprng1,uprng2))
+            uprng2 = shift_trim_range(lvl[2],round_step(global_minVal_interp2,minres2),minv=minv2,maxv=maxv2)
+            (((minVal_interp1, minVal_interp2), minChi_interp, (minVal1, minVal2), minChi, minInd, flag), valrng, chi2out) = sampler_2d_dense(chi2_fun,(uprng1,uprng2),save_zero2=save_zero2)
             push!(out,(((minVal_interp1, minVal_interp2), minChi_interp, (minVal1, minVal2), minChi, minInd, flag), valrng, chi2out))
             if minChi <= global_minChi # this should not be the interpolated value, it should be the min measured chi2 value
             (global_minVal_interp1, global_minVal_interp2), global_minChi_interp, (global_minVal1, global_minVal2), global_minChi, global_minInd, global_flag = (minVal_interp1, minVal_interp2), minChi_interp, (minVal1, minVal2), minChi, minInd, flag

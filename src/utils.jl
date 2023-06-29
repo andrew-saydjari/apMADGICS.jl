@@ -79,3 +79,12 @@ function slurm_cpu_lock()
     end
     flush(stdout)
 end
+
+using ImageFiltering: AbstractBorder
+
+padarray_fix(img::AbstractArray, border::AbstractBorder) = padarray_fix(eltype(img), img, border)
+function padarray_fix(::Type{T}, img::AbstractArray, border) where {T}
+    ba = BorderArray(img, border)
+    out = similar(ba, T, axes(ba))
+    out .= ba
+end
