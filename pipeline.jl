@@ -29,7 +29,7 @@ end
     include(src_dir*"src/spectraInterpolation.jl")
     include(src_dir*"src/chi2Wrappers.jl")
     
-    using StatsBase, LinearAlgebra, ProgressMeter, ImageFiltering, OffsetArarys
+    using StatsBase, LinearAlgebra, ProgressMeter, ImageFiltering, OffsetArrays
     using BLISBLAS
     BLAS.set_num_threads(1)
 end
