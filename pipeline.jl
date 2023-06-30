@@ -282,7 +282,7 @@ end
         tele = indsubset[1][2]
         fiberindx = indsubset[1][end]
         teleind = (tele == "lco25m") ? 2 : 1
-        adjfibindx = (teleind-1)*300 + fiberindx
+        global adjfibindx = (teleind-1)*300 + fiberindx
 
         ### Save and cache restart handling
         savename = join([out_dir,lpad(adjfibindx,3,"0"),"apMADGICS_fiber_"*lpad(adjfibindx,3,"0")*"_batch_"*lpad(startind,7,"0")*".h5"],"/")
@@ -291,34 +291,45 @@ end
             mkpath(dirName)
         end
         if !isfile(savename)
-            ### Need to load the priors here
-            f = h5open(prior_dir2*"2023_06_01/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
-            global V_skycont = read(f["Vmat"])
-            chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
-            close(f)
+            prior_load_needed = if @isdefined loaded_adjfibindx
+                if adjfibindx != loaded_adjfibindx
+                    true
+                else
+                    false
+                end
+            else
+                true
+            end
+            if prior_load_needed
+                ### Need to load the priors here
+                f = h5open(prior_dir2*"2023_06_01/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
+                global V_skycont = read(f["Vmat"])
+                chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
+                close(f)
 
-            f = h5open(prior_dir2*"2023_06_01/sky_priors/APOGEE_skyline_svd_120_f"*lpad(adjfibindx,3,"0")*".h5")
-            global V_skyline = read(f["Vmat"])
-            submsk = convert.(Bool,read(f["submsk"]))
-            close(f)
+                f = h5open(prior_dir2*"2023_06_01/sky_priors/APOGEE_skyline_svd_120_f"*lpad(adjfibindx,3,"0")*".h5")
+                global V_skyline = read(f["Vmat"])
+                submsk = convert.(Bool,read(f["submsk"]))
+                close(f)
 
-            global skymsk = chebmsk_exp .& submsk #.& msk_starCor;
+                global skymsk = chebmsk_exp .& submsk #.& msk_starCor;
 
-            f = h5open(prior_dir2*"2023_06_01/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
-            global V_starcont = read(f["Vmat"])
-            close(f)
+                f = h5open(prior_dir2*"2023_06_01/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
+                global V_starcont = read(f["Vmat"])
+                close(f)
 
-            # can consider changing dimension at the full DR17 reduction stage
-            f = h5open(prior_dir2*"2023_06_30/starLine_priors/APOGEE_stellar_kry_vsini_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
-            global V_subpix = alpha*read(f["Vmat"])
-            close(f)
-            # global V_subpix_comb = hcat(V_subpix,V_subpix_cor)
-            global V_subpix_comb = V_subpix
+                # can consider changing dimension at the full DR17 reduction stage
+                f = h5open(prior_dir2*"2023_06_30/starLine_priors/APOGEE_stellar_kry_vsini_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+                global V_subpix = alpha*read(f["Vmat"])
+                close(f)
+                # global V_subpix_comb = hcat(V_subpix,V_subpix_cor)
+                global V_subpix_comb = V_subpix
 
-            f = h5open(prior_dir*"2023_04_03/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
-            global V_dib = read(f["Vmat"])
-            close(f)
-            GC.gc()
+                f = h5open(prior_dir*"2023_04_03/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
+                global V_dib = read(f["Vmat"])
+                close(f)
+            end
+            global loaded_adjfibindx = adjfibindx
 
             ### Single spectrum loop
             for (ind,indval) in enumerate(indsubset)
