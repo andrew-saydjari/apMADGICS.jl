@@ -318,6 +318,7 @@ end
             f = h5open(prior_dir*"2023_04_03/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
             global V_dib = read(f["Vmat"])
             close(f)
+            GC.gc()
 
             ### Single spectrum loop
             for (ind,indval) in enumerate(indsubset)
@@ -411,7 +412,6 @@ end
             for elelst in extractlst
                 extractor(out,elelst[1],elelst[2],savename)
             end
-            GC.gc()
         end
     end
 
