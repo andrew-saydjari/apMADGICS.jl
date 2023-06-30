@@ -68,7 +68,7 @@ flush(stdout)
     close(f)
 
     alpha = 1;
-    f = h5open(prior_dir2*"2023_06_28/starLine_priors/APOGEE_stellar_kry_vsini_50_subpix_th22500.h5")
+    f = h5open(prior_dir2*"2023_06_30/starLine_priors/APOGEE_stellar_kry_vsini_50_subpix_th22500.h5")
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
@@ -98,8 +98,8 @@ end
     lvl1_vsini = ((-70:1//2:70),(0//1:0//1))
     lvl2_vsini = ((-8:2//10:8),(0//1:0//1))
     lvl3_vsini = ((-3:1//10:3),(0//1:0//1))
-    lvl4_vsini = ((0//1:0//1),(vsinirng))
-    lvl5_vsini = ((-4//10:1//10:4//10),(-4//5:1//5:4//5))
+    lvl4_vsini = ((0//1:0//1),(0//1:2//5:10//1))
+    lvl5_vsini = ((-3//10:1//10:3//10),(-3//5:1//5:3//5))
     svsinilvl_tuple = (lvl1_vsini,lvl2_vsini,lvl3_vsini,lvl4_vsini,lvl5_vsini);
     # tuple2dprint(svsinilvl_tuple)
 
@@ -309,7 +309,7 @@ end
             close(f)
 
             # can consider changing dimension at the full DR17 reduction stage
-            f = h5open(prior_dir2*"2023_06_28/starLine_priors/APOGEE_stellar_kry_vsini_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+            f = h5open(prior_dir2*"2023_06_30/starLine_priors/APOGEE_stellar_kry_vsini_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
             global V_subpix = alpha*read(f["Vmat"])
             close(f)
             # global V_subpix_comb = hcat(V_subpix,V_subpix_cor)
@@ -411,6 +411,7 @@ end
             for elelst in extractlst
                 extractor(out,elelst[1],elelst[2],savename)
             end
+            GC.gc()
         end
     end
 
