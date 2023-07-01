@@ -15,6 +15,9 @@
 #SBATCH --mail-user=7155301634@vtext.com
 # ------------------------------------------------------------------------------
 
+# Access the submit time
+# queueTime = $SLURM_START_TIME-$SLURM_SUBMIT_TIME
+
 module load julia
 
 julia pipeline.jl

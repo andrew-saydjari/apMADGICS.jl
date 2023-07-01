@@ -67,7 +67,7 @@ flush(stdout)
     global V_dib_noLSF = read(f["Vmat"])
     close(f)
 
-    # alpha = 1;
+    alpha = 1;
     # f = h5open(prior_dir2*"2023_05_10/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
     # global V_subpix_refLSF = alpha*read(f["Vmat"])
     # close(f)
