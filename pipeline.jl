@@ -1,11 +1,15 @@
 ## This is the main pipeline that will batch over APOGEE files
 # Author - Andrew Saydjari, CfA
 
-import Pkg
+import Pkg; using Dates; t0 = now()
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
+
+t1 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t1-t0)); println("Package activation took $dt")
 
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
 addprocs(SlurmManager(launch_timeout=960.0))
+
+t2 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t2-t1)); println("Worker allocation took $dt")
 
 activateout = @capture_out begin
     @everywhere begin
@@ -33,6 +37,8 @@ end
     using BLISBLAS
     BLAS.set_num_threads(1)
 end
+
+t1 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t1-t2)); println("Worker allocation took $dt")
 
 # Task-Affinity CPU Locking in multinode SlurmContext
 slurm_cpu_lock()
@@ -305,7 +311,7 @@ end
                 chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
                 close(f)
 
-                f = h5open(prior_dir2*"2023_07_01/APOGEE_skyLineCor_svd_120_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_01/APOGEE_skyLineCorHcat_svd_120_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_skyline = read(f["Vmat"])
                 submsk = convert.(Bool,read(f["submsk"]))
                 close(f)
@@ -454,3 +460,5 @@ println("Batches to Do: $lenargs, number of workers: $nwork")
 flush(stdout)
 
 @showprogress pmap(multi_spectra_batch,ittot)
+
+t2 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t2-t0)); println("Total script runtime: $dt")
