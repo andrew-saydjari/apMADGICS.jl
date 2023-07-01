@@ -15,12 +15,6 @@
 #SBATCH --mail-user=7155301634@vtext.com
 # ------------------------------------------------------------------------------
 
-# Init Timing
-queueTime = $SLURM_START_TIME-$SLURM_SUBMIT_TIME
-queue_time=$(printf '%dd %dh:%dm:%ds\n' $(($queueTime/86400)) $((queueTime%86400/3600)) $((queueTime%3600/60)) $((queueTime%60)))
-echo "Job started after $queue_time"
-
-# Actual Job
 module load julia
 
 julia pipeline.jl
