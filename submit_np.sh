@@ -4,7 +4,7 @@
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=64
 
-#SBATCH --mem-per-cpu=7500
+#SBATCH --mem=0 #requesting all of the memory on the node
 
 #SBATCH --time=96:00:00
 #SBATCH --job-name=apMADGICS
@@ -19,6 +19,7 @@ module load julia
 
 julia pipeline.jl
 
+# Clean up logs and Report Timing
 mkdir -p slurm_logs
 mv ${SLURM_JOB_NAME}_${SLURM_JOBID}.out slurm_logs/${SLURM_JOB_NAME}_${SLURM_JOBID}.out
 mv ${SLURM_JOB_NAME}_${SLURM_JOBID}.err slurm_logs/${SLURM_JOB_NAME}_${SLURM_JOBID}.err
