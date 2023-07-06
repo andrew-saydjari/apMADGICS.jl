@@ -3,7 +3,7 @@
 
 import Pkg; using Dates; t0 = now()
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
-versioninfo()
+using InteractiveUtils; versioninfo()
 
 t1 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t1-t0)); println("Package activation took $dt")
 
