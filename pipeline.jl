@@ -5,12 +5,12 @@ import Pkg; using Dates; t0 = now()
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 using InteractiveUtils; versioninfo()
 
-t1 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t1-t0)); println("Package activation took $dt")
+t1 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t1-t0)); println("Package activation took $dt"); flush(stdout)
 
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
 addprocs(SlurmManager(launch_timeout=960.0))
 
-t2 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t2-t1)); println("Worker allocation took $dt")
+t2 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t2-t1)); println("Worker allocation took $dt"); flush(stdout)
 
 activateout = @capture_out begin
     @everywhere begin
@@ -39,12 +39,11 @@ end
     BLAS.set_num_threads(1)
 end
 
-t1 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t1-t2)); println("Worker activation took $dt")
+t1 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t1-t2)); println("Worker activation took $dt"); flush(stdout)
 
 # Task-Affinity CPU Locking in multinode SlurmContext
 slurm_cpu_lock()
-println(BLAS.get_config())
-flush(stdout)
+println(BLAS.get_config()); flush(stdout)
 
 using LibGit2
 git_dir = src_dir
@@ -52,8 +51,7 @@ git_commit = LibGit2.head(git_dir)
 git_repo = LibGit2.GitRepo(git_dir)
 git_head = LibGit2.head(git_repo)
 git_branch = LibGit2.shortname(git_head)
-println("Running on branch: $git_branch, commit: $git_commit")
-flush(stdout)
+println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
 
 @passobj 1 workers() git_branch
 @passobj 1 workers() git_commit
