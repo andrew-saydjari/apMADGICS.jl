@@ -7,7 +7,7 @@ function cache_skyname(intup; cache_dir="../local_cache")
     join([cache_dir,mjd,join(["sky",tele,field,plate,mjd],"_")],"/")*".jdat"
 end
 
-function cache_skynameSpec(intup; cache_dir="../local_cache",inject_cache_dir="../inject_local_cache")
+function cache_skynameSpec(intup; cache_dir="../local_cache", inject_cache_dir="../inject_local_cache")
     (tele,field,plate,mjd,file,plateFile,fiberindx) = intup
     teleind = (tele[1:6] == "lco25m") ? 2 : 1
     adjfibindx = (teleind-1)*300 + fiberindx

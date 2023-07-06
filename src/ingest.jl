@@ -1,7 +1,7 @@
 ## Ingest Module
 # minor rewrite on the horizon
 
-function getSky4visit(intup; caching=true, inject_cache_dir="./inject_local_cache",cache_dir="./local_cache")
+function getSky4visit(intup; caching=true, inject_cache_dir="../inject_local_cache",cache_dir="../local_cache")
     (tele,field,plate,mjd,file,plateFile,fiber) = intup
     
     # Find all of the Sky Fibers

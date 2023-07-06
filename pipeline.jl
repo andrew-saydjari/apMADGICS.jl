@@ -133,11 +133,11 @@ end
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
-        skycache = cache_skyname(intup,cache_dir=cache_dir,inject_cache_dir=cache_dir)
+        skycache = cache_skyname(intup,cache_dir=cache_dir)
         if (isfile(skycache) & caching)
             meanLocSky, VLocSky = deserialize(skycache)
         else
-            meanLocSky, VLocSky = getSky4visit(intup)
+            meanLocSky, VLocSky = getSky4visit(intup,inject_cache_dir=cache_dir)
             if caching
                 dirName = splitdir(skycache)[1]
                 if !ispath(dirName)
