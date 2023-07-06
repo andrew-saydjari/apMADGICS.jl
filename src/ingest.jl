@@ -1,9 +1,9 @@
 ## Ingest Module
 # minor rewrite on the horizon
 
-function getSky4visit(intup)
+function getSky4visit(intup; caching=true, inject_cache_dir="./inject_local_cache",cache_dir="./local_cache")
     (tele,field,plate,mjd,file,plateFile,fiber) = intup
-
+    
     # Find all of the Sky Fibers
     vname = build_visitpath((tele,field,plate,mjd,file))
     
@@ -14,16 +14,31 @@ function getSky4visit(intup)
     fname = visit2cframe(vname,tele,frame_lst[1],"a")
     f = FITS(fname)
     objtype = read(f[12],"OBJTYPE")
+    fiberids = read(f[12],"FIBERID");
     close(f)
-    skyinds = findall(objtype.=="SKY")
+    skyinds = findall((objtype.=="SKY") .& (fiberids.!=(301-fiber)));
 
     outcont = zeros(length(wavetarg),length(skyinds));
     # Decompose all of the Sky Fibers
     for (findx,fiberind) in enumerate(skyinds)
         tintup = (tele,field,plate,mjd,file,plateFile,fiberind)
         try
-            fvec, fvarvec, cntvec, chipmidtimes = stack_out(tintup)
-            # do we want to save that to disk? I really think we do!
+            skycacheSpec = cache_skynameSpec(tintup,inject_cache_dir=inject_cache_dir,cache_dir=cache_dir)
+            if (isfile(skycacheSpec) & caching)
+                fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
+                starscale,framecnts,varoffset,varflux = metaexport
+            else
+                fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(tintup)
+                starscale,framecnts,varoffset,varflux = metaexport
+                if caching
+                    dirName = splitdir(skycacheSpec)[1]
+                    if !ispath(dirName)
+                        mkpath(dirName)
+                    end
+                    serialize(skycacheSpec,[fvec, fvarvec, cntvec, chipmidtimes, metaexport])
+                end
+            end
+
             simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
             contvec = sky_decomp(fvec, fvarvec, simplemsk)
             # do we want to save the other components to disk? I am not sure we do.
@@ -68,7 +83,7 @@ function stack_out(intup; varoffset=16.6)
 
     # # hardcoded flux-dep variance correction (empitical IPC + LSF correction)
     # power 2 model
-    (p, c) = if (tele == "apo25m")
+    (p, c) = if (tele[1:6] == "apo25m")
         (2.0, 1.7e-2)    
     else
         (2.0, 3.4e-2)

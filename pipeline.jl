@@ -3,6 +3,7 @@
 
 import Pkg; using Dates; t0 = now()
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
+versioninfo()
 
 t1 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t1-t0)); println("Package activation took $dt")
 
@@ -130,7 +131,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, cache_dir="../local_cache")
+    function pipeline_single_spectra(argtup; caching=true, cache_dir="../local_cache", inject_cache_dir="../inject_local_cache")
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
@@ -148,10 +149,12 @@ end
             end
         end
 
-        starcache = cache_starname(intup,cache_dir=cache_dir)
+        starcache = cache_starname(intup,cache_dir=cache_dir,inject_cache_dir=inject_cache_dir)
         if (isfile(starcache) & caching)
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(starcache)
             starscale,framecnts,varoffset,varflux = metaexport
+        elseif tele[end]=='i'
+            warn("Injections not found at injection cache dir!")
         else
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(intup)
             starscale,framecnts,varoffset,varflux = metaexport
@@ -285,7 +288,7 @@ end
         startind = indsubset[1][1]
         tele = indsubset[1][2]
         fiberindx = indsubset[1][end]
-        teleind = (tele == "lco25m") ? 2 : 1
+        teleind = (tele[1:6] == "lco25m") ? 2 : 1
         adjfibindx = (teleind-1)*300 + fiberindx
 
         ### Save and cache restart handling
