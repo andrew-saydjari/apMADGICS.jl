@@ -22,9 +22,10 @@ end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker activation took $dt"); t_then = t_now; flush(stdout)
 
 @everywhere begin
+    using Suppressor
     using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays
     using Interpolations, SparseArrays, ParallelDataTransfer, AstroTime, Suppressor
-    using ThreadPinning
+    @suppress_err using ThreadPinning
 
     prior_dir = "/uufs/chpc.utah.edu/common/home/u6039752/scratch/working/"
     prior_dir2 = "/uufs/chpc.utah.edu/common/home/u6039752/scratch1/working/"
