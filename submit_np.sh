@@ -15,8 +15,6 @@
 #SBATCH --mail-user=7155301634@vtext.com
 # ------------------------------------------------------------------------------
 
-module load julia
-
 julia pipeline.jl
 
 # Clean up logs and Report Timing

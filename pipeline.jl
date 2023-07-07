@@ -2,8 +2,8 @@
 # Author - Andrew Saydjari, CfA
 
 import Pkg; using Dates; t0 = now()
-Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 using InteractiveUtils; versioninfo()
+Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 
 t1 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t1-t0)); println("Package activation took $dt"); flush(stdout)
 
