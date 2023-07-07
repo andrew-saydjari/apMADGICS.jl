@@ -1,16 +1,16 @@
 ## This is the main pipeline that will batch over APOGEE files
 # Author - Andrew Saydjari, CfA
 
-import Pkg; using Dates; t0 = now()
+import Pkg; using Dates; t0 = now(); t_then = t0;
 using InteractiveUtils; versioninfo()
-Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
+Pkg.activate("./"); Pkg.pre
 
-t1 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t1-t0)); println("Package activation took $dt"); flush(stdout)
+t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
 addprocs(SlurmManager(launch_timeout=960.0))
 
-t2 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t2-t1)); println("Worker allocation took $dt"); flush(stdout)
+t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
 
 activateout = @capture_out begin
     @everywhere begin
@@ -19,6 +19,8 @@ activateout = @capture_out begin
     end
 end
 
+t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker activation took $dt"); t_then = t_now; flush(stdout)
+@everywhere Suppressor
 @everywhere begin
     using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays
     using Interpolations, SparseArrays, ParallelDataTransfer, AstroTime, Suppressor
@@ -41,7 +43,7 @@ end
     BLAS.set_num_threads(1)
 end
 
-t1 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t1-t2)); println("Worker activation took $dt"); flush(stdout)
+t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
 # Task-Affinity CPU Locking in multinode SlurmContext
 slurm_cpu_lock()
@@ -464,4 +466,4 @@ flush(stdout)
 
 @showprogress pmap(multi_spectra_batch,ittot)
 
-t2 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t2-t0)); println("Total script runtime: $dt")
+t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t0)); println("Total script runtime: $dt"); t_then = t_now; flush(stdout)
