@@ -106,7 +106,11 @@ function wood_precomp_mult(matList)
     Ainv = matList[1]
     V = matList[2]
     AinvV = Ainv*V
-    return [(AinvV)*inv(I+V'*(AinvV))]
+    if any(.!isfinite.(AinvV))
+        return [AinvV]
+    else
+        return [(AinvV)*inv(I+V'*(AinvV))]
+    end
 end
 
 function wood_fxn_mult(matList,precompList,x)
