@@ -43,10 +43,10 @@ function sample_chi2_flux_dflux(samp_lst,intup;waveaxis=wavetarg,delLogSpace=del
         Ctotinv, Vcomb, V_dibc, V_dibr = update_Ctotinv_Vdib(samp_tup,Ctotinv0.matList[1],Rs,Dscale,Vcomb_0,V_dib,scan_offset)
         
         x_comp_lst = deblend_components_all_asym(Ctotinv, Xd_obs, (V_dibr,), (V_dibc,))
-        fluxlst[samp_ind] = sum(x_comp_lst[1].*waveaxis)*delLogSpace
+        fluxlst[samp_ind] = sum(x_comp_lst[1].*waveaxis)*delLogSpace*log(10)
         
         Cii = get_posterior_from_prior_asym(Ctotinv,V_dibc,V_dibr)
-        dfluxlst[samp_ind] = sqrt_nan(waveaxis'*(Cii*waveaxis))*delLogSpace
+        dfluxlst[samp_ind] = sqrt_nan(waveaxis'*(Cii*waveaxis))*delLogSpace*log(10)
     end
     
     return chi2lst, fluxlst, dfluxlst

@@ -20,7 +20,7 @@ activateout = @capture_out begin
 end
 
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker activation took $dt"); t_then = t_now; flush(stdout)
-
+ 
 @everywhere begin
     using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays
     using Interpolations, SparseArrays, ParallelDataTransfer, AstroTime, Suppressor
@@ -367,6 +367,7 @@ end
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
+                (x->Float64.(x[RVind][1][3]),           "RV_pixoff_disc_final"),
                 (x->x[RVind][1][2],                     "RV_minchi2_final"),
                 (x->x[RVind][1][6],                     "RV_flag"),
                 (x->x[RVind][1][7],                     "RV_pix_var"),
@@ -397,6 +398,8 @@ end
                 # Further chi2 refinement does not have fixed sizing because can hit grid edge
                 (x->Float64.(x[DIBind+dibsavesz*(dibindx-1)][1][1][1]),        "DIB_pixoff_final_$(dibind)_$(dib)"),
                 (x->Float64.(x[DIBind+dibsavesz*(dibindx-1)][1][1][2]),        "DIB_sigval_final_$(dibind)_$(dib)"),
+                (x->Float64.(x[DIBind+dibsavesz*(dibindx-1)][1][3][1]),        "DIB_pixoff_disc_final_$(dibind)_$(dib)"),
+                (x->Float64.(x[DIBind+dibsavesz*(dibindx-1)][1][3][2]),        "DIB_sigval_disc_final_$(dibind)_$(dib)"),
                 (x->x[DIBind+dibsavesz*(dibindx-1)][1][2],                     "DIB_minchi2_final_$(dibind)_$(dib)"),
                 (x->x[DIBind+dibsavesz*(dibindx-1)][1][6],                     "DIB_flag_$(dibind)_$(dib)"),
                 (x->[x[DIBind+dibsavesz*(dibindx-1)][1][7:11]...],             "DIB_hess_var_$(dibind)_$(dib)"),
