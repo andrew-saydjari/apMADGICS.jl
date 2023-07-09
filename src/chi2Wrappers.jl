@@ -31,7 +31,7 @@ function chi2_wrapper2d(svals,intup;sigslice=4)
     # calculate window where DIB has support (speed up computation)
     lindx = findfirst(wave_obs .>= (new_center*10^(sval1*6e-6) - sigslice*sval2))
     rindx = findlast(wave_obs .<= (new_center*10^(sval1*6e-6) + sigslice*sval2))
-    widx = round(Int,sigslice*sval2/0.22)
+    widx = round(Int,sigslice*sval2/0.22) # this is a hardcoded approximate pixel size in Angstroms
     slrng = slicer(lindx,rindx,widx)
     pre_Vslice .= view(ShiftedArrays.circshift(view(V_new,:,:,sigindx,tval),(rval,0)),simplemsk,:)
     pre_Vslice .*= Dscale 
