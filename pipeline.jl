@@ -73,7 +73,7 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
     pixscale = (10^(delLog)-1)*c;
 
     # nothing to do on size here, if anything expand
-    f = h5open(prior_dir*"2023_07_08/precomp_dust_2_analyticDeriv.h5")
+    f = h5open(prior_dir2*"2023_07_08/precomp_dust_2_analyticDeriv.h5")
     global V_dib_noLSF = read(f["Vmat"])
     close(f)
 
@@ -336,7 +336,7 @@ end
                 # global V_subpix_comb = hcat(V_subpix,V_subpix_cor)
                 global V_subpix_comb = V_subpix
 
-                f = h5open(prior_dir*"2023_07_08/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_08/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib = read(f["Vmat"])
                 close(f)
             end
