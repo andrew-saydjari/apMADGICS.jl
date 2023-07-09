@@ -1,16 +1,16 @@
 ## This is the main pipeline that will batch over APOGEE files
 # Author - Andrew Saydjari, CfA
 
-import Pkg; using Dates; t0 = now()
+import Pkg; using Dates; t0 = now(); t_then = t0;
+using InteractiveUtils; versioninfo()
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
-versioninfo()
 
-t1 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t1-t0)); println("Package activation took $dt")
+t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
 addprocs(SlurmManager(launch_timeout=960.0))
 
-t2 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t2-t1)); println("Worker allocation took $dt")
+t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
 
 activateout = @capture_out begin
     @everywhere begin
@@ -19,8 +19,13 @@ activateout = @capture_out begin
     end
 end
 
+t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker activation took $dt"); t_then = t_now; flush(stdout)
+ 
 @everywhere begin
-    using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays, ParallelDataTransfer, ThreadPinning, AstroTime
+    using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays
+    using Interpolations, SparseArrays, ParallelDataTransfer, AstroTime, Suppressor
+    using ThreadPinning
+
     prior_dir = "/uufs/chpc.utah.edu/common/home/u6039752/scratch/working/"
     prior_dir2 = "/uufs/chpc.utah.edu/common/home/u6039752/scratch1/working/"
     src_dir = "./"
@@ -39,12 +44,11 @@ end
     BLAS.set_num_threads(1)
 end
 
-t1 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t1-t2)); println("Worker activation took $dt")
+t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
 # Task-Affinity CPU Locking in multinode SlurmContext
 slurm_cpu_lock()
-println(BLAS.get_config())
-flush(stdout)
+println(BLAS.get_config()); flush(stdout)
 
 using LibGit2
 git_dir = src_dir
@@ -52,8 +56,7 @@ git_commit = LibGit2.head(git_dir)
 git_repo = LibGit2.GitRepo(git_dir)
 git_head = LibGit2.head(git_repo)
 git_branch = LibGit2.shortname(git_head)
-println("Running on branch: $git_branch, commit: $git_commit")
-flush(stdout)
+println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
 
 @passobj 1 workers() git_branch
 @passobj 1 workers() git_commit
@@ -131,7 +134,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, cache_dir="../local_cache", inject_cache_dir="../inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_06/inject_local_cache")
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
@@ -139,7 +142,7 @@ end
         if (isfile(skycache) & caching)
             meanLocSky, VLocSky = deserialize(skycache)
         else
-            meanLocSky, VLocSky = getSky4visit(intup)
+            meanLocSky, VLocSky = getSky4visit(intup,inject_cache_dir=cache_dir)
             if caching
                 dirName = splitdir(skycache)[1]
                 if !ispath(dirName)
@@ -364,6 +367,7 @@ end
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
+                (x->Float64.(x[RVind][1][3]),           "RV_pixoff_disc_final"),
                 (x->x[RVind][1][2],                     "RV_minchi2_final"),
                 (x->x[RVind][1][6],                     "RV_flag"),
                 (x->x[RVind][1][7],                     "RV_pix_var"),
@@ -394,6 +398,8 @@ end
                 # Further chi2 refinement does not have fixed sizing because can hit grid edge
                 (x->Float64.(x[DIBind+dibsavesz*(dibindx-1)][1][1][1]),        "DIB_pixoff_final_$(dibind)_$(dib)"),
                 (x->Float64.(x[DIBind+dibsavesz*(dibindx-1)][1][1][2]),        "DIB_sigval_final_$(dibind)_$(dib)"),
+                (x->Float64.(x[DIBind+dibsavesz*(dibindx-1)][1][3][1]),        "DIB_pixoff_disc_final_$(dibind)_$(dib)"),
+                (x->Float64.(x[DIBind+dibsavesz*(dibindx-1)][1][3][2]),        "DIB_sigval_disc_final_$(dibind)_$(dib)"),
                 (x->x[DIBind+dibsavesz*(dibindx-1)][1][2],                     "DIB_minchi2_final_$(dibind)_$(dib)"),
                 (x->x[DIBind+dibsavesz*(dibindx-1)][1][6],                     "DIB_flag_$(dibind)_$(dib)"),
                 (x->[x[DIBind+dibsavesz*(dibindx-1)][1][7:11]...],             "DIB_hess_var_$(dibind)_$(dib)"),
@@ -452,7 +458,7 @@ Base.length(f::Iterators.Flatten) = sum(length, f.it)
 # for adjfibindx in toDolst
 for adjfibindx=295:295
 # for adjfibindx=345:345
-    subiter = deserialize(prior_dir*"2023_04_04/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+    subiter = deserialize(prior_dir2*"2023_07_06/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end
@@ -464,4 +470,4 @@ flush(stdout)
 
 @showprogress pmap(multi_spectra_batch,ittot)
 
-t2 = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t2-t0)); println("Total script runtime: $dt")
+t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t0)); println("Total script runtime: $dt"); t_then = t_now; flush(stdout)
