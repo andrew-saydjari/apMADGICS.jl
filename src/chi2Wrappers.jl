@@ -1,6 +1,6 @@
 ## Problem specific chi2 wrappers
 round_step(x, step) = round(Int,x / step) * step
-indInt(sval) = round(Int,fld1(10 *sval +6,10)-1);
+indInt(sval) = round(Int,fld1(10 *sval + 55//10,10)-1);
 indTenth(sval) = mod1(round(Int,mod1(10 *sval +6,10)),10);
 
 sigrng = 4//10:1//100:4//1
