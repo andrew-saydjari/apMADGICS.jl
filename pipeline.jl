@@ -73,7 +73,7 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
     pixscale = (10^(delLog)-1)*c;
 
     # nothing to do on size here, if anything expand
-    f = h5open(prior_dir*"2023_03_07/precomp_dust_2_analyticDeriv.h5")
+    f = h5open(prior_dir2*"2023_07_08/precomp_dust_2_analyticDeriv.h5")
     global V_dib_noLSF = read(f["Vmat"])
     close(f)
 
@@ -134,7 +134,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_06/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_09/inject_local_cache")
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
@@ -289,7 +289,7 @@ end
         ### Set up
         out = []
         startind = indsubset[1][1]
-        tele = indsubset[1][2]
+        global tele = indsubset[1][2]
         fiberindx = indsubset[1][end]
         teleind = (tele[1:6] == "lco25m") ? 2 : 1
         adjfibindx = (teleind-1)*300 + fiberindx
@@ -330,13 +330,13 @@ end
 
                 # can consider changing dimension at the full DR17 reduction stage
                 # this only exists for the 295 fiber for the moment (can easily batch generate the rest)
-                f = h5open(prior_dir2*"2023_06_20/APOGEE_starCor_svd_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_08/APOGEE_starCor_svd_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 close(f)
                 # global V_subpix_comb = hcat(V_subpix,V_subpix_cor)
                 global V_subpix_comb = V_subpix
 
-                f = h5open(prior_dir*"2023_04_03/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_08/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib = read(f["Vmat"])
                 close(f)
             end
@@ -458,7 +458,7 @@ Base.length(f::Iterators.Flatten) = sum(length, f.it)
 # for adjfibindx in toDolst
 for adjfibindx=295:295
 # for adjfibindx=345:345
-    subiter = deserialize(prior_dir2*"2023_07_06/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+    subiter = deserialize(prior_dir2*"2023_07_09/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end
