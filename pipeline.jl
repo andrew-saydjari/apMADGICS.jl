@@ -134,16 +134,16 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_10/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_10/inject_local_cache")
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
         skycache = cache_skyname(intup,cache_dir=cache_dir)
-        if (isfile(skycache) & caching)
+        if (isfile(skycache) & sky_caching)
             meanLocSky, VLocSky = deserialize(skycache)
         else
             meanLocSky, VLocSky = getSky4visit(intup,inject_cache_dir=cache_dir)
-            if caching
+            if sky_caching
                 dirName = splitdir(skycache)[1]
                 if !ispath(dirName)
                     mkpath(dirName)
