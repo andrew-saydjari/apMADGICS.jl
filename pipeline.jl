@@ -471,5 +471,6 @@ println("Batches to Do: $lenargs, number of workers: $nwork")
 flush(stdout)
 
 @showprogress pmap(multi_spectra_batch,ittot)
+rmprocs(workers())
 
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t0)); println("Total script runtime: $dt"); t_then = t_now; flush(stdout)
