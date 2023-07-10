@@ -8,7 +8,7 @@ Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
-addprocs(SlurmManager(launch_timeout=960.0))
+addprocs(SlurmManager())
 
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
 
@@ -50,6 +50,8 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 slurm_cpu_lock()
 println(BLAS.get_config()); flush(stdout)
 
+t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("CPU locking took $dt"); t_then = t_now; flush(stdout)
+
 using LibGit2
 git_dir = src_dir
 git_commit = LibGit2.head(git_dir)
@@ -73,7 +75,7 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
     pixscale = (10^(delLog)-1)*c;
 
     # nothing to do on size here, if anything expand
-    f = h5open(prior_dir2*"2023_07_08/precomp_dust_2_analyticDeriv.h5")
+    f = h5open(prior_dir2*"2023_07_10/precomp_dust_2_analyticDeriv.h5")
     global V_dib_noLSF = read(f["Vmat"])
     close(f)
 
@@ -336,7 +338,7 @@ end
                 # global V_subpix_comb = hcat(V_subpix,V_subpix_cor)
                 global V_subpix_comb = V_subpix
 
-                f = h5open(prior_dir2*"2023_07_08/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_10/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib = read(f["Vmat"])
                 close(f)
             end
