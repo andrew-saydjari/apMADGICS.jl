@@ -8,7 +8,7 @@ Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
-addprocs(SlurmManager(launch_timeout=960.0))
+addprocs(SlurmManager())
 
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
 
@@ -50,6 +50,8 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 slurm_cpu_lock()
 println(BLAS.get_config()); flush(stdout)
 
+t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("CPU locking took $dt"); t_then = t_now; flush(stdout)
+
 using LibGit2
 git_dir = src_dir
 git_commit = LibGit2.head(git_dir)
@@ -73,20 +75,14 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
     pixscale = (10^(delLog)-1)*c;
 
     # nothing to do on size here, if anything expand
-    f = h5open(prior_dir2*"2023_07_08/precomp_dust_2_analyticDeriv.h5")
+    f = h5open(prior_dir2*"2023_07_10/precomp_dust_2_analyticDeriv.h5")
     global V_dib_noLSF = read(f["Vmat"])
     close(f)
 
     alpha = 1;
-    # f = h5open(prior_dir2*"2023_05_10/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
-    # global V_subpix_refLSF = alpha*read(f["Vmat"])
-    # close(f)
-
-    # beta = 1;
-    # f = h5open(prior_dir2*"2023_05_25/APOGEE_starCor_svd_50_subpix.h5")
-    # global V_subpix_cor = beta*read(f["Vmat"])
-    # global msk_starCor = convert.(Bool,read(f["msk_starCor"]))
-    # close(f)
+    f = h5open(prior_dir2*"2023_07_10/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
+    global V_subpix_refLSF = alpha*read(f["Vmat"])
+    close(f)
 
     Xd_stack = zeros(3*2048)
     Xd_std_stack = zeros(3*2048)
@@ -134,16 +130,16 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_09/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_10/inject_local_cache")
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
         skycache = cache_skyname(intup,cache_dir=cache_dir)
-        if (isfile(skycache) & caching)
+        if (isfile(skycache) & sky_caching)
             meanLocSky, VLocSky = deserialize(skycache)
         else
             meanLocSky, VLocSky = getSky4visit(intup,inject_cache_dir=cache_dir)
-            if caching
+            if sky_caching
                 dirName = splitdir(skycache)[1]
                 if !ispath(dirName)
                     mkpath(dirName)
@@ -196,23 +192,23 @@ end
         ## Solve RV of Star
         # compute stellar continuum to modify stellar line prior
         Vcomb_cur = hcat(V_skyline_r,V_locSky_r,V_starCont_r);
-        Ctotinv_cur = LowRankMultMatIP([Ainv,Vcomb_cur],wood_precomp_mult_mat([Ainv,Vcomb_cur],(size(Ainv,1),size(V_subpix_comb,2))),wood_fxn_mult,wood_fxn_mult_mat!);
+        Ctotinv_cur = LowRankMultMatIP([Ainv,Vcomb_cur],wood_precomp_mult_mat([Ainv,Vcomb_cur],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
         x_comp_lst = deblend_components_all(Ctotinv_cur, Xd_obs, (V_starCont_r,))
 
         starCont_Mscale = x_comp_lst[1]
-        pre_Vslice = zeros(count(simplemsk),size(V_subpix_comb,2))
-        chi2_wrapper_partial = Base.Fix2(chi2_wrapper,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix_comb,pre_Vslice))
+        pre_Vslice = zeros(count(simplemsk),size(V_subpix,2))
+        chi2_wrapper_partial = Base.Fix2(chi2_wrapper,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice))
         lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=1//10,stepx=1)
         push!(out,lout) # 2
 
         # update the Ctotinv to include the stellar line component (iterate to refine starCont_Mscale)
         svalc = lout[1][3]
         for i=1:refine_iters
-            Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix)
+            Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
             x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,))
             starCont_Mscale = x_comp_lst[1]
         end
-        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix)
+        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
         
         # do a component save without the 15273 DIB
         x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
@@ -232,7 +228,7 @@ end
         starCont_Mscale = x_comp_lst[1]
         starFull_Mscale = x_comp_lst[1].+x_comp_lst[2]
         
-        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix)
+        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
         Ctotinv_cur, Ctotinv_fut = Ctotinv_fut, Ctotinv_cur; Vcomb_cur, Vcomb_fut = Vcomb_fut, Vcomb_cur # swap to updated covariance finally
         
         # currently, this is modeling each DIB seperately... I think we want to change this later, just easier parallel structure
@@ -285,7 +281,7 @@ end
 end
 
 @everywhere begin
-    function multi_spectra_batch(indsubset; out_dir="../outdir")
+    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=false)
         ### Set up
         out = []
         startind = indsubset[1][1]
@@ -330,13 +326,14 @@ end
 
                 # can consider changing dimension at the full DR17 reduction stage
                 # this only exists for the 295 fiber for the moment (can easily batch generate the rest)
-                f = h5open(prior_dir2*"2023_07_08/APOGEE_starCor_svd_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_10/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 close(f)
-                # global V_subpix_comb = hcat(V_subpix,V_subpix_cor)
-                global V_subpix_comb = V_subpix
+                if ddstaronly
+                    global V_subpix_refLSF = V_subpix
+                end
 
-                f = h5open(prior_dir2*"2023_07_08/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_10/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib = read(f["Vmat"])
                 close(f)
             end
@@ -458,7 +455,7 @@ Base.length(f::Iterators.Flatten) = sum(length, f.it)
 # for adjfibindx in toDolst
 for adjfibindx=295:295
 # for adjfibindx=345:345
-    subiter = deserialize(prior_dir2*"2023_07_09/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+    subiter = deserialize(prior_dir2*"2023_07_10/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end
@@ -469,5 +466,6 @@ println("Batches to Do: $lenargs, number of workers: $nwork")
 flush(stdout)
 
 @showprogress pmap(multi_spectra_batch,ittot)
+rmprocs(workers())
 
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t0)); println("Total script runtime: $dt"); t_then = t_now; flush(stdout)
