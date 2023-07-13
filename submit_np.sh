@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --account=sdss-np
 #SBATCH --partition=sdss-shared-np
-#SBATCH --nodes=4 # temp change to fit in before shutdown
+#SBATCH --nodes=2
 #SBATCH --ntasks-per-node=64
 
 #SBATCH --mem=0 #requesting all of the memory on the node
 
-#SBATCH --time=6:00:00 #96:00:00 temp to avoid shutdown
+#SBATCH --time=96:00:00
 #SBATCH --job-name=apMADGICS
 #SBATCH --output=%x_%j.out
 #SBATCH --err=%x_%j.err
