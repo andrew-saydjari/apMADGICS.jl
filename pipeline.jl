@@ -130,7 +130,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_10/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_12/inject_local_cache")
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
