@@ -80,7 +80,7 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
     close(f)
 
     alpha = 1;
-    f = h5open(prior_dir2*"2023_07_10/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
+    f = h5open(prior_dir2*"2023_07_13/starLine_priors/APOGEE_stellar_kry_40_subpix_th22500.h5")
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
@@ -130,7 +130,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_10/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_13/inject_local_cache")
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
@@ -326,7 +326,7 @@ end
 
                 # can consider changing dimension at the full DR17 reduction stage
                 # this only exists for the 295 fiber for the moment (can easily batch generate the rest)
-                f = h5open(prior_dir2*"2023_07_10/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_13/starLine_priors/APOGEE_stellar_kry_40_subpix_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 close(f)
                 if ddstaronly
@@ -455,7 +455,7 @@ Base.length(f::Iterators.Flatten) = sum(length, f.it)
 # for adjfibindx in toDolst
 for adjfibindx=295:295
 # for adjfibindx=345:345
-    subiter = deserialize(prior_dir2*"2023_07_10/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+    subiter = deserialize(prior_dir2*"2023_07_13/KommonInject/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end
