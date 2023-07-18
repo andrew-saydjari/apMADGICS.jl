@@ -138,7 +138,7 @@ end
         if (isfile(skycache) & sky_caching)
             meanLocSky, VLocSky = deserialize(skycache)
         else
-            meanLocSky, VLocSky = getSky4visit(intup,inject_cache_dir=cache_dir)
+            meanLocSky, VLocSky = getSky4visit(intup,inject_cache_dir=cache_dir, caching=sky_caching)
             if sky_caching
                 dirName = splitdir(skycache)[1]
                 if !ispath(dirName)
