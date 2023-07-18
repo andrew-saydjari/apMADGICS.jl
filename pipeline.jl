@@ -313,7 +313,7 @@ end
                 chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
                 close(f)
 
-                f = h5open(prior_dir2*"2023_07_16/APOGEE_skyLineCorHcat_sky_svd_150_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_18/APOGEE_skyLineCorHcat_sky_svd_150_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_skyline = read(f["Vmat"])
                 submsk = convert.(Bool,read(f["submsk"]))
                 close(f)
