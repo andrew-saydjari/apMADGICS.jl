@@ -72,10 +72,10 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
     
     c = 299792.458; # in km/s
     delLog = 6e-6; 
-    pixscale = (10^(delLog)-1)*c;
+    # pixscale = (10^(delLog)-1)*c;
 
     # nothing to do on size here, if anything expand
-    f = h5open(prior_dir2*"2023_07_10/precomp_dust_2_analyticDeriv.h5")
+    f = h5open(prior_dir2*"2023_07_08/precomp_dust_2_analyticDeriv.h5")
     global V_dib_noLSF = read(f["Vmat"])
     close(f)
 
@@ -130,7 +130,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_15/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, sky_off = true, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_19/inject_local_cache")
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
@@ -169,6 +169,11 @@ end
         
         push!(out,(count(simplemsk), starscale, framecnts, chipmidtimes, varoffset, varflux, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
 
+        if sky_off
+            meanLocSky.=0
+            VLocSky.=0
+            V_skyline.=0
+        end
         ## Select data for use (might want to handle mean more generally)
         Xd_obs = (fvec.-meanLocSky)[simplemsk]; #I think an outvec to fvec here was the key caching issue
         wave_obs = wavetarg[simplemsk]
@@ -333,7 +338,7 @@ end
                     global V_subpix_refLSF = V_subpix
                 end
 
-                f = h5open(prior_dir2*"2023_07_10/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_08/dib_priors/precomp_dust_2_analyticDerivLSF_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib = read(f["Vmat"])
                 close(f)
             end
@@ -455,7 +460,7 @@ Base.length(f::Iterators.Flatten) = sum(length, f.it)
 # for adjfibindx in toDolst
 for adjfibindx=295:295
 # for adjfibindx=345:345
-    subiter = deserialize(prior_dir2*"2023_07_15/injectClean/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+    subiter = deserialize(prior_dir2*"2023_07_19/injectNoSky/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end
