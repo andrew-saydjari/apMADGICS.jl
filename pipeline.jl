@@ -130,7 +130,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_10/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_15/inject_local_cache")
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
@@ -138,7 +138,7 @@ end
         if (isfile(skycache) & sky_caching)
             meanLocSky, VLocSky = deserialize(skycache)
         else
-            meanLocSky, VLocSky = getSky4visit(intup,inject_cache_dir=cache_dir)
+            meanLocSky, VLocSky = getSky4visit(intup,inject_cache_dir=cache_dir, caching=sky_caching)
             if sky_caching
                 dirName = splitdir(skycache)[1]
                 if !ispath(dirName)
@@ -308,19 +308,19 @@ end
             end
             if prior_load_needed
                 ### Need to load the priors here
-                f = h5open(prior_dir2*"2023_06_01/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_16/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_skycont = read(f["Vmat"])
                 chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
                 close(f)
 
-                f = h5open(prior_dir2*"2023_07_02/APOGEE_skyLineCorHcat_skyStar_svd_160_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_18/APOGEE_skyLineCorHcat_sky_svd_150_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_skyline = read(f["Vmat"])
                 submsk = convert.(Bool,read(f["submsk"]))
                 close(f)
 
                 global skymsk = chebmsk_exp .& submsk #.& msk_starCor;
 
-                f = h5open(prior_dir2*"2023_06_01/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_17/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_starcont = read(f["Vmat"])
                 close(f)
 
@@ -455,7 +455,7 @@ Base.length(f::Iterators.Flatten) = sum(length, f.it)
 # for adjfibindx in toDolst
 for adjfibindx=295:295
 # for adjfibindx=345:345
-    subiter = deserialize(prior_dir2*"2023_07_10/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+    subiter = deserialize(prior_dir2*"2023_07_15/injectClean/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end

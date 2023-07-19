@@ -80,3 +80,13 @@ function slurm_cpu_lock()
     end
     flush(stdout)
 end
+
+
+function z2v(z; c=299792.458)
+    return ((z+1)^2-1)/((z+1)^2+1)*c
+end
+
+function pix2v(x)
+    z = 10^(x*delLog)-1
+    z2v(z)
+end
