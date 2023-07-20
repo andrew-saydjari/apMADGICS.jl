@@ -29,12 +29,13 @@ function quadratic_interp3(vrng,chi2,minInd;step=1)
         flag = 2^0
         xoptr = x2
         coptr = c2
+        return coptr, xoptr, flag
     else
         flag = 0
         xoptr = xopt
         coptr = copt
+        return coptr, xoptr, flag
     end
-    return coptr, xoptr, flag
 end
 
 function quadratic_interp3_2d(vrngs,chi2,minInd;step1=1,step2=1)
@@ -89,15 +90,15 @@ function quadratic_interp3_2d(vrngs,chi2,minInd;step1=1,step2=1)
         # in 2d, this flag might be important
         if minChi_interp > locgrid[2,2]
             flag = 2^0
-            minVal_opt = minInd
+            minVal_opt = [x2, y2]
             copt = locgrid[2,2]
+            return copt, minVal_opt, flag
         else
             flag = 0
             minVal_opt = minVal_interp
             copt = minChi_interp
+            return copt, minVal_opt, flag
         end
-
-        return copt, minVal_opt, flag
     else
         @warn "I can't interpolate a 0d scan..."
     end
