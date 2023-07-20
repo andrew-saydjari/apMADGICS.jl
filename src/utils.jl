@@ -86,6 +86,10 @@ function z2v(z; c=299792.458)
     return ((z+1)^2-1)/((z+1)^2+1)*c
 end
 
+function z2pix(z)
+    return log10(z+1)/delLog
+end
+
 function pix2v(x)
     z = 10^(x*delLog)-1
     z2v(z)
