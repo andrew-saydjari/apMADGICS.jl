@@ -246,7 +246,7 @@ end
             ## Solve DIB parameters (for just 15273), not any more, just a single DIB
             # one of the main questions is how many time to compute components and where
             chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(simplemsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,pre_Vslice,dib_center,scan_offset))
-            lout = sampler_2d_hierarchy_var(chi2_wrapper_partial,lvltuple_dib)
+            lout = sampler_2d_hierarchy_var(chi2_wrapper_partial,lvltuple_dib,step1=3,step2=3,minres1=1//10,minres2=1//100)
             opt_tup = lout[1][3]
             push!(out,lout) # 6
 
