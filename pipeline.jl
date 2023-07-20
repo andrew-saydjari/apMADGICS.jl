@@ -79,7 +79,7 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
     global V_dib_noLSF = read(f["Vmat"])
     close(f)
 
-    f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_2_analyticDeriv_soft.h5")
+    f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_3_analyticDeriv_soft.h5")
     global V_dib_noLSF_soft = read(f["Vmat"])
     close(f)
 
@@ -346,7 +346,7 @@ end
                 global V_dib = read(f["Vmat"])
                 close(f)
 
-                f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_2_analyticDerivLSF_soft_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_3_analyticDerivLSF_soft_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib_soft = read(f["Vmat"])
                 close(f)
             end
