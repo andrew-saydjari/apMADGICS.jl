@@ -203,7 +203,7 @@ end
         starCont_Mscale = x_comp_lst[1]
         pre_Vslice = zeros(count(simplemsk),size(V_subpix,2))
         chi2_wrapper_partial = Base.Fix2(chi2_wrapper,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice))
-        lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=1//10,stepx=5)
+        lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=1//10,stepx=10)
         push!(out,lout) # 2
 
         # update the Ctotinv to include the stellar line component (iterate to refine starCont_Mscale)
