@@ -83,8 +83,8 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
     global V_dib_noLSF_soft = read(f["Vmat"])
     close(f)
 
-    alpha = 2;
-    f = h5open(prior_dir2*"2023_07_10/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
+    alpha = 1;
+    f = h5open(prior_dir2*"2023_07_20/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
@@ -322,7 +322,7 @@ end
                 chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
                 close(f)
 
-                f = h5open(prior_dir2*"2023_07_18/APOGEE_skyLineCorHcat_sky_svd_150_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_18/APOGEE_skyLineCorHcat_sky2_svd_180_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_skyline = read(f["Vmat"])
                 submsk = convert.(Bool,read(f["submsk"]))
                 close(f)
@@ -335,7 +335,7 @@ end
 
                 # can consider changing dimension at the full DR17 reduction stage
                 # this only exists for the 295 fiber for the moment (can easily batch generate the rest)
-                f = h5open(prior_dir2*"2023_07_10/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_20/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 close(f)
                 if ddstaronly
