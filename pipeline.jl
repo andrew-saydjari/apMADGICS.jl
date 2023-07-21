@@ -75,11 +75,11 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
     # pixscale = (10^(delLog)-1)*c;
 
     # nothing to do on size here, if anything expand
-    f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_1_analyticDeriv_stiff.h5")
+    f = h5open(prior_dir2*"2023_07_19/dib_priors_round5_good/precomp_dust_1_analyticDeriv_stiff.h5")
     global V_dib_noLSF = read(f["Vmat"])
     close(f)
 
-    f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_3_analyticDeriv_soft.h5")
+    f = h5open(prior_dir2*"2023_07_19/dib_priors_round5_good/precomp_dust_3_analyticDeriv_soft.h5")
     global V_dib_noLSF_soft = read(f["Vmat"])
     close(f)
 
@@ -322,7 +322,7 @@ end
                 chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
                 close(f)
 
-                f = h5open(prior_dir2*"2023_07_16/sky_priors/APOGEE_skyline_svd_120_f"*lpad(adjfibindx,3,"0")*".h5") #revert temp
+                f = h5open(prior_dir2*"2023_07_18/APOGEE_skyLineCorHcat_sky2_svd_180_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_skyline = read(f["Vmat"])
                 submsk = convert.(Bool,read(f["submsk"]))
                 close(f)
@@ -342,11 +342,11 @@ end
                     global V_subpix_refLSF = V_subpix
                 end
 
-                f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_1_analyticDerivLSF_stiff_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_19/dib_priors_round5_good/precomp_dust_1_analyticDerivLSF_stiff_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib = read(f["Vmat"])
                 close(f)
 
-                f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_3_analyticDerivLSF_soft_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_19/dib_priors_round5_good/precomp_dust_3_analyticDerivLSF_soft_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib_soft = read(f["Vmat"])
                 close(f)
             end
