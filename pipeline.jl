@@ -84,7 +84,7 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
     close(f)
 
     alpha = 1;
-    f = h5open(prior_dir2*"2023_07_21/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
+    f = h5open(prior_dir2*"2023_07_21/starLine_priors/APOGEE_stellar_kry_60_subpix_th22500.h5")
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
@@ -335,7 +335,7 @@ end
 
                 # can consider changing dimension at the full DR17 reduction stage
                 # this only exists for the 295 fiber for the moment (can easily batch generate the rest)
-                f = h5open(prior_dir2*"2023_07_21/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_21/starLine_priors/APOGEE_stellar_kry_60_subpix_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 close(f)
                 if ddstaronly
