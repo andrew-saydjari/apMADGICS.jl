@@ -134,7 +134,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, sky_off = false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_20/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, sky_off = false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_21/inject_local_cache")
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
@@ -468,7 +468,7 @@ Base.length(f::Iterators.Flatten) = sum(length, f.it)
 # for adjfibindx in toDolst
 for adjfibindx=295:295
 # for adjfibindx=345:345
-    subiter = deserialize(prior_dir2*"2023_07_20/injectNoDIB/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+    subiter = deserialize(prior_dir2*"2023_07_21/injectKonventional/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end
