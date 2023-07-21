@@ -75,11 +75,11 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
     # pixscale = (10^(delLog)-1)*c;
 
     # nothing to do on size here, if anything expand
-    f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_1_analyticDeriv_stiff.h5")
+    f = h5open(prior_dir2*"2023_07_19/dib_priors_round5_good/precomp_dust_1_analyticDeriv_stiff.h5")
     global V_dib_noLSF = read(f["Vmat"])
     close(f)
 
-    f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_3_analyticDeriv_soft.h5")
+    f = h5open(prior_dir2*"2023_07_19/dib_priors_round5_good/precomp_dust_3_analyticDeriv_soft.h5")
     global V_dib_noLSF_soft = read(f["Vmat"])
     close(f)
 
@@ -342,11 +342,11 @@ end
                     global V_subpix_refLSF = V_subpix
                 end
 
-                f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_1_analyticDerivLSF_stiff_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_19/dib_priors_round5_good/precomp_dust_1_analyticDerivLSF_stiff_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib = read(f["Vmat"])
                 close(f)
 
-                f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_3_analyticDerivLSF_soft_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_19/dib_priors_round5_good/precomp_dust_3_analyticDerivLSF_soft_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib_soft = read(f["Vmat"])
                 close(f)
             end
@@ -468,7 +468,7 @@ Base.length(f::Iterators.Flatten) = sum(length, f.it)
 # for adjfibindx in toDolst
 for adjfibindx=295:295
 # for adjfibindx=345:345
-    subiter = deserialize(prior_dir2*"2023_07_20/injectNoDIB/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+    subiter = deserialize(prior_dir*"2023_04_04/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end
