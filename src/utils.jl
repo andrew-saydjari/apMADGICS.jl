@@ -81,6 +81,9 @@ function slurm_cpu_lock()
     flush(stdout)
 end
 
+function v2z(v)
+    return sqrt((1+v/c)/(1-v/c))-1
+end
 
 function z2v(z; c=299792.458)
     return ((z+1)^2-1)/((z+1)^2+1)*c

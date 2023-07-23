@@ -1,6 +1,8 @@
 ## Ingest Module
 # minor rewrite on the horizon
 
+using AstroTime
+
 function getSky4visit(intup; caching=false, inject_cache_dir="../inject_local_cache",cache_dir="../local_cache")
     (tele,field,plate,mjd,file,plateFile,fiber) = intup
     
