@@ -75,16 +75,16 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
     # pixscale = (10^(delLog)-1)*c;
 
     # nothing to do on size here, if anything expand
-    f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_1_analyticDeriv_stiff.h5")
+    f = h5open(prior_dir2*"2023_07_22/dib_priors/precomp_dust_1_analyticDeriv_stiff.h5")
     global V_dib_noLSF = read(f["Vmat"])
     close(f)
 
-    f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_3_analyticDeriv_soft.h5")
+    f = h5open(prior_dir2*"2023_07_22/dib_priors/precomp_dust_3_analyticDeriv_soft.h5")
     global V_dib_noLSF_soft = read(f["Vmat"])
     close(f)
 
     alpha = 1;
-    f = h5open(prior_dir2*"2023_07_20/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
+    f = h5open(prior_dir2*"2023_07_22/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
@@ -317,36 +317,36 @@ end
             end
             if prior_load_needed
                 ### Need to load the priors here
-                f = h5open(prior_dir2*"2023_07_16/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_22/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_skycont = read(f["Vmat"])
                 chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
                 close(f)
 
-                f = h5open(prior_dir2*"2023_07_16/sky_priors/APOGEE_skyline_svd_120_f"*lpad(adjfibindx,3,"0")*".h5") #revert temp
+                f = h5open(prior_dir2*"2023_07_22/sky_priors/APOGEE_skyLineCorHcat_sky2_svd_170_f"*lpad(adjfibindx,3,"0")*".h5") #revert temp
                 global V_skyline = read(f["Vmat"])
                 submsk = convert.(Bool,read(f["submsk"]))
                 close(f)
 
                 global skymsk = chebmsk_exp .& submsk #.& msk_starCor;
 
-                f = h5open(prior_dir2*"2023_07_17/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_22/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_starcont = read(f["Vmat"])
                 close(f)
 
                 # can consider changing dimension at the full DR17 reduction stage
                 # this only exists for the 295 fiber for the moment (can easily batch generate the rest)
-                f = h5open(prior_dir2*"2023_07_20/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_22/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 close(f)
                 if ddstaronly
                     global V_subpix_refLSF = V_subpix
                 end
 
-                f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_1_analyticDerivLSF_stiff_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_22/dib_priors/precomp_dust_1_analyticDerivLSF_stiff_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib = read(f["Vmat"])
                 close(f)
 
-                f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_3_analyticDerivLSF_soft_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_22/dib_priors/precomp_dust_3_analyticDerivLSF_soft_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib_soft = read(f["Vmat"])
                 close(f)
             end
@@ -464,11 +464,9 @@ end
 batchsize = 10 #40
 iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
-# toDolst = setdiff(1:600,295)
-# for adjfibindx in toDolst
-for adjfibindx=295:295
-# for adjfibindx=345:345
-    subiter = deserialize(prior_dir2*"2023_07_20/injectNoDIB/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+
+for adjfibindx=295:295 #295, 245
+    subiter = deserialize(prior_dir*"2023_04_04/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end
