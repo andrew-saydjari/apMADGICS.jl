@@ -349,6 +349,7 @@ end
                 f = h5open(prior_dir2*"2023_07_22/dib_priors/precomp_dust_3_analyticDerivLSF_soft_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib_soft = read(f["Vmat"])
                 close(f)
+                GC.gc()
             end
             global loaded_adjfibindx = adjfibindx
             
@@ -447,6 +448,7 @@ end
                 extractor(out,elelst[1],elelst[2],savename)
             end
         end
+        GC.gc()
     end
 
     function extractor(x,elemap,elename,savename)
