@@ -221,8 +221,8 @@ end
         
         # do a component save without the 15273 DIB
         x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
-            (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r),
-            (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_c),
+            (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r, V_starlines_r),
+            (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_c, I),
         )
         push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 3
         x_comp_out = [nanify(x_comp_lst[1],simplemsk)./sqrt.(fvarvec), nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
@@ -396,7 +396,8 @@ end
                 (x->x[RVcom][5],                        "x_starContinuum_v0"),
                 # (x->x[RVcom][6],                        "x_starLineCor_v0"),
                 (x->x[RVcom][6],                        "x_starLines_v0"),
-                (x->x[RVcom][7],                        "tot_p5chi2_v0"),       
+                (x->x[RVcom][7],                        "x_starLineCof_v0"),
+                (x->x[RVcom][8],                        "tot_p5chi2_v0"),       
                                     
                 (x->x[strpo],                           "x_starLines_err_v0"),    
             ]
