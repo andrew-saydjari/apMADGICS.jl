@@ -134,7 +134,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, sky_off = false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_20/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, sky_off=false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_20/inject_local_cache")
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
@@ -290,7 +290,7 @@ end
 end
 
 @everywhere begin
-    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=false)
+    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=true)
         ### Set up
         out = []
         startind = indsubset[1][1]
@@ -335,7 +335,7 @@ end
 
                 # can consider changing dimension at the full DR17 reduction stage
                 # this only exists for the 295 fiber for the moment (can easily batch generate the rest)
-                f = h5open(prior_dir2*"2023_07_22/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_26/starLine_priors/APOGEE_starCor_svd_50_subpix_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 close(f)
                 if ddstaronly
