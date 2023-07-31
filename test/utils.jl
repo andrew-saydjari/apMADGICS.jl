@@ -49,7 +49,35 @@
     # Test for a non-square matrix (2x3)
     @test !issquare([1 2 3; 4 5 6])
 
-    ## ADD Covariance Ellipse Test
+    # Covariance Ellipse Test
+    Σ = [1.0 0.0; 0.0 1.0]
+    μ = [0.0, 0.0]
+    n_std = 1
+    n_ellipse_vertices = 100
+    # Calculate ellipse points using covellipse
+    ellipse_points = covellipse(Σ, μ=μ, n_std=n_std, n_ellipse_vertices=n_ellipse_vertices)
+    @test isapprox(ellipse_points[1], x)
+    @test isapprox(ellipse_points[2], y)
+
+    Σ = [4.0 0.0; 0.0 4.0]
+    μ = [0.0, 0.0]
+    n_std = 1
+    n_ellipse_vertices = 100
+    # Calculate ellipse points using covellipse
+    ellipse_points = covellipse(Σ, μ=μ, n_std=n_std, n_ellipse_vertices=n_ellipse_vertices)
+    @test isapprox(ellipse_points[1], x)
+    @test isapprox(ellipse_points[2], y)
+
+    # Calculate ellipse points using the formula for an ellipse with identity covariance matrix
+    θ = range(0, 2π; length=n_ellipse_vertices)
+    x = μ[1] .+ n_std * 2.0 * cos.(θ)
+    y = μ[2] .+ n_std * 2.0 *sin.(θ);
+
+
+    # Calculate ellipse points using the formula for an ellipse with identity covariance matrix
+    θ = range(0, 2π; length=n_ellipse_vertices)
+    x = μ[1] .+ n_std * cos.(θ)
+    y = μ[2] .+ n_std * sin.(θ);
 
     lvl1 = -70:1//2:70
     lvl2 = -8:2//10:8
@@ -69,7 +97,8 @@
     @test y[msk] == [1.1, 3.7, 5.8]
     @test all(isnan.(y[.!msk]))
 
-    ## ADD cpu_lock test
+    # cpu_lock test (rough)
+    @test_throws nothing slurm_cpu_lock()
 
     z = v2z(10)
     v = z2v(z)
