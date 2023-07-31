@@ -97,3 +97,11 @@ function pix2v(x)
     z = 10^(x*delLog)-1
     z2v(z)
 end
+
+function prop_p2z(p)
+    return log(10)*10^(p*delLog) 
+ end
+ 
+ function prop_z2v(z)
+    return abs(4*(z+1)/((z+1)^2+1))
+ end

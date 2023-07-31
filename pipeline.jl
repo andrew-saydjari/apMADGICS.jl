@@ -75,16 +75,16 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
     # pixscale = (10^(delLog)-1)*c;
 
     # nothing to do on size here, if anything expand
-    f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_1_analyticDeriv_stiff.h5")
+    f = h5open(prior_dir2*"2023_07_22/dib_priors/precomp_dust_1_analyticDeriv_stiff.h5")
     global V_dib_noLSF = read(f["Vmat"])
     close(f)
 
-    f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_3_analyticDeriv_soft.h5")
+    f = h5open(prior_dir2*"2023_07_22/dib_priors/precomp_dust_3_analyticDeriv_soft.h5")
     global V_dib_noLSF_soft = read(f["Vmat"])
     close(f)
 
     alpha = 1;
-    f = h5open(prior_dir2*"2023_07_20/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
+    f = h5open(prior_dir2*"2023_07_22/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
@@ -134,7 +134,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, sky_off = false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_20/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, sky_off=false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_20/inject_local_cache")
         ival = argtup[1]
         intup = argtup[2:end]
         out = []
@@ -221,8 +221,8 @@ end
         
         # do a component save without the 15273 DIB
         x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
-            (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r),
-            (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_c),
+            (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_r, V_starlines_r),
+            (A, V_skyline_r, V_locSky_r, V_starCont_r, V_starlines_c, I),
         )
         push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 3
         x_comp_out = [nanify(x_comp_lst[1],simplemsk)./sqrt.(fvarvec), nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
@@ -290,7 +290,7 @@ end
 end
 
 @everywhere begin
-    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=false)
+    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=true)
         ### Set up
         out = []
         startind = indsubset[1][1]
@@ -317,38 +317,39 @@ end
             end
             if prior_load_needed
                 ### Need to load the priors here
-                f = h5open(prior_dir2*"2023_07_16/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_22/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_skycont = read(f["Vmat"])
                 chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
                 close(f)
 
-                f = h5open(prior_dir2*"2023_07_16/sky_priors/APOGEE_skyline_svd_120_f"*lpad(adjfibindx,3,"0")*".h5") #revert temp
+                f = h5open(prior_dir2*"2023_07_22/sky_priors/APOGEE_skyline_svd_120_f"*lpad(adjfibindx,3,"0")*".h5") #revert temp
                 global V_skyline = read(f["Vmat"])
                 submsk = convert.(Bool,read(f["submsk"]))
                 close(f)
 
                 global skymsk = chebmsk_exp .& submsk #.& msk_starCor;
 
-                f = h5open(prior_dir2*"2023_07_17/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_22/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_starcont = read(f["Vmat"])
                 close(f)
 
                 # can consider changing dimension at the full DR17 reduction stage
                 # this only exists for the 295 fiber for the moment (can easily batch generate the rest)
-                f = h5open(prior_dir2*"2023_07_20/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_26/starLine_priors/APOGEE_starCor_svd_50_subpix_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 close(f)
                 if ddstaronly
                     global V_subpix_refLSF = V_subpix
                 end
 
-                f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_1_analyticDerivLSF_stiff_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_22/dib_priors/precomp_dust_1_analyticDerivLSF_stiff_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib = read(f["Vmat"])
                 close(f)
 
-                f = h5open(prior_dir2*"2023_07_19/dib_priors/precomp_dust_3_analyticDerivLSF_soft_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_07_22/dib_priors/precomp_dust_3_analyticDerivLSF_soft_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib_soft = read(f["Vmat"])
                 close(f)
+                GC.gc()
             end
             global loaded_adjfibindx = adjfibindx
             
@@ -395,7 +396,8 @@ end
                 (x->x[RVcom][5],                        "x_starContinuum_v0"),
                 # (x->x[RVcom][6],                        "x_starLineCor_v0"),
                 (x->x[RVcom][6],                        "x_starLines_v0"),
-                (x->x[RVcom][7],                        "tot_p5chi2_v0"),       
+                (x->x[RVcom][7],                        "x_starLineCof_v0"),
+                (x->x[RVcom][8],                        "tot_p5chi2_v0"),       
                                     
                 (x->x[strpo],                           "x_starLines_err_v0"),    
             ]
@@ -447,6 +449,7 @@ end
                 extractor(out,elelst[1],elelst[2],savename)
             end
         end
+        GC.gc()
     end
 
     function extractor(x,elemap,elename,savename)
@@ -464,11 +467,9 @@ end
 batchsize = 10 #40
 iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
-# toDolst = setdiff(1:600,295)
-# for adjfibindx in toDolst
-for adjfibindx=295:295
-# for adjfibindx=345:345
-    subiter = deserialize(prior_dir2*"2023_07_20/injectNoDIB/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+
+for adjfibindx=1:600 #295, 245
+    subiter = deserialize(prior_dir*"2023_04_04/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end
