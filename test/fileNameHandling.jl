@@ -17,7 +17,13 @@
     @test cache_starname(itest[2:end]) == "../inject_local_cache/58126/295/star_apo25m0000010i_180+60_9667_58126_295.jdat"
 
     # add frameFromPlate test here
-    # add build_framepath test here
+    @test getFramesFromPlate("../data/asPlate-a-10155-58656.fits") == ["30940037", "30940038", "30940039", "30940040", "30940041", "30940042", "30940043", "30940044"]
+
+    ## build_framepath tests here
+    @test build_framepath(rtest[2],rtest[5],"30940037","a") == "/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/redux/dr17/exposures/apogee-s/58656/as1D-a-30940037.fits"
+
+    #this does not exist, but just testing the n/s switch
+    @test build_framepath(itest[2],itest[5],"30940037","a") =="/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/redux/dr17/exposures/apogee-n/58126/ap1D-a-30940037.fits"
 
     vrname = build_visitpath(rtest[2:7])
     @test vrname == "/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/redux/dr17/visit/lco25m/000+04/10155/58656/asVisit-dr17-10155-58656-151.fits"
@@ -25,7 +31,9 @@
     @test viname == 
     "/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/redux/dr17/visit/apo25m/180+60/9667/58126/apVisit-dr17-9667-58126-002.fits"
 
-    # add visit2cframe test here
+    ## visit2cframe test
+    @test visit2cframe(vrname,rtest[2],"30940037","a") == "/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/redux/dr17/visit/lco25m/000+04/10155/58656/asCframe-a-30940037.fits"
+    @test visit2cframe(viname,itest[2],"30940037","a") == "/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/redux/dr17/visit/apo25m/180+60/9667/58126/apCframe-a-30940037.fits" 
 
     @test plate2visit(rtest[7],rtest[8]) == "asVisit-dr17-10155-58656-151.fits"
     @test plate2visit(itest[7],itest[8]) == "apVisit-dr17-9667-58126-006.fits"
