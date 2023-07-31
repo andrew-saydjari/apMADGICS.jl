@@ -98,7 +98,7 @@
 
     # cpu_lock test (rough)
     # @test_throws nothing slurm_cpu_lock()
-    using ThreadPinning
+    using ThreadPinning, DataFrames, Distributed
     slurm_cpu_lock()
 
     z = v2z(10)
