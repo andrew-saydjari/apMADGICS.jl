@@ -65,7 +65,7 @@
 
     x = [1.1, 2.5, 3.7, 4.2, 5.8]
     msk = [true, false, true, false, true]
-    nanify(x[msk], msk)
+    y = nanify(x[msk], msk)
     @test y[msk] == [1.1, 3.7, 5.8]
     @test all(isnan.(y[.!msk]))
 
