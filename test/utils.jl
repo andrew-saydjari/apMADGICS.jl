@@ -98,7 +98,8 @@
     @test all(isnan.(y[.!msk]))
 
     # cpu_lock test (rough)
-    @test_throws nothing slurm_cpu_lock()
+    # @test_throws nothing slurm_cpu_lock()
+    slurm_cpu_lock()
 
     z = v2z(10)
     v = z2v(z)
