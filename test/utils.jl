@@ -12,7 +12,23 @@
     @test nanmedian(dat[:,1])==2.1
     @test nanmedian(dat,1)==2.1*ones(1,10)
 
-    ## ADD Gaussian Posterior Test
+    # Gaussian Posterior Test
+    using Distributions
+    x = 0.5
+    x0 = 0
+    s0 = 1
+    # Calculate the expected value using Distributions.jl
+    d = Normal(x0, s0)
+    expected = pdf(d, x)
+    @test isapprox(gaussian_post(x, x0, s0), expected)
+
+    x = 3.5
+    x0 = 1
+    s0 = 2
+    # Calculate the expected value using Distributions.jl
+    d = Normal(x0, s0)
+    expected = pdf(d, x)
+    @test isapprox(gaussian_post(x, x0, s0), expected)
 
     # Test for positive input
     @test isapprox(sqrt_nan(9), 3.0, rtol=1e-6)
@@ -47,6 +63,9 @@
     lvltuple = (lvl1d, lvl2d, lvl3d);
     @test tuple2dprint(lvltuple) == println([76, 91, 181, 348])
 
+    x = [1.1, 2.5, 3.7, 4.2, 5.8]
+    msk = [true, false, true, false, true]
+    nanify(x[msk], msk)
     @test y[msk] == [1.1, 3.7, 5.8]
     @test all(isnan.(y[.!msk]))
 
