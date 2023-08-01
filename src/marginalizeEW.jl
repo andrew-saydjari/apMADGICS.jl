@@ -1,10 +1,10 @@
 ## Marginalization Module (needs to wrap a bit more)
 
-function marginalize_flux_err(chi2lst,fluxlst,dfluxlst,refchi2val;margin_len=361)
+function marginalize_flux_err(chi2lst,fluxlst,dfluxlst,refchi2val;margin_len=3601)
     pweight = exp.(0.5*(-chi2lst.+refchi2val))
     pweight ./= sum(filter(.!isnan,pweight))
 
-    exval = vcat(fluxlst.-dfluxlst.*3, fluxlst.+dfluxlst.*3)
+    exval = vcat(fluxlst.-dfluxlst.*5, fluxlst.+dfluxlst.*5)
     if count(.!isnan.(exval)) > 1
         minx, maxx = extrema(filter(.!isnan,exval))
         #I am not sure how decide on the length of this range obj
@@ -19,7 +19,7 @@ function marginalize_flux_err(chi2lst,fluxlst,dfluxlst,refchi2val;margin_len=361
             end
         end
         wvec = ProbabilityWeights(new_gauss)
-        out = (mean(xrng,wvec), std(xrng,wvec))
+        out = mean_and_std(xrng,wvec)
     else
         out = (NaN, NaN)
     end
