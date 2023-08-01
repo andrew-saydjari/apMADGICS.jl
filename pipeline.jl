@@ -335,7 +335,7 @@ end
 
                 # can consider changing dimension at the full DR17 reduction stage
                 # this only exists for the 295 fiber for the moment (can easily batch generate the rest)
-                f = h5open(prior_dir2*"2023_07_26/star_priors/APOGEE_starCor_svd_50_subpix_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_08_01/star_priors/APOGEE_starCor_svd_50_subpix_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 close(f)
                 if ddstaronly
