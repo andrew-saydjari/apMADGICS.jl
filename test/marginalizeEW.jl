@@ -20,6 +20,7 @@
   fluxlst = [5.0]
   dfluxlst = [2.0]
   refchi2val = 1.0
+  result = marginalize_flux_err(chi2lst, fluxlst, dfluxlst, refchi2val)
   @test abs(result[1].-5)<1e-14
   @test abs(result[2].-2)<1e-4
   

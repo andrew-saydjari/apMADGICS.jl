@@ -19,7 +19,7 @@ function marginalize_flux_err(chi2lst,fluxlst,dfluxlst,refchi2val;margin_len=360
             end
         end
         wvec = ProbabilityWeights(new_gauss)
-        out = mean_and_std(xrng,wvec)
+        out = mean_and_std(xrng,wvec,corrected=false)
     else
         out = (NaN, NaN)
     end
