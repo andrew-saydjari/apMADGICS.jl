@@ -97,9 +97,10 @@
     @test all(isnan.(y[.!msk]))
 
     # cpu_lock test (rough)
-    # @test_throws nothing slurm_cpu_lock()
-    using ThreadPinning, DataFrames, Distributed
-    slurm_cpu_lock()
+    if Sys.islinux()
+        using ThreadPinning, DataFrames, Distributed
+        slurm_cpu_lock()
+    end
 
     z = v2z(10)
     v = z2v(z)
