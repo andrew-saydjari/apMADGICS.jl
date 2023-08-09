@@ -84,7 +84,7 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
     close(f)
 
     alpha = 1;
-    f = h5open(prior_dir2*"2023_07_22/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
+    f = h5open(prior_dir2*"2023_08_09/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
@@ -290,7 +290,7 @@ end
 end
 
 @everywhere begin
-    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=true)
+    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=false)
         ### Set up
         out = []
         startind = indsubset[1][1]
@@ -335,7 +335,7 @@ end
 
                 # can consider changing dimension at the full DR17 reduction stage
                 # this only exists for the 295 fiber for the moment (can easily batch generate the rest)
-                f = h5open(prior_dir2*"2023_08_01/star_priors/APOGEE_starCor_svd_50_subpix_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir2*"2023_08_09/starLine_priors/APOGEE_stellar_kry_50_subpix_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 close(f)
                 if ddstaronly
@@ -468,7 +468,7 @@ batchsize = 10 #40
 iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
 
-for adjfibindx=1:600 #295, 245
+for adjfibindx=295:295 #1:600 #295, 245
     subiter = deserialize(prior_dir*"2023_04_04/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
