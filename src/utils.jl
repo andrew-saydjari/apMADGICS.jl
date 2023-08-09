@@ -81,7 +81,7 @@ function slurm_cpu_lock()
     flush(stdout)
 end
 
-function v2z(v)
+function v2z(v; c=299792.458)
     return sqrt((1+v/c)/(1-v/c))-1
 end
 
@@ -89,16 +89,16 @@ function z2v(z; c=299792.458)
     return ((z+1)^2-1)/((z+1)^2+1)*c
 end
 
-function z2pix(z)
+function z2pix(z; delLog=6e-6)
     return log10(z+1)/delLog
 end
 
-function pix2v(x)
+function pix2v(x; delLog=6e-6)
     z = 10^(x*delLog)-1
     z2v(z)
 end
 
-function prop_p2z(p)
+function prop_p2z(p; delLog=6e-6)
     return log(10)*10^(p*delLog) 
  end
  
