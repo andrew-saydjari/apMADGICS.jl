@@ -35,7 +35,7 @@
     @test build_framepath(dtest[2:4]...,dtest[7],"30940037","a") == "/uufs/chpc.utah.edu/common/home/sdss/sdsswork/mwm/apogee/spectro/redux/daily/exposures/apogee-n/59817/ap1D-a-30940037.fits"
 
     ## visit and visit2cframe test
-    vrname = build_visitpath(rtest[2:7])
+    vrname = build_visitpath(rtest[2:end]...)
     @test vrname == "/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/redux/dr17/visit/lco25m/000+04/10155/58656/asVisit-dr17-10155-58656-151.fits"
     viname = build_visitpath(itest[2:end]...)
     @test viname == "/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/redux/dr17/visit/apo25m/180+60/9667/58126/apVisit-dr17-9667-58126-006.fits"
