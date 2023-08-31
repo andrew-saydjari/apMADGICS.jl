@@ -13,7 +13,6 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; cach
     frame_lst = getFramesFromPlate(plateFile)
 
     fname = visit2cframe(vname,tele,frame_lst[1],"a")
-    println(fname)
     f = FITS(fname)
     objtype = read(f[12],"OBJTYPE")
     fiberids = read(f[12],"FIBERID");
