@@ -3,34 +3,31 @@
 
 using AstroTime
 
-function getSky4visit(intup; caching=false, inject_cache_dir="../inject_local_cache",cache_dir="../local_cache")
-    (tele,field,plate,mjd,file,plateFile,fiber) = intup
+function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; caching=false,cache_dir="../local_cache")
     
-    # Find all of the Sky Fibers
-    vname = build_visitpath((tele,field,plate,mjd,file))
-    
+    ### Find all of the Sky Fibers
     # do we want to move away from relying on the apPlateFile? 
     # idk, seems fairly robust
+    plateFile = build_platepath(release_dir,redux_ver,tele,field,plate,mjd,"a")
     frame_lst = getFramesFromPlate(plateFile)
 
-    fname = visit2cframe(vname,tele,frame_lst[1],"a")
+    fname = build_framepath(release_dir,redux_ver,tele,mjd,frame_lst[1],"a")
     f = FITS(fname)
     objtype = read(f[12],"OBJTYPE")
     fiberids = read(f[12],"FIBERID");
     close(f)
-    skyinds = findall((objtype.=="SKY") .& (fiberids.!=(301-fiber)));
+    skyinds = findall((objtype.=="SKY") .& (fiberids.!=(301-fiberindx)));
 
+    ### Decompose all of the Sky Fibers
     outcont = zeros(length(wavetarg),length(skyinds));
-    # Decompose all of the Sky Fibers
     for (findx,fiberind) in enumerate(skyinds)
-        tintup = (tele,field,plate,mjd,file,plateFile,fiberind)
         try
-            skycacheSpec = cache_skynameSpec(tintup,inject_cache_dir=inject_cache_dir,cache_dir=cache_dir)
+            skycacheSpec = cache_skynameSpec(tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
             if (isfile(skycacheSpec) & caching)
                 fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
                 starscale,framecnts,varoffset,varflux = metaexport
             else
-                fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(tintup)
+                fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberind)
                 starscale,framecnts,varoffset,varflux = metaexport
                 if caching
                     dirName = splitdir(skycacheSpec)[1]
@@ -47,6 +44,7 @@ function getSky4visit(intup; caching=false, inject_cache_dir="../inject_local_ca
             outcont[:,findx] .= contvec
         catch
             # we should figure out how often this happens and why
+            @warn "Bad Sky: ($tele,$field,$plate,$mjd,$fiberind)"
             outcont[:,findx] .= 0
         end
     end
@@ -80,8 +78,7 @@ function sky_decomp(outvec,outvar,simplemsk)
     return x_comp_lst[1]
 end
 
-function stack_out(intup; varoffset=16.6)
-    (tele,field,plate,mjd,file,plateFile,fiber) = intup
+function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffset=16.6)
 
     # # hardcoded flux-dep variance correction (empitical IPC + LSF correction)
     # power 2 model
@@ -91,6 +88,7 @@ function stack_out(intup; varoffset=16.6)
         (2.0, 3.4e-2)
     end
 
+    plateFile = build_platepath(release_dir,redux_ver,tele,field,plate,mjd,"a")
     frame_lst = getFramesFromPlate(plateFile)
 
     fill!(outvec,0)
@@ -105,18 +103,18 @@ function stack_out(intup; varoffset=16.6)
         fill!(telluric_stack,0)
         fill!(fullBit,0)
         for (chipind,chip) in enumerate(["c","b","a"]) #needs to be c,b,a for chip ind to be right
-            fname = build_framepath(tele,mjd,imid,chip)
+            fname = build_framepath(release_dir,redux_ver,tele,mjd,imid,chip)
             f = FITS(fname)
             hdr = read_header(f[1])
             midtime = modified_julian(TAIEpoch(hdr["DATE-OBS"]))+(hdr["EXPTIME"]/2/3600/24)days #TAI or UTC?
             push!(time_lsts[chipind],AstroTime.value(midtime))
-            Xd = read(f[2],:,fiber);
+            Xd = read(f[2],:,fiberindx);
             Xd_stack[(1:2048).+(chipind-1)*2048] .= Xd[end:-1:1]
-            Xd_std = read(f[3],:,fiber);
+            Xd_std = read(f[3],:,fiberindx);
             Xd_std_stack[(1:2048).+(chipind-1)*2048] .= Xd_std[end:-1:1]
-            pixmsk = read(f[4],:,fiber);
+            pixmsk = read(f[4],:,fiberindx);
             pixmsk_stack[(1:2048).+(chipind-1)*2048] .= pixmsk[end:-1:1]
-            waveobsa = read(f[5],:,fiber);
+            waveobsa = read(f[5],:,fiberindx);
             waveobs_stack[(1:2048).+(chipind-1)*2048] .= waveobsa[end:-1:1]
             fullBit[(1:2048).+(chipind-1)*2048] .+= 2^chipind
             close(f)
@@ -145,7 +143,6 @@ function stack_out(intup; varoffset=16.6)
         outvar .+= varvec
         cntvec .+= msk_inter
     end
-    ## Having made this change 05/28/2023, we now need to be careful to not divide later in any of the prior scripts
     framecnts = maximum(cntvec)
     outvec./=framecnts
     outvar./=(framecnts^2)
