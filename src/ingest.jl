@@ -6,12 +6,13 @@ using AstroTime
 function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; caching=false,cache_dir="../local_cache")
     
     ### Find all of the Sky Fibers
+    vname = build_visitpath(release_dir,redux_ver,tele,field,plate,mjd,fiberindx)
     # do we want to move away from relying on the apPlateFile? 
     # idk, seems fairly robust
     plateFile = build_platepath(release_dir,redux_ver,tele,field,plate,mjd,"a")
     frame_lst = getFramesFromPlate(plateFile)
 
-    fname = build_framepath(release_dir,redux_ver,tele,mjd,frame_lst[1],"a")
+    fname = visit2cframe(vname,tele,frame_lst[1],"a")
     println(fname)
     f = FITS(fname)
     objtype = read(f[12],"OBJTYPE")

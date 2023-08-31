@@ -70,8 +70,6 @@ function build_framepath(release_dir,redux_ver,tele,mjd,imid,chip)
     end
 end
 
-## No longer used in production, but nice to have for visit comparisons
-
 function build_visitpath(release_dir,redux_ver,tele,field,plate,mjd,fiberindx)
     base = getUtahBase(release_dir,redux_ver)*"visit"
     fibnum = lpad(301-fiberindx,3,"0")
