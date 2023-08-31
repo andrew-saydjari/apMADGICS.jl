@@ -135,14 +135,13 @@ end
 
 @everywhere begin
     function pipeline_single_spectra(argtup; caching=true, sky_caching=true, sky_off=false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_07_20/inject_local_cache")
-        ival = argtup[1]
-        intup = argtup[2:end]
+        release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
         out = []
-        skycache = cache_skyname(intup,cache_dir=cache_dir)
+        skycache = cache_skyname(tele,field,plate,mjd,cache_dir=cache_dir)
         if (isfile(skycache) & sky_caching)
             meanLocSky, VLocSky = deserialize(skycache)
         else
-            meanLocSky, VLocSky = getSky4visit(intup,inject_cache_dir=cache_dir, caching=sky_caching)
+            meanLocSky, VLocSky = getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,caching=sky_caching,cache_dir=cache_dir)
             if sky_caching
                 dirName = splitdir(skycache)[1]
                 if !ispath(dirName)
@@ -152,14 +151,14 @@ end
             end
         end
 
-        starcache = cache_starname(intup,cache_dir=cache_dir,inject_cache_dir=inject_cache_dir)
+        starcache = cache_starname(tele,field,plate,mjd,fiberindx,cache_dir=cache_dir,inject_cache_dir=inject_cache_dir)
         if (isfile(starcache) & caching)
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(starcache)
             starscale,framecnts,varoffset,varflux = metaexport
         elseif tele[end]=='i'
             warn("Injections not found at injection cache dir!")
         else
-            fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(intup)
+            fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx)
             starscale,framecnts,varoffset,varflux = metaexport
             if caching
                 dirName = splitdir(starcache)[1]
@@ -227,7 +226,7 @@ end
         push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 3
         x_comp_out = [nanify(x_comp_lst[1],simplemsk)./sqrt.(fvarvec), nanify(x_comp_lst[1],simplemsk), nanify(x_comp_lst[2],simplemsk), 
                         nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk),
-                        x_comp_lst[5:end]...]
+                        x_comp_lst[5:end]..., nanify((fvec[simplemsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[simplemsk]))./ x_comp_lst[4],simplemsk)]
         push!(out,x_comp_out) # 4
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
         push!(out,dflux_starlines) # 5
@@ -294,7 +293,7 @@ end
         ### Set up
         out = []
         startind = indsubset[1][1]
-        global tele = indsubset[1][2]
+        global tele = indsubset[1][4]
         fiberindx = indsubset[1][end]
         teleind = (tele[1:6] == "lco25m") ? 2 : 1
         adjfibindx = (teleind-1)*300 + fiberindx
@@ -397,7 +396,8 @@ end
                 # (x->x[RVcom][6],                        "x_starLineCor_v0"),
                 (x->x[RVcom][6],                        "x_starLines_v0"),
                 (x->x[RVcom][7],                        "x_starLineCof_v0"),
-                (x->x[RVcom][8],                        "tot_p5chi2_v0"),       
+                (x->x[RVcom][8],                        "tot_p5chi2_v0"), 
+                (x->x[RVcom][9],                        "apVisit_v0"),       
                                     
                 (x->x[strpo],                           "x_starLines_err_v0"),    
             ]
