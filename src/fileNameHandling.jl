@@ -32,10 +32,10 @@ function getUtahBase(release_dir, redux_ver)
             return "/uufs/chpc.utah.edu/common/home/sdss/$(release_dir)/apogee/spectro/redux/$(redux_ver)/"
         end
     end
-    if redux_ver == "daily"
-        return "/uufs/chpc.utah.edu/common/home/sdss/$(release_dir)/apogee/spectro/redux/$(redux_ver)/"
+    if redux_ver[1:3] == "ipl"
+        return "/uufs/chpc.utah.edu/common/home/sdss/$(release_dir)/spectro/apogee/redux/$(redux_ver)/"
     end
-    return "/uufs/chpc.utah.edu/common/home/sdss/$(release_dir)/spectro/apogee/redux/$(redux_ver)/"
+    return "/uufs/chpc.utah.edu/common/home/sdss/$(release_dir)/apogee/spectro/redux/$(redux_ver)/"
 end
 
 function build_platepath(release_dir,redux_ver,tele,field,plate,mjd,chip)
