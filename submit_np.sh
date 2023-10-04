@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH --account=sdss-np
 #SBATCH --partition=sdss-shared-np
-#SBATCH --nodes=4
+#SBATCH --nodes=1
 #SBATCH --ntasks-per-node=64
 
 #SBATCH --mem=0 #requesting all of the memory on the node
 
 #SBATCH --time=96:00:00
-#SBATCH --job-name=apMADGICS
+#SBATCH --job-name=ipl2_apMADGICS
 #SBATCH --output=%x_%j.out
 #SBATCH --err=%x_%j.err
 
