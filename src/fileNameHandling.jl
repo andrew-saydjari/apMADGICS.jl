@@ -26,13 +26,13 @@ end
 ## Utah SDSS Data Structure
 
 function getUtahBase(release_dir, redux_ver)
-    if occursin("dr", redux_ver)
+    if occursin("dr", release_dir)
         dr_number = parse(Int, match(r"dr(\d+)", redux_ver).captures[1])
         if (10 <= dr_number <= 17)
             return "/uufs/chpc.utah.edu/common/home/sdss/$(release_dir)/apogee/spectro/redux/$(redux_ver)/"
         end
     end
-    if redux_ver[1:3] == "ipl"
+    if release_dir[1:3] == "ipl"
         return "/uufs/chpc.utah.edu/common/home/sdss/$(release_dir)/spectro/apogee/redux/$(redux_ver)/"
     end
     return "/uufs/chpc.utah.edu/common/home/sdss/$(release_dir)/apogee/spectro/redux/$(redux_ver)/"
