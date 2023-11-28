@@ -23,6 +23,10 @@ function cache_starname(tele,field,plate,mjd,fiberindx; cache_dir="../local_cach
     end
 end
 
+function cache_wavename(tele,mjd; cache_dir="../local_cache")
+    return join([cache_dir,tele,mjd,join(["wavecal",tele,mjd],"_")],"/")*".fits"
+end
+
 ## Utah SDSS Data Structure
 
 function getUtahBase(release_dir, redux_ver)
