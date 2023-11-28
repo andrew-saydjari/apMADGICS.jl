@@ -97,3 +97,29 @@ function visit2cframe(fname,tele,imid,chip)
     sname[end] = file
     return join(sname,"/")
 end
+
+function build_apFPILinesPath(release_dir,redux_ver,tele,mjd,chip,expnum)
+    base = getUtahBase(release_dir,redux_ver)*"cal"
+    if tele[1:6] =="apo25m"
+        supfold = "apogee-n"
+        fname = "apWaveFPI-$chip-$mjd-$expnum"*".fits"
+        return join([base,supfold,"wave",fname],"/")
+    else
+        supfold = "apogee-s"
+        fname = "asWaveFPI-$chip-$mjd-$expnum"*".fits"
+        return join([base,supfold,"wave",fname],"/")
+    end
+end
+
+function build_apLinesPath(release_dir,redux_ver,tele,mjd,expnum)
+    base = getUtahBase(release_dir,redux_ver)*"cal"
+    if tele[1:6] =="apo25m"
+        supfold = "apogee-n"
+        fname = "apLines-$expnum"*".fits"
+        return join([base,supfold,"wave",fname],"/")
+    else
+        supfold = "apogee-s"
+        fname = "asLines-$expnum"*".fits"
+        return join([base,supfold,"wave",fname],"/")
+    end
+end
