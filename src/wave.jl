@@ -2,8 +2,7 @@
 # needs to work with pure arclamps and arclamps + FPI
 using Optim, FITSIO, Polynomials, StatsBase
 import FastRunningMedian.running_median
-src_dir = "./"
-include(src_dir*"/utils.jl")
+src_dir = abspath("./apMADGICS.jl/") # might need to change if run from pipeline script... but then can use global LibGit2
 
 # Notes
 # - build an exclude list into the reader (can still do iterative rejection)
@@ -11,12 +10,12 @@ include(src_dir*"/utils.jl")
 # - have an exposure pattern recognition function
 
 using LibGit2
-# git_dir = src_dir
-# git_commit = LibGit2.head(git_dir)
-# git_repo = LibGit2.GitRepo(git_dir)
-# git_head = LibGit2.head(git_repo)
-# git_branch = LibGit2.shortname(git_head)
-# println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
+git_dir = src_dir
+git_commit = LibGit2.head(git_dir)
+git_repo = LibGit2.GitRepo(git_dir)
+git_head = LibGit2.head(git_repo)
+git_branch = LibGit2.shortname(git_head)
+println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
 
 # arc_group [dither 1, dither 2],[ThAr, UNe], but for now only one dither dimension (removed #1)
 arc_grp_tup = [[("sdsswork/mwm", "daily", "apo25m", "59608", 40460007), ("sdsswork/mwm", "daily", "apo25m", "59608", 40460008)]]
@@ -30,7 +29,7 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = false,
     ## start with arc lamps (actual file pattern maybe different though)
     # Ingest ARC lamp data (consider detector frame corrections, before bad detector replaced)?
     wavelst_arc, pixlst_arc, xpix_arc = ingestArc(g_flist);
-    mjd5arc, expidarc = arc_group[1][1][end-1], string(arc_group[1][1][end])
+    mjd5arc, expidarc = arc_grp_tup[1][1][end-1], string(arc_grp_tup[1][1][end])
 
     # Fit wavelength solution to ARC Lamp
     fit_pix2wave_arc_partial0(fiber) = fit_pix2wave_arc(wavelst_arc,xpix_arc,fiber)
