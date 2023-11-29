@@ -103,9 +103,9 @@ function save_wavecal(wavesavename,outlst_FPI,cavp)
 
     # make cavity dictionary
     cavColNames = ["dcav", "m0"]
-    cavColVals = cavp
+    cavColVals = [[cavp[1]],[cavp[2]]]
 
-    hdr = FITSHeader(["pipeline","git_branch","git_commit"],["apMADGICS.jl",git_branch,git_commit])
+    hdr = FITSHeader(["pipeline","git_branch","git_commit"],["apMADGICS.jl",git_branch,git_commit],["","",""])
 
     f = FITS(wavesavename,"w")
     write(f,[0],header=hdr,name="header_only")
