@@ -56,13 +56,17 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = false,
     ## Fit wavelength solution to FPI; compute/save FPI residuals
     fit_pix2wave_FPI_partial0(fiber) = fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,offset_param_lst,cavp,fiber)
     outlst_FPI = fit_pix2wave_FPI_partial0.(f2do);
-    mmsk_lst = make_mmask(mloclst_FPI, outlst_FPI; ccut = 1, wid_med = 5) # cut outlier FPI modes
-    # refit cavity
-    cavp = fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5fpi,expidfpi,dcav_init=3.736e7,msklst=mmsk_lst,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
+    mmsk_lst = make_mmask(mloclst_FPI, outlst_FPI; ccut = 1.0, wid_med = 5) # cut outlier FPI modes
+    # # refit cavity (maybe we need to regenerate wavelstcombo_FPI)
+    # cavp = fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5fpi,expidfpi,dcav_init=3.736e7,msklst=mmsk_lst,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
     # refit wavelength solution
-    fit_pix2wave_FPI_partial(fiber) = fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,offset_param_lst,cavp,fiber,msklst=mmsk_lst)
-    outlst_FPI = fit_pix2wave_FPI_partial.(f2do);
+    fit_pix2wave_FPI_partial1(fiber) = fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,offset_param_lst,cavp,fiber,msklst=mmsk_lst)
+    outlst_FPI = fit_pix2wave_FPI_partial1.(f2do);
     param_lst_fpi, offset_param_lst_fpi = fit_smoothFibDep(outlst_FPI,mjd5fpi,expidfpi,"FPI";f2do=f2do,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
+
+    # fit_pix2wave_FPI_partial(fiber) = fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,offset_param_lst_fpi0,cavp,fiber,msklst=mmsk_lst)
+    # outlst_FPI = fit_pix2wave_FPI_partial.(f2do);
+    # param_lst_fpi, offset_param_lst_fpi = fit_smoothFibDep(outlst_FPI,mjd5fpi,expidfpi,"FPI";f2do=f2do,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
 
     # compute/save arclamp residuals
     resid_arc_FPI_partial(fiber) = resid_arc_FPI(wavelst_arc,xpix_arc,outlst_FPI,fiber)
@@ -442,8 +446,8 @@ function fit_pix2wave_arc(wavelst_arc,xpix_arc,fiber;msklst=nothing)
         else
             msklst[fiber]
         end
-        partial_loss(offsetv) = loss_arc_NL(xpix_arc,wvec_arc,fiber,offsetv,msk=msk)
-        res = optimize(partial_loss, offset_init, Optim.Options(show_trace=false))
+        partial_loss_arc(offsetv) = loss_arc_NL(xpix_arc,wvec_arc,fiber,offsetv,msk=msk)
+        res = optimize(partial_loss_arc, offset_init, LBFGS(), Optim.Options(show_trace=false))
         params_opt = Optim.minimizer(res)
         x_arc = make_xvec_arc_wrap(xpix_arc,params_opt,fiber);
         Axarc = positional_poly_mat(x_arc[msk],porder=3)
@@ -465,8 +469,9 @@ function fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,arc_fit_offset_poly,cavp,fiber;ms
         end
         pvec_off = Polynomial.(arc_fit_offset_poly)
         offset_init = map(x->x((fiber-150)/150),pvec_off)
-        partial_loss(offsetv) = loss_FPI_NL(xpix_FPI[fiber],wavec,offsetv,msk=msk)
-        res = optimize(partial_loss, offset_init, Optim.Options(show_trace=false))
+        partial_loss_FPI(offsetv) = loss_FPI_NL(xpix_FPI[fiber],wavec,offsetv,msk=msk)
+        res = optimize(partial_loss_FPI, offset_init, LBFGS(), Optim.Options(show_trace=false))
+        # show(res)
         params_opt = Optim.minimizer(res)
         x_FPI = make_xvec(xpix_FPI[fiber], params_opt)
         Axfpi = positional_poly_mat(x_FPI[msk])
@@ -538,12 +543,12 @@ function make_fitplots(fit_xyf,fit_offset_xyf,mjd5,expid,exptype;save_plot_on=fa
     for i=2:szfit
         x,y,f = fit_xyf[i]
         ax = fig.add_subplot(2,szfit-1,i-1)
-        ax.scatter(x.+150,y,s=1)
-        ax.plot(x.+150,f,color="red",lw=1)
+        ax.scatter(x*150 .+150,y,s=1)
+        ax.plot(x*150 .+150,f,color="red",lw=1)
         ax.set_title("Order $(i-1) Poly Term")
 
         ax = fig.add_subplot(2,szfit-1,szfit-1+i-1)
-        ax.scatter(x.+150,y.-f,s=1)
+        ax.scatter(x*150 .+150,y.-f,s=1)
         ax.axhline(0,lw=1,linestyle="--")
         ax.set_xlabel("Fiber Index")
         ax.set_ylabel("Residuals")
@@ -560,7 +565,7 @@ function make_fitplots(fit_xyf,fit_offset_xyf,mjd5,expid,exptype;save_plot_on=fa
     x,y,f = fit_xyf[1]
     plt.suptitle(exptype,y=0.97,fontsize=14)
     ax = fig.add_subplot(2,3,1)
-    ax.scatter(x.+150,y,s=1)
+    ax.scatter(x*150 .+150,y,s=1)
     ax.set_title("Wavelength at G Detector Center (Å)")
 
     ax.set_xlabel("Fiber Index")
@@ -568,12 +573,12 @@ function make_fitplots(fit_xyf,fit_offset_xyf,mjd5,expid,exptype;save_plot_on=fa
     for i=1:2
         x,y,f = fit_offset_xyf[i]
         ax = fig.add_subplot(2,3,1+i)
-        ax.scatter(x.+150,y,s=1)
-        ax.plot(x.+150,f,color="red",lw=1)
+        ax.scatter(x*150 .+150,y,s=1)
+        ax.plot(x*150 .+150,f,color="red",lw=1)
         ax.set_title("Distance from $(title_lst[i]) Detector Centers (pixels)")
 
         ax = fig.add_subplot(2,3,4+i)
-        ax.scatter(x.+150,y.-f,s=1)
+        ax.scatter(x*150 .+150,y.-f,s=1)
         ax.axhline(0,lw=1,linestyle="--")
         ax.set_xlabel("Fiber Index")
         ax.set_ylabel("Residuals")
