@@ -26,7 +26,6 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = false,
     for i=1:length(arc_grp_tup)
         push!(g_flist,map(x->build_apLinesPath(x...),arc_grp_tup[i]))
     end
-    ## start with arc lamps (actual file pattern maybe different though)
     # Ingest ARC lamp data (consider detector frame corrections, before bad detector replaced)?
     wavelst_arc, pixlst_arc, xpix_arc = ingestArc(g_flist);
     mjd5arc, expidarc = arc_grp_tup[1][1][end-1], string(arc_grp_tup[1][1][end])
@@ -46,27 +45,24 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = false,
 
     ##### FPI Section #####
     # Ingest FPI data (and transfer wavelength solution to FPI) (consider detector frame corrections, before bad detector replaced)?
-    wavelstcombo_FPI, pixlstcombo_FPI, xpix_FPI = ingestFPI(fpi_tup,param_lst,offset_param_lst);
+    wavelstcombo_FPI0, xpix_FPI0 = ingestFPI(fpi_tup,param_lst,offset_param_lst);
     mjd5fpi, expidfpi = fpi_tup[end-1], string(fpi_tup[end])
 
     # Fit Cavity (derive a "relative" calibration independent of arc lamps based on cavity physics)
-    mloclst_FPI = make_mvec(wavelstcombo_FPI);
-    cavp = fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5fpi,expidfpi,dcav_init = 3.736e7,save_plot_on=false,show_plot_on=false,savepath=saveplotspath)
+    mloclst_FPI, mloclst_msk_FPI, wavelstcombo_FPI = make_mvec(wavelstcombo_FPI0);
+    xpix_FPI = remove_mask_chip_healper(xpix_FPI0,mloclst_msk_FPI)
 
+    cavp = fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5fpi,expidfpi,dcav_init = 3.736e7,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
     ## Fit wavelength solution to FPI; compute/save FPI residuals
     fit_pix2wave_FPI_partial0(fiber) = fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,offset_param_lst,cavp,fiber)
     outlst_FPI = fit_pix2wave_FPI_partial0.(f2do);
     mmsk_lst = make_mmask(mloclst_FPI, outlst_FPI; ccut = 1.0, wid_med = 5) # cut outlier FPI modes
-    # # refit cavity (maybe we need to regenerate wavelstcombo_FPI)
+    # # refit cavity (maybe we need to regenerate wavelstcombo_FPI, this would be an iterative improvement towards a joint cavity and chipgap fit)
     # cavp = fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5fpi,expidfpi,dcav_init=3.736e7,msklst=mmsk_lst,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
     # refit wavelength solution
     fit_pix2wave_FPI_partial1(fiber) = fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,offset_param_lst,cavp,fiber,msklst=mmsk_lst)
     outlst_FPI = fit_pix2wave_FPI_partial1.(f2do);
     param_lst_fpi, offset_param_lst_fpi = fit_smoothFibDep(outlst_FPI,mjd5fpi,expidfpi,"FPI";f2do=f2do,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
-
-    # fit_pix2wave_FPI_partial(fiber) = fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,offset_param_lst_fpi0,cavp,fiber,msklst=mmsk_lst)
-    # outlst_FPI = fit_pix2wave_FPI_partial.(f2do);
-    # param_lst_fpi, offset_param_lst_fpi = fit_smoothFibDep(outlst_FPI,mjd5fpi,expidfpi,"FPI";f2do=f2do,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
 
     # compute/save arclamp residuals
     resid_arc_FPI_partial(fiber) = resid_arc_FPI(wavelst_arc,xpix_arc,outlst_FPI,fiber)
@@ -83,7 +79,8 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = false,
         mkpath(dirName)
     end
     save_wavecal(wavesavename,outlst_FPI,cavp)
-    # return outlst_FPI
+
+    return mloclst_FPI, wavelstcombo_FPI, wavelstcombo_FPI0, outlst_FPI, mloclst_msk_FPI
 end
 
 #### Assorted functions ####
@@ -232,49 +229,84 @@ function ingestFPI(fpi_tup, param_lst, offset_param_lst; chip2do = ["a","b","c"]
     end
     
     wavelstcombo_FPI = []
-    pixlstcombo_FPI = []
+    # pixlstcombo_FPI = []
     for fiber=f2do
         wavelst = []
-        pixlst = []
+        # pixlst = []
         for (chipind, chip) in enumerate(chip2do)
-            if length(pixlst_FPI[chipind][fiber])>=1
+            if length(wavelst_FPI[chipind][fiber])>=1
                 push!(wavelst,wavelst_FPI[chipind][fiber])
-                push!(pixlst,pixlst_FPI[chipind][fiber])
+                # push!(pixlst,pixlst_FPI[chipind][fiber])
             else
                 push!(wavelst,[])
-                push!(pixlst,[])
+                # push!(pixlst,[])
             end
         end
         push!(wavelstcombo_FPI,vcat(wavelst...))
-        push!(pixlstcombo_FPI,vcat(pixlst...))
+        # push!(pixlstcombo_FPI,vcat(pixlst...))
     end
 
-    return wavelstcombo_FPI, pixlstcombo_FPI, xpix_FPI
+    return wavelstcombo_FPI, xpix_FPI
 end
 
 # Takes in wavelength estimates for FPI peaks and converts to integer peak index estimates
-function make_mvec(wavelstcombo_FPI; f2do = 1:300) 
+function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10, maxpass = 100) 
     mloclst_FPI= []
+    mloclst_msk_FPI = []
     for fiber=f2do
-        if length(wavelstcombo_FPI[fiber])>1
-            dvec = diff(wavelstcombo_FPI[fiber])
-            dm = roundnan.(dvec./running_median(dvec,41,:asymmetric_truncated))
+        wavelen = length(wavelstcombo_FPI[fiber])
+        if wavelen>1
+            waveindx = 1:wavelen
+            mskg = ones(Bool,wavelen)
+            for i=1:maxpass 
+                dvec = diff(wavelstcombo_FPI[fiber][mskg])
+                mbad = abs.(dvec) .< 2
+                if count(mbad)==0
+                    break
+                end
+                bindx = argmin(abs.(dvec))
+                rindx = waveindx[mskg][bindx]:waveindx[mskg][bindx + 1]
+                mskg[rindx].=false
+                if i==maxpass
+                    println("Bad m index removal failed badly, $fiber")
+                end
+            end
+            for i=1:maxpass
+                dvec = diff(wavelstcombo_FPI[fiber][mskg])
+                dm = dvec./running_median(dvec,swindow,:asymmetric_truncated)
+                dt = (dm.-roundnan.(dm))./dm
+                mbad = abs.(dt) .> 0.02
+                if count(mbad)==0
+                    break
+                end
+                bindx = argmax(abs.(dt))
+                rindx = waveindx[mskg][bindx]:waveindx[mskg][bindx + 1]
+                mskg[rindx].=false
+                if i==maxpass
+                    println("Bad m index removal failed badly, $fiber")
+                end
+            end
+            dvec = diff(wavelstcombo_FPI[fiber][mskg])
+            dm = roundnan.(dvec./running_median(dvec,swindow,:asymmetric_truncated))
             mloc = vcat(1,cumsum(dm).+1)
             push!(mloclst_FPI,mloc)
+            push!(mloclst_msk_FPI,mskg)
         else
             push!(mloclst_FPI,[])
+            push!(mloclst_msk_FPI,[])
         end
     end
     
-    wvect = map(maximum_empty,wavelstcombo_FPI)
+    wavelstcombo_FPI1 = remove_mask_healper(wavelstcombo_FPI,mloclst_msk_FPI)
+    wvect = map(maximum_empty,wavelstcombo_FPI1)
     mwval, mwind = findmax(filter(!isnan,wvect))
-    dstep = median(running_median(diff(wavelstcombo_FPI[mwind]),41,:asymmetric_truncated)[1:5])
+    dstep = median(running_median(diff(wavelstcombo_FPI1[mwind]),swindow,:asymmetric_truncated)[1:leadwindow])
     madd = roundnan.((wvect.-mwval)./dstep);
     
     for fiber=f2do
         mloclst_FPI[fiber].+=madd[fiber]
     end
-    return mloclst_FPI
+    return mloclst_FPI, mloclst_msk_FPI, wavelstcombo_FPI1
 end
 
 function make_mmask(mloclst, outlst; ccut = 1, wid_med = 5, f2do = 1:300)
@@ -739,6 +771,37 @@ function getChipIndx(chip)
     end
 end
 
+function remove_mask_healper(inarray, msk_lst; f2do=1:300)
+    outarray = []
+    for fiber=f2do
+        if length(inarray[fiber])>0
+            push!(outarray,inarray[fiber][msk_lst[fiber]])
+        else
+            push!(outarray,[])
+        end
+    end
+    return outarray
+end
+
+function remove_mask_chip_healper(inarray, msk_lst; f2do=1:300)
+    outarray = []
+    for fiber=f2do
+        chiplens = length.(inarray[fiber])
+        startind = 1
+        loc_outarray = []
+        for (chipindx, chiplen) in enumerate(chiplens)
+            if chiplen>0
+                push!(loc_outarray,inarray[fiber][chipindx][msk_lst[fiber][startind:(startind+chiplen-1)]])
+                startind += chiplen
+            else
+                push!(loc_outarray,[])
+            end
+        end
+        push!(outarray,loc_outarray)
+    end
+    return outarray
+end
+
 function extract_nth(x,n)
     if length(x)>1
         return x[n]
@@ -758,6 +821,14 @@ end
 function maximum_empty(x)
     if length(x)>1
         return maximum(x)
+    else
+        return NaN
+    end
+end
+
+function sum_empty(x)
+    if length(x)>1
+        return sum(x)
     else
         return NaN
     end
