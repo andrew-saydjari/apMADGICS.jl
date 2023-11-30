@@ -454,7 +454,7 @@ function fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5,expid; msklst=nothi
     if save_plot_on | show_plot_on
         fig = plt.figure(figsize=(8,8),dpi=200)
         ax = fig.add_subplot(1,1,1)
-        ax.set_title("D Cavity: $(round(fit_out[1],sigdigits=8)) Å \n m0: $(round(fit_out[2],sigdigits=8))")
+        ax.set_title("MJD5: $(mjd5) \n D Cavity: $(round(fit_out[1],sigdigits=8)) Å \n m0: $(round(fit_out[2],sigdigits=8))")
         ax.hist2d(mvec,wvec.-m2lam(mvec,fit_out),bins=201,cmap="cet_gouldian",range=((0,530),(-0.2,0.2)))
         ax.set_xlabel("FPI Mode (Rel) Index")
         ax.set_ylabel("Residuals for Cavity Fit (Angstroms) \n (FPI Wave given ArcLamp Soln)")
@@ -571,7 +571,7 @@ function make_fitplots(fit_xyf,fit_offset_xyf,mjd5,expid,exptype;save_plot_on=fa
     szfit = length(fit_xyf)
     # Poly Fit Plots
     fig = plt.figure(figsize=(24,8),dpi=150)
-    plt.suptitle(exptype,y=0.97,fontsize=14)
+    plt.suptitle(exptype*"\n MJD5: $(mjd5)",y=0.97,fontsize=14)
     for i=2:szfit
         x,y,f = fit_xyf[i]
         ax = fig.add_subplot(2,szfit-1,i-1)
@@ -595,7 +595,7 @@ function make_fitplots(fit_xyf,fit_offset_xyf,mjd5,expid,exptype;save_plot_on=fa
     # Detector Centering Plots
     fig = plt.figure(figsize=(24,8),dpi=150)
     x,y,f = fit_xyf[1]
-    plt.suptitle(exptype,y=0.97,fontsize=14)
+    plt.suptitle(exptype*"\n MJD5: $(mjd5)",y=0.97,fontsize=14)
     ax = fig.add_subplot(2,3,1)
     ax.scatter(x*150 .+150,y,s=1)
     ax.set_title("Wavelength at G Detector Center (Å)")
@@ -730,7 +730,7 @@ function make_resid_plot1d_fpi(outlst_FPI,outlst_arc,mjd5,expid;fiber=-1,save_pl
     end
 
     fig = plt.figure(figsize=(12,5),dpi=200)
-    fig.suptitle("Fiber Index: $(fibertst)",y=0.97,fontsize=16)
+    fig.suptitle("Fiber Index: $(fibertst) \n MJD5: $(mjd5)",y=0.97,fontsize=16)
     ax = fig.add_subplot(1,2,1)
     ax.scatter(outlst_FPI[fibertst][1],outlst_FPI[fibertst][2],s=1)
     ax.set_ylim(-0.03,0.03)
