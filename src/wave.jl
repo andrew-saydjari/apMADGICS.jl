@@ -38,6 +38,12 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, 
     fit_pix2wave_arc_partial0(fiber) = fit_pix2wave_arc(wavelst_arc,xpix_arc,fiber)
     outlst_arc0 = fit_pix2wave_arc_partial0.(f2do);
     msklst = map(x->abs.(x[2]).<0.35,outlst_arc0) # residual less than 1 Angstrom cut
+    badarcfibers = count.(msklst) .< 75 # this is a fine idea when we have FPI data, but maybe problematic for arcs only
+    for badfiber in findall(badarcfibers)
+        if length(msklst[badfiber])>0
+            msklst[badfiber] .= false ### we should log which fibers this happens to when, rare... but the DRP should fix
+        end
+    end
     fit_pix2wave_arc_partial(fiber) = fit_pix2wave_arc(wavelst_arc,xpix_arc,fiber,msklst=msklst)
     outlst_arc = fit_pix2wave_arc_partial.(f2do);
 
@@ -84,7 +90,7 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, 
     end
     save_wavecal(wavesavename,outlst_FPI,cavp)
 
-    # return mloclst_FPI, wavelstcombo_FPI, wavelstcombo_FPI0, outlst_FPI, mloclst_msk_FPI
+    # return msklst
 end
 
 #### Assorted functions ####
@@ -209,15 +215,15 @@ function ingestFPI(fpi_tup, param_lst, offset_param_lst; chip2do = ["a","b","c"]
             xt_FPI = make_xvec([pixcen[msk]], offset_params_opt, chip2do=[chip])
             Axfpi = positional_poly_mat(xt_FPI,porder=3)
             pvec = Polynomial.(param_lst[2:end])
-            # if !isnan(param_lst[1][fiber])
-            params_opt = vcat(param_lst[1][fiber],map(x->x((fiber-150)/150),pvec))
-            wave = Axfpi*params_opt
-            push!(pixlst,pixcen[msk])
-            push!(fiberlst,wave)
-            # else
-            #     push!(pixlst,[])
-            #     push!(fiberlst,[])
-            # end
+            if !isnan(param_lst[1][fiber])
+                params_opt = vcat(param_lst[1][fiber],map(x->x((fiber-150)/150),pvec))
+                wave = Axfpi*params_opt
+                push!(pixlst,pixcen[msk])
+                push!(fiberlst,wave)
+            else
+                push!(pixlst,[])
+                push!(fiberlst,[])
+            end
         end
         push!(pixlst_FPI,pixlst)
         push!(wavelst_FPI,fiberlst)
@@ -442,15 +448,12 @@ function fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5,expid; msklst=nothi
     # first guess for m0
     m0est = vcat(map(fiber->2*dcav_init./wavelstcombo_FPI[fiber].-mloclst_FPI[fiber],1:300)...);
     moff_0 = round(Int,median(filter(!isnan,m0est)))
-    
     # refine dcavity
     A = reshape(2 ./(moff_0.+mvec),(:,1)).* reshape(ones(length(mvec)),:,1);
     d_cav = (A\wvec)[1]
-    
     # final guess for m0
     m0est = vcat(map(fiber->2*d_cav./wavelstcombo_FPI[fiber].-mloclst_FPI[fiber],1:300)...);
     m0final = median(filter(!isnan,m0est))
-
     # curve fit using LM through LsqFit.jl to obtain cavity parameters
     p0 = [d_cav, m0final]
     fit = curve_fit(m2lam, mvec, wvec, p0, autodiff=:forwarddiff, show_trace=false, lambda_decrease=0.1)
@@ -475,20 +478,24 @@ end
 
 function fit_pix2wave_arc(wavelst_arc,xpix_arc,fiber;msklst=nothing)
     wvec_arc = make_wvec_arc(wavelst_arc,fiber,sgindx=1);
-    if length(wvec_arc) > 0
+    if length(wvec_arc) > 0 
         offset_init = [2191.5, -2202.5]
         msk = if isnothing(msklst)
             ones(Bool,length(wvec_arc))
         else
             msklst[fiber]
         end
-        partial_loss_arc(offsetv) = loss_arc_NL(xpix_arc,wvec_arc,fiber,offsetv,msk=msk)
-        res = optimize(partial_loss_arc, offset_init, LBFGS(), Optim.Options(show_trace=false))
-        params_opt = Optim.minimizer(res)
-        x_arc = make_xvec_arc_wrap(xpix_arc,params_opt,fiber);
-        Axarc = positional_poly_mat(x_arc[msk],porder=3)
-        tparam = Axarc\wvec_arc[msk]
-        return (x_arc[msk],wvec_arc[msk].-Axarc*tparam,params_opt,tparam)
+        if count(msk) > 0
+            partial_loss_arc(offsetv) = loss_arc_NL(xpix_arc,wvec_arc,fiber,offsetv,msk=msk)
+            res = optimize(partial_loss_arc, offset_init, LBFGS(), Optim.Options(show_trace=false))
+            params_opt = Optim.minimizer(res)
+            x_arc = make_xvec_arc_wrap(xpix_arc,params_opt,fiber);
+            Axarc = positional_poly_mat(x_arc[msk],porder=3)
+            tparam = Axarc\wvec_arc[msk]
+            return (x_arc[msk],wvec_arc[msk].-Axarc*tparam,params_opt,tparam)
+        else
+            return ([],[],[],[])
+        end
     else
         return ([],[],[],[])
     end
@@ -540,7 +547,7 @@ end
 
 function resid_arc_FPI(wavelst_arc,xpix_arc,fpi_out_params,fiber)
     wvec_arc = make_wvec_arc(wavelst_arc,fiber,sgindx=1);
-    if length(wvec_arc) > 1
+    if (length(wvec_arc) > 1) & (length(fpi_out_params[fiber][end-1]) > 0)
         xvec_arc = []
         # forcing to only use one dither, here I only have one (last one, but could use better handling)
         for i=1:length(xpix_arc[1]) 
