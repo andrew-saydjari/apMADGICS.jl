@@ -20,7 +20,11 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
 # arc_group [dither 1, dither 2],[ThAr, UNe], but for now only one dither dimension (removed #1)
 arc_grp_tup = [[("sdsswork/mwm", "daily", "apo25m", "59608", 40460007), ("sdsswork/mwm", "daily", "apo25m", "59608", 40460008)]]
 fpi_tup = ("sdsswork/mwm", "daily", "apo25m", "59608", 40460010)
-function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = false, show_plot_on = false, saveplotspath = "./", cache_dir="../local_cache")
+function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, show_plot_on = false, saveplotspath = "./wavecal_plots/", cache_dir="../local_cache")
+    if !ispath(saveplotspath) & save_plot_on
+        mkpath(saveplotspath)
+    end
+
     ##### Arc Section #####
     g_flist = []
     for i=1:length(arc_grp_tup)
@@ -34,6 +38,12 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = false,
     fit_pix2wave_arc_partial0(fiber) = fit_pix2wave_arc(wavelst_arc,xpix_arc,fiber)
     outlst_arc0 = fit_pix2wave_arc_partial0.(f2do);
     msklst = map(x->abs.(x[2]).<0.35,outlst_arc0) # residual less than 1 Angstrom cut
+    badarcfibers = count.(msklst) .< 75 # this is a fine idea when we have FPI data, but maybe problematic for arcs only
+    for badfiber in findall(badarcfibers)
+        if length(msklst[badfiber])>0
+            msklst[badfiber] .= false ### we should log which fibers this happens to when, rare... but the DRP should fix
+        end
+    end
     fit_pix2wave_arc_partial(fiber) = fit_pix2wave_arc(wavelst_arc,xpix_arc,fiber,msklst=msklst)
     outlst_arc = fit_pix2wave_arc_partial.(f2do);
 
@@ -52,13 +62,13 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = false,
     mloclst_FPI, mloclst_msk_FPI, wavelstcombo_FPI = make_mvec(wavelstcombo_FPI0);
     xpix_FPI = remove_mask_chip_healper(xpix_FPI0,mloclst_msk_FPI)
 
-    cavp = fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5fpi,expidfpi,dcav_init = 3.736e7,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
+    cavp = fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5fpi,expidfpi,dcav_init = 3.736e7,save_plot_on=false,show_plot_on=false,savepath=saveplotspath)
     ## Fit wavelength solution to FPI; compute/save FPI residuals
     fit_pix2wave_FPI_partial0(fiber) = fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,offset_param_lst,cavp,fiber)
     outlst_FPI = fit_pix2wave_FPI_partial0.(f2do);
     mmsk_lst = make_mmask(mloclst_FPI, outlst_FPI; ccut = 1.0, wid_med = 5) # cut outlier FPI modes
-    # # refit cavity (maybe we need to regenerate wavelstcombo_FPI, this would be an iterative improvement towards a joint cavity and chipgap fit)
-    # cavp = fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5fpi,expidfpi,dcav_init=3.736e7,msklst=mmsk_lst,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
+    # refit cavity (maybe we need to regenerate wavelstcombo_FPI, this would be an iterative improvement towards a joint cavity and chipgap fit)
+    cavp = fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5fpi,expidfpi,dcav_init=3.736e7,msklst=mmsk_lst,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
     # refit wavelength solution
     fit_pix2wave_FPI_partial1(fiber) = fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,offset_param_lst,cavp,fiber,msklst=mmsk_lst)
     outlst_FPI = fit_pix2wave_FPI_partial1.(f2do);
@@ -80,7 +90,7 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = false,
     end
     save_wavecal(wavesavename,outlst_FPI,cavp)
 
-    return mloclst_FPI, wavelstcombo_FPI, wavelstcombo_FPI0, outlst_FPI, mloclst_msk_FPI
+    # return msklst
 end
 
 #### Assorted functions ####
@@ -140,7 +150,7 @@ function ingestArc(glist; chip2do = ["a","b","c"], f2do = 1:300)
                 fiberlstloc = []
                 pixlstloc = []
                 for fiber=f2do
-                    msk = (row .== fiber-1) .& (chipv.==getChipIndx(chip)) .& (0 .< pixel .<1e5)
+                    msk = (row .== fiber-1) .& (chipv.==getChipIndx(chip)) .& (0 .< pixel .< 2049)
                     push!(fiberlstloc,wave[msk])
                     push!(pixlstloc,pixel[msk])
                 end
@@ -205,15 +215,15 @@ function ingestFPI(fpi_tup, param_lst, offset_param_lst; chip2do = ["a","b","c"]
             xt_FPI = make_xvec([pixcen[msk]], offset_params_opt, chip2do=[chip])
             Axfpi = positional_poly_mat(xt_FPI,porder=3)
             pvec = Polynomial.(param_lst[2:end])
-            # if !isnan(param_lst[1][fiber])
-            params_opt = vcat(param_lst[1][fiber],map(x->x((fiber-150)/150),pvec))
-            wave = Axfpi*params_opt
-            push!(pixlst,pixcen[msk])
-            push!(fiberlst,wave)
-            # else
-            #     push!(pixlst,[])
-            #     push!(fiberlst,[])
-            # end
+            if !isnan(param_lst[1][fiber])
+                params_opt = vcat(param_lst[1][fiber],map(x->x((fiber-150)/150),pvec))
+                wave = Axfpi*params_opt
+                push!(pixlst,pixcen[msk])
+                push!(fiberlst,wave)
+            else
+                push!(pixlst,[])
+                push!(fiberlst,[])
+            end
         end
         push!(pixlst_FPI,pixlst)
         push!(wavelst_FPI,fiberlst)
@@ -250,7 +260,7 @@ function ingestFPI(fpi_tup, param_lst, offset_param_lst; chip2do = ["a","b","c"]
 end
 
 # Takes in wavelength estimates for FPI peaks and converts to integer peak index estimates
-function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10, maxpass = 100) 
+function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10, maxpass = 100, dvec_cut = 2, dvec_frac_cut = 0.04, dvec_rem_cut = 0.1) 
     mloclst_FPI= []
     mloclst_msk_FPI = []
     for fiber=f2do
@@ -260,7 +270,7 @@ function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10
             mskg = ones(Bool,wavelen)
             for i=1:maxpass 
                 dvec = diff(wavelstcombo_FPI[fiber][mskg])
-                mbad = abs.(dvec) .< 2
+                mbad = abs.(dvec) .< dvec_cut
                 if count(mbad)==0
                     break
                 end
@@ -275,7 +285,7 @@ function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10
                 dvec = diff(wavelstcombo_FPI[fiber][mskg])
                 dm = dvec./running_median(dvec,swindow,:asymmetric_truncated)
                 dt = (dm.-roundnan.(dm))./dm
-                mbad = abs.(dt) .> 0.02
+                mbad = (abs.(dt) .> dvec_frac_cut)
                 if count(mbad)==0
                     break
                 end
@@ -286,6 +296,21 @@ function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10
                     println("Bad m index removal failed badly, $fiber")
                 end
             end
+            # for i=1:maxpass
+            #     dvec = diff(wavelstcombo_FPI[fiber][mskg])
+            #     dm = dvec./running_median(dvec,swindow,:asymmetric_truncated)
+            #     dt = (dm.-roundnan.(dm))
+            #     mbad = (abs.(dt) .> dvec_rem_cut)
+            #     if count(mbad)==0
+            #         break
+            #     end
+            #     bindx = argmax(abs.(dt))
+            #     rindx = waveindx[mskg][bindx]:waveindx[mskg][bindx + 1]
+            #     mskg[rindx].=false
+            #     if i==maxpass
+            #         println("Bad m index removal failed badly, $fiber")
+            #     end
+            # end
             dvec = diff(wavelstcombo_FPI[fiber][mskg])
             dm = roundnan.(dvec./running_median(dvec,swindow,:asymmetric_truncated))
             mloc = vcat(1,cumsum(dm).+1)
@@ -438,15 +463,12 @@ function fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5,expid; msklst=nothi
     # first guess for m0
     m0est = vcat(map(fiber->2*dcav_init./wavelstcombo_FPI[fiber].-mloclst_FPI[fiber],1:300)...);
     moff_0 = round(Int,median(filter(!isnan,m0est)))
-    
     # refine dcavity
     A = reshape(2 ./(moff_0.+mvec),(:,1)).* reshape(ones(length(mvec)),:,1);
     d_cav = (A\wvec)[1]
-    
     # final guess for m0
     m0est = vcat(map(fiber->2*d_cav./wavelstcombo_FPI[fiber].-mloclst_FPI[fiber],1:300)...);
     m0final = median(filter(!isnan,m0est))
-
     # curve fit using LM through LsqFit.jl to obtain cavity parameters
     p0 = [d_cav, m0final]
     fit = curve_fit(m2lam, mvec, wvec, p0, autodiff=:forwarddiff, show_trace=false, lambda_decrease=0.1)
@@ -454,7 +476,7 @@ function fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5,expid; msklst=nothi
     if save_plot_on | show_plot_on
         fig = plt.figure(figsize=(8,8),dpi=200)
         ax = fig.add_subplot(1,1,1)
-        ax.set_title("D Cavity: $(round(fit_out[1],sigdigits=8)) Å \n m0: $(round(fit_out[2],sigdigits=8))")
+        ax.set_title("MJD5: $(mjd5) \n D Cavity: $(round(fit_out[1],sigdigits=8)) Å \n m0: $(round(fit_out[2],sigdigits=8))")
         ax.hist2d(mvec,wvec.-m2lam(mvec,fit_out),bins=201,cmap="cet_gouldian",range=((0,530),(-0.2,0.2)))
         ax.set_xlabel("FPI Mode (Rel) Index")
         ax.set_ylabel("Residuals for Cavity Fit (Angstroms) \n (FPI Wave given ArcLamp Soln)")
@@ -471,20 +493,24 @@ end
 
 function fit_pix2wave_arc(wavelst_arc,xpix_arc,fiber;msklst=nothing)
     wvec_arc = make_wvec_arc(wavelst_arc,fiber,sgindx=1);
-    if length(wvec_arc) > 0
+    if length(wvec_arc) > 0 
         offset_init = [2191.5, -2202.5]
         msk = if isnothing(msklst)
             ones(Bool,length(wvec_arc))
         else
             msklst[fiber]
         end
-        partial_loss_arc(offsetv) = loss_arc_NL(xpix_arc,wvec_arc,fiber,offsetv,msk=msk)
-        res = optimize(partial_loss_arc, offset_init, LBFGS(), Optim.Options(show_trace=false))
-        params_opt = Optim.minimizer(res)
-        x_arc = make_xvec_arc_wrap(xpix_arc,params_opt,fiber);
-        Axarc = positional_poly_mat(x_arc[msk],porder=3)
-        tparam = Axarc\wvec_arc[msk]
-        return (x_arc[msk],wvec_arc[msk].-Axarc*tparam,params_opt,tparam)
+        if count(msk) > 0
+            partial_loss_arc(offsetv) = loss_arc_NL(xpix_arc,wvec_arc,fiber,offsetv,msk=msk)
+            res = optimize(partial_loss_arc, offset_init, LBFGS(), Optim.Options(show_trace=false))
+            params_opt = Optim.minimizer(res)
+            x_arc = make_xvec_arc_wrap(xpix_arc,params_opt,fiber);
+            Axarc = positional_poly_mat(x_arc[msk],porder=3)
+            tparam = Axarc\wvec_arc[msk]
+            return (x_arc[msk],wvec_arc[msk].-Axarc*tparam,params_opt,tparam)
+        else
+            return ([],[],[],[])
+        end
     else
         return ([],[],[],[])
     end
@@ -536,7 +562,7 @@ end
 
 function resid_arc_FPI(wavelst_arc,xpix_arc,fpi_out_params,fiber)
     wvec_arc = make_wvec_arc(wavelst_arc,fiber,sgindx=1);
-    if length(wvec_arc) > 1
+    if (length(wvec_arc) > 1) & (length(fpi_out_params[fiber][end-1]) > 0)
         xvec_arc = []
         # forcing to only use one dither, here I only have one (last one, but could use better handling)
         for i=1:length(xpix_arc[1]) 
@@ -571,7 +597,7 @@ function make_fitplots(fit_xyf,fit_offset_xyf,mjd5,expid,exptype;save_plot_on=fa
     szfit = length(fit_xyf)
     # Poly Fit Plots
     fig = plt.figure(figsize=(24,8),dpi=150)
-    plt.suptitle(exptype,y=0.97,fontsize=14)
+    plt.suptitle(exptype*"\n MJD5: $(mjd5)",y=0.97,fontsize=14)
     for i=2:szfit
         x,y,f = fit_xyf[i]
         ax = fig.add_subplot(2,szfit-1,i-1)
@@ -595,7 +621,7 @@ function make_fitplots(fit_xyf,fit_offset_xyf,mjd5,expid,exptype;save_plot_on=fa
     # Detector Centering Plots
     fig = plt.figure(figsize=(24,8),dpi=150)
     x,y,f = fit_xyf[1]
-    plt.suptitle(exptype,y=0.97,fontsize=14)
+    plt.suptitle(exptype*"\n MJD5: $(mjd5)",y=0.97,fontsize=14)
     ax = fig.add_subplot(2,3,1)
     ax.scatter(x*150 .+150,y,s=1)
     ax.set_title("Wavelength at G Detector Center (Å)")
@@ -730,7 +756,7 @@ function make_resid_plot1d_fpi(outlst_FPI,outlst_arc,mjd5,expid;fiber=-1,save_pl
     end
 
     fig = plt.figure(figsize=(12,5),dpi=200)
-    fig.suptitle("Fiber Index: $(fibertst)",y=0.97,fontsize=16)
+    fig.suptitle("Fiber Index: $(fibertst) \n MJD5: $(mjd5)",y=0.97,fontsize=16)
     ax = fig.add_subplot(1,2,1)
     ax.scatter(outlst_FPI[fibertst][1],outlst_FPI[fibertst][2],s=1)
     ax.set_ylim(-0.03,0.03)

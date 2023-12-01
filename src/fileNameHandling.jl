@@ -102,6 +102,18 @@ function visit2cframe(fname,tele,imid,chip)
     return join(sname,"/")
 end
 
+function build_expPath(release_dir,redux_ver,tele,mjd)
+    base = getUtahBase(release_dir,redux_ver)*"exposures"
+    fname = "$mjd"*"exp.fits"
+    if tele[1:6] =="apo25m"
+        supfold = "apogee-n"
+        return join([base,supfold,mjd,fname],"/")
+    else
+        supfold = "apogee-s"
+        return join([base,supfold,mjd,fname],"/")
+    end
+end
+
 function build_apFPILinesPath(release_dir,redux_ver,tele,mjd,chip,expnum)
     base = getUtahBase(release_dir,redux_ver)*"cal"
     if tele[1:6] =="apo25m"
