@@ -260,7 +260,7 @@ function ingestFPI(fpi_tup, param_lst, offset_param_lst; chip2do = ["a","b","c"]
 end
 
 # Takes in wavelength estimates for FPI peaks and converts to integer peak index estimates
-function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10, maxpass = 100, dvec_cut = 2, dvec_frac_cut = 0.04) 
+function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10, maxpass = 100, dvec_cut = 2, dvec_frac_cut = 0.04, dvec_rem_cut = 0.1) 
     mloclst_FPI= []
     mloclst_msk_FPI = []
     for fiber=f2do
@@ -285,7 +285,7 @@ function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10
                 dvec = diff(wavelstcombo_FPI[fiber][mskg])
                 dm = dvec./running_median(dvec,swindow,:asymmetric_truncated)
                 dt = (dm.-roundnan.(dm))./dm
-                mbad = abs.(dt) .> dvec_frac_cut
+                mbad = (abs.(dt) .> dvec_frac_cut)
                 if count(mbad)==0
                     break
                 end
@@ -296,6 +296,21 @@ function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10
                     println("Bad m index removal failed badly, $fiber")
                 end
             end
+            # for i=1:maxpass
+            #     dvec = diff(wavelstcombo_FPI[fiber][mskg])
+            #     dm = dvec./running_median(dvec,swindow,:asymmetric_truncated)
+            #     dt = (dm.-roundnan.(dm))
+            #     mbad = (abs.(dt) .> dvec_rem_cut)
+            #     if count(mbad)==0
+            #         break
+            #     end
+            #     bindx = argmax(abs.(dt))
+            #     rindx = waveindx[mskg][bindx]:waveindx[mskg][bindx + 1]
+            #     mskg[rindx].=false
+            #     if i==maxpass
+            #         println("Bad m index removal failed badly, $fiber")
+            #     end
+            # end
             dvec = diff(wavelstcombo_FPI[fiber][mskg])
             dm = roundnan.(dvec./running_median(dvec,swindow,:asymmetric_truncated))
             mloc = vcat(1,cumsum(dm).+1)
