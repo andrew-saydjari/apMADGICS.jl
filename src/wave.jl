@@ -20,7 +20,7 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
 # arc_group [dither 1, dither 2],[ThAr, UNe], but for now only one dither dimension (removed #1)
 arc_grp_tup = [[("sdsswork/mwm", "daily", "apo25m", "59608", 40460007), ("sdsswork/mwm", "daily", "apo25m", "59608", 40460008)]]
 fpi_tup = ("sdsswork/mwm", "daily", "apo25m", "59608", 40460010)
-function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, show_plot_on = false, saveplotspath = "./wavecal_plots", cache_dir="../local_cache")
+function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, show_plot_on = false, saveplotspath = "./wavecal_plots/", cache_dir="../local_cache")
     if !ispath(saveplotspath) & save_plot_on
         mkpath(saveplotspath)
     end
