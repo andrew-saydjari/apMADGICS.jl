@@ -56,13 +56,13 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, 
     mloclst_FPI, mloclst_msk_FPI, wavelstcombo_FPI = make_mvec(wavelstcombo_FPI0);
     xpix_FPI = remove_mask_chip_healper(xpix_FPI0,mloclst_msk_FPI)
 
-    cavp = fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5fpi,expidfpi,dcav_init = 3.736e7,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
+    cavp = fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5fpi,expidfpi,dcav_init = 3.736e7,save_plot_on=false,show_plot_on=false,savepath=saveplotspath)
     ## Fit wavelength solution to FPI; compute/save FPI residuals
     fit_pix2wave_FPI_partial0(fiber) = fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,offset_param_lst,cavp,fiber)
     outlst_FPI = fit_pix2wave_FPI_partial0.(f2do);
     mmsk_lst = make_mmask(mloclst_FPI, outlst_FPI; ccut = 1.0, wid_med = 5) # cut outlier FPI modes
-    # # refit cavity (maybe we need to regenerate wavelstcombo_FPI, this would be an iterative improvement towards a joint cavity and chipgap fit)
-    # cavp = fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5fpi,expidfpi,dcav_init=3.736e7,msklst=mmsk_lst,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
+    # refit cavity (maybe we need to regenerate wavelstcombo_FPI, this would be an iterative improvement towards a joint cavity and chipgap fit)
+    cavp = fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5fpi,expidfpi,dcav_init=3.736e7,msklst=mmsk_lst,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
     # refit wavelength solution
     fit_pix2wave_FPI_partial1(fiber) = fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,offset_param_lst,cavp,fiber,msklst=mmsk_lst)
     outlst_FPI = fit_pix2wave_FPI_partial1.(f2do);
@@ -144,7 +144,7 @@ function ingestArc(glist; chip2do = ["a","b","c"], f2do = 1:300)
                 fiberlstloc = []
                 pixlstloc = []
                 for fiber=f2do
-                    msk = (row .== fiber-1) .& (chipv.==getChipIndx(chip)) .& (0 .< pixel .<1e5)
+                    msk = (row .== fiber-1) .& (chipv.==getChipIndx(chip)) .& (0 .< pixel .< 2049)
                     push!(fiberlstloc,wave[msk])
                     push!(pixlstloc,pixel[msk])
                 end
@@ -254,7 +254,7 @@ function ingestFPI(fpi_tup, param_lst, offset_param_lst; chip2do = ["a","b","c"]
 end
 
 # Takes in wavelength estimates for FPI peaks and converts to integer peak index estimates
-function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10, maxpass = 100) 
+function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10, maxpass = 100, dvec_cut = 2, dvec_frac_cut = 0.04) 
     mloclst_FPI= []
     mloclst_msk_FPI = []
     for fiber=f2do
@@ -264,7 +264,7 @@ function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10
             mskg = ones(Bool,wavelen)
             for i=1:maxpass 
                 dvec = diff(wavelstcombo_FPI[fiber][mskg])
-                mbad = abs.(dvec) .< 2
+                mbad = abs.(dvec) .< dvec_cut
                 if count(mbad)==0
                     break
                 end
@@ -279,7 +279,7 @@ function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10
                 dvec = diff(wavelstcombo_FPI[fiber][mskg])
                 dm = dvec./running_median(dvec,swindow,:asymmetric_truncated)
                 dt = (dm.-roundnan.(dm))./dm
-                mbad = abs.(dt) .> 0.02
+                mbad = abs.(dt) .> dvec_frac_cut
                 if count(mbad)==0
                     break
                 end
