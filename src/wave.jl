@@ -20,7 +20,7 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
 # arc_group [dither 1, dither 2],[ThAr, UNe], but for now only one dither dimension (removed #1)
 arc_grp_tup = [[("sdsswork/mwm", "daily", "apo25m", "59608", 40460007), ("sdsswork/mwm", "daily", "apo25m", "59608", 40460008)]]
 fpi_tup = ("sdsswork/mwm", "daily", "apo25m", "59608", 40460010)
-function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, show_plot_on = false, saveplotspath = "./wavecal_plots/", cache_dir="../local_cache")
+function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, show_plot_on = false, saveplotspath = "./wavecal_plots/", cache_dir="../local_cache", residcut_arc = 0.35)
     if !ispath(saveplotspath) & save_plot_on
         mkpath(saveplotspath)
     end
@@ -37,7 +37,7 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, 
     # Fit wavelength solution to ARC Lamp
     fit_pix2wave_arc_partial0(fiber) = fit_pix2wave_arc(wavelst_arc,xpix_arc,fiber)
     outlst_arc0 = fit_pix2wave_arc_partial0.(f2do);
-    msklst = map(x->abs.(x[2]).<0.35,outlst_arc0) # residual less than 1 Angstrom cut
+    msklst = map(x->abs.(x[2]).<residcut_arc,outlst_arc0) # residual less than 1 Angstrom cut
     badarcfibers = count.(msklst) .< 75 # this is a fine idea when we have FPI data, but maybe problematic for arcs only
     for badfiber in findall(badarcfibers)
         if length(msklst[badfiber])>0
@@ -90,7 +90,7 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, 
     end
     save_wavecal(wavesavename,outlst_FPI,cavp)
 
-    # return msklst
+    return wavelstcombo_FPI0, outlst_FPI, mloclst_FPI, mloclst_msk_FPI, wavelstcombo_FPI
 end
 
 #### Assorted functions ####
@@ -260,7 +260,7 @@ function ingestFPI(fpi_tup, param_lst, offset_param_lst; chip2do = ["a","b","c"]
 end
 
 # Takes in wavelength estimates for FPI peaks and converts to integer peak index estimates
-function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10, maxpass = 100, dvec_cut = 2, dvec_frac_cut = 0.04, dvec_rem_cut = 0.1) 
+function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10, maxpass = 100, dcav_init = 3.736e7, dvec_cut = 2, dvec_frac_cut = 0.04) 
     mloclst_FPI= []
     mloclst_msk_FPI = []
     for fiber=f2do
@@ -296,24 +296,8 @@ function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10
                     println("Bad m index removal failed badly, $fiber")
                 end
             end
-            # for i=1:maxpass
-            #     dvec = diff(wavelstcombo_FPI[fiber][mskg])
-            #     dm = dvec./running_median(dvec,swindow,:asymmetric_truncated)
-            #     dt = (dm.-roundnan.(dm))
-            #     mbad = (abs.(dt) .> dvec_rem_cut)
-            #     if count(mbad)==0
-            #         break
-            #     end
-            #     bindx = argmax(abs.(dt))
-            #     rindx = waveindx[mskg][bindx]:waveindx[mskg][bindx + 1]
-            #     mskg[rindx].=false
-            #     if i==maxpass
-            #         println("Bad m index removal failed badly, $fiber")
-            #     end
-            # end
-            dvec = diff(wavelstcombo_FPI[fiber][mskg])
-            dm = roundnan.(dvec./running_median(dvec,swindow,:asymmetric_truncated))
-            mloc = vcat(1,cumsum(dm).+1)
+            mtemp = 2*dcav_init./wavelstcombo_FPI[fiber][mskg] # you don't need to know the cavity all that well to assign deltaM
+            mloc = roundnan.(mtemp .- mtemp[1] .+ 1)
             push!(mloclst_FPI,mloc)
             push!(mloclst_msk_FPI,mskg)
         else
@@ -331,10 +315,11 @@ function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10
     for fiber=f2do
         mloclst_FPI[fiber].+=madd[fiber]
     end
+
     return mloclst_FPI, mloclst_msk_FPI, wavelstcombo_FPI1
 end
 
-function make_mmask(mloclst, outlst; ccut = 1, wid_med = 5, f2do = 1:300)
+function make_mmask(mloclst, outlst; ccut = 1, wid_med = 5, f2do = 1:300) #, residcut=0.04)
     refiqr = fiqr(vcat(map(x->x[2],outlst)...))
 
     mat = vcat(mloclst...)
@@ -355,8 +340,10 @@ function make_mmask(mloclst, outlst; ccut = 1, wid_med = 5, f2do = 1:300)
 
     mmsk_lst = []
     for fiber=f2do
+        # push!(mmsk_lst,.!(mloclst[fiber].∈[badm]) .& (abs.(outlst[fiber][2]).<residcut))
         push!(mmsk_lst,.!(mloclst[fiber].∈[badm]))
     end
+    
     return mmsk_lst
 end
 
