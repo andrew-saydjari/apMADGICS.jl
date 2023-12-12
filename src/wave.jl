@@ -116,7 +116,7 @@ function save_wavecal(wavesavename,outlst_FPI,cavp,fpi_tup)
     cavColNames = ["dcav", "m0"]
     cavColVals = [[cavp[1]],[cavp[2]]]
 
-    hdr = FITSHeader(["pipeline","git_branch","git_commit","fpi_expid"],["apMADGICS.jl",git_branch,git_commit,string(fpi_tup[end])],["","",""])
+    hdr = FITSHeader(["pipeline","git_branch","git_commit","fpi_expid"],["apMADGICS.jl",git_branch,git_commit,string(fpi_tup[end])],["","","",""])
 
     f = FITS(wavesavename,"w")
     write(f,[0],header=hdr,name="header_only")
