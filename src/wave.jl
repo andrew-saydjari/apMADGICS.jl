@@ -88,14 +88,14 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, 
     if !ispath(dirName)
         mkpath(dirName)
     end
-    save_wavecal(wavesavename,outlst_FPI,cavp)
+    save_wavecal(wavesavename,outlst_FPI,cavp,fpi_tup)
 
-    # return msklst
+    return outlst_FPI
 end
 
 #### Assorted functions ####
 
-function save_wavecal(wavesavename,outlst_FPI,cavp)
+function save_wavecal(wavesavename,outlst_FPI,cavp,fpi_tup)
     # get the pixel to wavelength polynomial coefficients
     x = extract_nth.(outlst_FPI,4)
     binds = findall(length.(x).==0)
@@ -116,7 +116,7 @@ function save_wavecal(wavesavename,outlst_FPI,cavp)
     cavColNames = ["dcav", "m0"]
     cavColVals = [[cavp[1]],[cavp[2]]]
 
-    hdr = FITSHeader(["pipeline","git_branch","git_commit"],["apMADGICS.jl",git_branch,git_commit],["","",""])
+    hdr = FITSHeader(["pipeline","git_branch","git_commit","fpi_expid"],["apMADGICS.jl",git_branch,git_commit,string(fpi_tup[end])],["","",""])
 
     f = FITS(wavesavename,"w")
     write(f,[0],header=hdr,name="header_only")
