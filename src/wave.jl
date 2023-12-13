@@ -90,14 +90,14 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, 
     end
     save_wavecal(wavesavename,outlst_FPI,cavp,fpi_tup)
 
-    return outlst_FPI
+    # return outlst_FPI
 end
 
 #### Assorted functions ####
 
 function save_wavecal(wavesavename,outlst_FPI,cavp,fpi_tup)
     # get the pixel to wavelength polynomial coefficients
-    x = extract_nth.(outlst_FPI,4)
+    x = extract_nth.(outlst_FPI,5)
     binds = findall(length.(x).==0)
     for bind in binds
         x[bind] = NaN*ones(length(x[x.!=0][1]))
@@ -105,12 +105,39 @@ function save_wavecal(wavesavename,outlst_FPI,cavp,fpi_tup)
     pmat = hcat(x...)
 
     # get the chip gap polynomial coefficients
-    x = extract_nth.(outlst_FPI,3)
+    x = extract_nth.(outlst_FPI,4)
     binds = findall(length.(x).==0)
     for bind in binds
         x[bind] = NaN*ones(length(x[x.!=0][1]))
     end
     gmat = hcat(x...)
+
+    # get pix coordinates (outlier masked)
+    x = extract_nth.(outlst_FPI,1)
+    binds = findall(length.(x).==0)
+    for bind in binds
+        x[bind] = NaN*ones(length(x[x.!=0][1]))
+    end
+    xvec_cat = vcat(x...)
+
+    # get wavelength model (outlier masked)
+    x = extract_nth.(outlst_FPI,3)
+    binds = findall(length.(x).==0)
+    for bind in binds
+        x[bind] = NaN*ones(length(x[x.!=0][1]))
+    end
+    wavevec_cat = vcat(x...)
+
+    # get fiber index
+    fibvec = []
+    for i = 1:length(x)
+        push!(fibvec,i*ones(Int,length(x[i])))
+    end
+    fibvec_cat = convert.(Int32,vcat(fibvec...))
+
+    # make x,wave,fiber dictionary
+    SolnNames = ["x_adjusted", "wave_model", "fiberindx"] 
+    SolnVals = Any[xvec_cat,wavevec_cat,fibvec_cat]
 
     # make cavity dictionary
     cavColNames = ["dcav", "m0"]
@@ -123,6 +150,7 @@ function save_wavecal(wavesavename,outlst_FPI,cavp,fpi_tup)
     write(f,pmat,name="pix2wave_polycoeff")
     write(f,gmat,name="chipgap_polycoeff")
     write(f,cavColNames,cavColVals,name="cavity_params")
+    write(f,SolnNames,SolnVals,name="model_points")
     close(f)
 end
 
@@ -534,9 +562,9 @@ function fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,arc_fit_offset_poly,cavp,fiber;ms
         x_FPI = make_xvec(xpix_FPI[fiber], params_opt)
         Axfpi = positional_poly_mat(x_FPI[msk])
         tparam = Axfpi\wavec[msk]
-        return (x_FPI[msk],wavec[msk].-Axfpi*tparam,params_opt,tparam)
+        return (x_FPI[msk],wavec[msk].-Axfpi*tparam,Axfpi*tparam,params_opt,tparam)
     else
-        return ([],[],[],[])
+        return ([],[],[],[],[])
     end
 end
 
