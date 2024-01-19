@@ -63,16 +63,16 @@ function getFramesFromPlate(x)
     return framenum
 end
 
-function build_framepath(release_dir,redux_ver,tele,mjd,imid,chip)
-    imids = lpad(imid,8,"0")
+function build_framepath(release_dir,redux_ver,tele,mjd,expnums,chip)
+    expnum = lpad(expnums,8,"0")
     base = getUtahBase(release_dir,redux_ver)*"exposures"
     if tele[1:6] =="apo25m"
         supfold = "apogee-n"
-        fname = "ap1D-$chip-$imids"*".fits"
+        fname = "ap1D-$chip-$expnum"*".fits"
         return join([base,supfold,mjd,fname],"/")
     else
         supfold = "apogee-s"
-        fname = "as1D-$chip-$imids"*".fits"
+        fname = "as1D-$chip-$expnum"*".fits"
         return join([base,supfold,mjd,fname],"/")
     end
 end
@@ -89,14 +89,14 @@ function build_visitpath(release_dir,redux_ver,tele,field,plate,mjd,fiberindx)
     return join([base,tele[1:6],field,string(parse(Int,plate)),mjd,fname],"/")
 end
 
-function visit2cframe(fname,tele,imid,chip)
-    imids = lpad(imid,8,"0")
+function visit2cframe(fname,tele,expnums,chip)
+    expnum = lpad(expnums,8,"0")
     prefix = if (tele[1:6] =="apo25m")
         "apCframe"
     else
         "asCframe"
     end
-    file = "$prefix-$chip-$imids"*".fits"
+    file = "$prefix-$chip-$expnum"*".fits"
     sname = split(fname,"/")
     sname[end] = file
     return join(sname,"/")
@@ -116,6 +116,7 @@ end
 
 function build_apFPILinesPath(release_dir,redux_ver,tele,mjd,chip,expnum)
     base = getUtahBase(release_dir,redux_ver)*"cal"
+    expnum = lpad(expnums,8,"0")
     if tele[1:6] =="apo25m"
         supfold = "apogee-n"
         fname = "apWaveFPI-$chip-$mjd-$expnum"*".fits"
@@ -127,8 +128,9 @@ function build_apFPILinesPath(release_dir,redux_ver,tele,mjd,chip,expnum)
     end
 end
 
-function build_apLinesPath(release_dir,redux_ver,tele,mjd,expnum)
+function build_apLinesPath(release_dir,redux_ver,tele,mjd,expnums)
     base = getUtahBase(release_dir,redux_ver)*"cal"
+    expnum = lpad(expnums,8,"0")
     if tele[1:6] =="apo25m"
         supfold = "apogee-n"
         fname = "apLines-$expnum"*".fits"
@@ -137,5 +139,33 @@ function build_apLinesPath(release_dir,redux_ver,tele,mjd,expnum)
         supfold = "apogee-s"
         fname = "asLines-$expnum"*".fits"
         return join([base,supfold,"wave",fname],"/")
+    end
+end
+
+# are we kidding... for DR17 we did not have the supfold in there?????
+function build_apFluxPath(release_dir,redux_ver,tele,mjd,chip,expnums)
+    base = getUtahBase(release_dir,redux_ver)*"cal"
+    expnum = lpad(expnums,8,"0")
+    dr_number = if occursin("dr", release_dir)
+        parse(Int, match(r"dr(\d+)", release_dir).captures[1])
+    else
+        -1
+    end
+    if tele[1:6] =="apo25m"
+        supfold = "apogee-n"
+        fname = "apFlux-$chip-$expnum"*".fits"
+        if (10 <= dr_number <= 17)
+            return join([base,"flux",fname],"/")
+        else
+            return join([base,supfold,"flux",fname],"/")
+        end
+    else
+        supfold = "apogee-s"
+        fname = "asFlux-$chip-$expnum"*".fits"
+        if (10 <= dr_number <= 17)
+            return join([base,"flux",fname],"/")
+        else
+            return join([base,supfold,"flux",fname],"/")
+        end
     end
 end
