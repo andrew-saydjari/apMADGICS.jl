@@ -375,7 +375,7 @@ end
 if check_flux
     println("##### Checking the apFlux Files #####")
     pout = @showprogress pmap(test_apFlux,run_lst)
-    pout1 = @showprogress pmap(g,star_input);
+    pout1 = @showprogress pmap(g,run_lst);
 
     if count((pout.!=0))>0
         println("Visits lost to missing exp files: $(count(pout.==3)) , $(100*count(pout.==3)/length(pout))%")
