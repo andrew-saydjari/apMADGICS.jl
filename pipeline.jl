@@ -156,7 +156,7 @@ end
         elseif tele[end]=='i'
             warn("Injections not found at injection cache dir!")
         else
-            fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx)
+            fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
             starscale,framecnts,varoffset,varflux = metaexport
             if caching
                 dirName = splitdir(starcache)[1]
@@ -467,7 +467,7 @@ iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
 
 for adjfibindx = 295:295 #1:600 #295, 245
-    subiter = deserialize(prior_dir*"2024_01_20/outlists/star_input_lst_msked_"*lpad(adjfibindx,3,"0")*".jdat")
+    subiter = deserialize(prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end

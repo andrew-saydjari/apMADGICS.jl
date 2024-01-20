@@ -9,7 +9,7 @@ using FITSIO, StatsBase, ProgressMeter, Distributed, Serialization, Glob, Delimi
 src_dir = abspath("./")
 include(src_dir*"/fileNameHandling.jl")
 
-outdir = "../../../2024_01_19/outlists/"
+outdir = "../../outlists/" #mistakenly pointed to 2024_01_19 on 2024_01_20
 if !ispath(outdir)
     mkpath(outdir)
 end

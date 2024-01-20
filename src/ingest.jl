@@ -45,7 +45,7 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; cach
                 fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
                 starscale,framecnts,varoffset,varflux = metaexport
             else
-                fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberind)
+                fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
                 starscale,framecnts,varoffset,varflux = metaexport
                 if caching
                     dirName = splitdir(skycacheSpec)[1]
@@ -96,7 +96,7 @@ function sky_decomp(outvec,outvar,simplemsk)
     return x_comp_lst[1]
 end
 
-function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffset=16.6)
+function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffset=16.6, cache_dir="../local_cache")
 
     # # hardcoded flux-dep variance correction (empitical IPC + LSF correction)
     # power 2 model
