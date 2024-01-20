@@ -4,12 +4,10 @@
 import Pkg; using Dates; t0 = now(); t_then = t0;
 using InteractiveUtils; versioninfo()
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
-
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
 addprocs(SlurmManager())
-
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
 
 activateout = @capture_out begin
@@ -18,16 +16,14 @@ activateout = @capture_out begin
         Pkg.activate("./")
     end
 end
-
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker activation took $dt"); t_then = t_now; flush(stdout)
- 
+
 @everywhere begin
     using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays
     using Interpolations, SparseArrays, ParallelDataTransfer, AstroTime, Suppressor
     using ThreadPinning
 
-    prior_dir = "/uufs/chpc.utah.edu/common/home/u6039752/scratch/working/"
-    prior_dir2 = "/uufs/chpc.utah.edu/common/home/u6039752/scratch1/working/"
+    prior_dir = "/uufs/chpc.utah.edu/common/home/u6039752/scratch1/working/"
     src_dir = "./"
     include(src_dir*"src/utils.jl")
     include(src_dir*"src/gridSearch.jl")
@@ -43,25 +39,14 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     using BLISBLAS
     BLAS.set_num_threads(1)
 end
-
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
 # Task-Affinity CPU Locking in multinode SlurmContext
 slurm_cpu_lock()
 println(BLAS.get_config()); flush(stdout)
-
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("CPU locking took $dt"); t_then = t_now; flush(stdout)
 
-using LibGit2
-git_dir = src_dir
-git_commit = LibGit2.head(git_dir)
-git_repo = LibGit2.GitRepo(git_dir)
-git_head = LibGit2.head(git_repo)
-git_branch = LibGit2.shortname(git_head)
-println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
-
-@passobj 1 workers() git_branch
-@passobj 1 workers() git_commit
+using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 workers() git_branch; @passobj 1 workers() git_commit
 
 # These global allocations for the injest are messy... but we plan on changing the ingest
 # relatively soon... so don't worry for now.
@@ -75,16 +60,16 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
     # pixscale = (10^(delLog)-1)*c;
 
     # nothing to do on size here, if anything expand
-    f = h5open(prior_dir2*"2023_07_22/dib_priors/precomp_dust_1_analyticDeriv_stiff.h5")
+    f = h5open(prior_dir*"2023_07_22/dib_priors/precomp_dust_1_analyticDeriv_stiff.h5")
     global V_dib_noLSF = read(f["Vmat"])
     close(f)
 
-    f = h5open(prior_dir2*"2023_07_22/dib_priors/precomp_dust_3_analyticDeriv_soft.h5")
+    f = h5open(prior_dir*"2023_07_22/dib_priors/precomp_dust_3_analyticDeriv_soft.h5")
     global V_dib_noLSF_soft = read(f["Vmat"])
     close(f)
 
     alpha = 1;
-    f = h5open(prior_dir2*"2023_08_22/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
+    f = h5open(prior_dir*"2023_08_22/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
@@ -134,9 +119,21 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, sky_off=false, cache_dir="../local_cache", inject_cache_dir=prior_dir2*"2023_08_22/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, sky_off=false, cache_dir="../local_cache", inject_cache_dir=prior_dir*"2023_08_22/inject_local_cache")
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
         out = []
+
+        # Get Throughput Fluxing 
+        fluxingcache = cache_fluxname(tele,field,plate,mjd; cache_dir=cache_dir)
+        if !isfile(fluxingcache)
+            dirName = splitdir(fluxingcache)[1]
+            if !ispath(dirName)
+                mkpath(dirName)
+            end
+            getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd,cache_dir=cache_dir)
+        end
+
+        # Get Sky Prior
         skycache = cache_skyname(tele,field,plate,mjd,cache_dir=cache_dir)
         if (isfile(skycache) & sky_caching)
             meanLocSky, VLocSky = deserialize(skycache)
@@ -151,6 +148,7 @@ end
             end
         end
 
+        # Get the Star
         starcache = cache_starname(tele,field,plate,mjd,fiberindx,cache_dir=cache_dir,inject_cache_dir=inject_cache_dir)
         if (isfile(starcache) & caching)
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(starcache)
@@ -316,36 +314,36 @@ end
             end
             if prior_load_needed
                 ### Need to load the priors here
-                f = h5open(prior_dir2*"2023_07_22/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir*"2023_07_22/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_skycont = read(f["Vmat"])
                 chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
                 close(f)
 
-                f = h5open(prior_dir2*"2023_07_22/sky_priors/APOGEE_skyline_svd_120_f"*lpad(adjfibindx,3,"0")*".h5") #revert temp
+                f = h5open(prior_dir*"2023_07_22/sky_priors/APOGEE_skyline_svd_120_f"*lpad(adjfibindx,3,"0")*".h5") #revert temp
                 global V_skyline = read(f["Vmat"])
                 submsk = convert.(Bool,read(f["submsk"]))
                 close(f)
 
                 global skymsk = chebmsk_exp .& submsk #.& msk_starCor;
 
-                f = h5open(prior_dir2*"2023_07_22/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir*"2023_07_22/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_starcont = read(f["Vmat"])
                 close(f)
 
                 # can consider changing dimension at the full DR17 reduction stage
                 # this only exists for the 295 fiber for the moment (can easily batch generate the rest)
-                f = h5open(prior_dir2*"2023_09_26/star_priors/APOGEE_starCor_svd_50_subpix_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir*"2023_09_26/star_priors/APOGEE_starCor_svd_50_subpix_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 close(f)
                 if ddstaronly
                     global V_subpix_refLSF = V_subpix
                 end
 
-                f = h5open(prior_dir2*"2023_07_22/dib_priors/precomp_dust_1_analyticDerivLSF_stiff_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir*"2023_07_22/dib_priors/precomp_dust_1_analyticDerivLSF_stiff_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib = read(f["Vmat"])
                 close(f)
 
-                f = h5open(prior_dir2*"2023_07_22/dib_priors/precomp_dust_3_analyticDerivLSF_soft_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir*"2023_07_22/dib_priors/precomp_dust_3_analyticDerivLSF_soft_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib_soft = read(f["Vmat"])
                 close(f)
                 GC.gc()
@@ -469,7 +467,7 @@ iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
 
 for adjfibindx = 295:295 #1:600 #295, 245
-    subiter = deserialize(prior_dir2*"2023_12_08/star_input_lists/star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+    subiter = deserialize(prior_dir*"2024_01_19/outlists/star_input_lst_msked"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end

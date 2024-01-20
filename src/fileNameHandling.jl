@@ -2,7 +2,6 @@
 
 ## Internal Caching Structure
 function cache_skyname(tele,field,plate,mjd; cache_dir="../local_cache")
-    teleind = (tele[1:6] == "lco25m") ? 2 : 1
     join([cache_dir,mjd,join(["sky",tele,field,plate,mjd],"_")],"/")*".jdat"
 end
 #do not remake for each fiber
@@ -25,6 +24,10 @@ end
 
 function cache_wavename(tele,mjd; cache_dir="../local_cache")
     return join([cache_dir,tele,mjd,join(["wavecal",tele,mjd],"_")],"/")*".fits"
+end
+
+function cache_fluxname(tele,field,plate,mjd; cache_dir="../local_cache")
+    join([cache_dir,mjd,join(["fluxing",tele,field,plate,mjd],"_")],"/")*".fits"
 end
 
 ## Utah SDSS Data Structure
@@ -142,7 +145,6 @@ function build_apLinesPath(release_dir,redux_ver,tele,mjd,expnums)
     end
 end
 
-# are we kidding... for DR17 we did not have the supfold in there?????
 function build_apFluxPath(release_dir,redux_ver,tele,mjd,chip,expnums)
     base = getUtahBase(release_dir,redux_ver)*"cal"
     expnum = lpad(expnums,8,"0")
@@ -154,7 +156,7 @@ function build_apFluxPath(release_dir,redux_ver,tele,mjd,chip,expnums)
     if tele[1:6] =="apo25m"
         supfold = "apogee-n"
         fname = "apFlux-$chip-$expnum"*".fits"
-        if (10 <= dr_number <= 17)
+        if (10 <= dr_number <= 17) # are we kidding... for DR17 we did not have the supfold in there?????
             return join([base,"flux",fname],"/")
         else
             return join([base,supfold,"flux",fname],"/")
@@ -168,4 +170,70 @@ function build_apFluxPath(release_dir,redux_ver,tele,mjd,chip,expnums)
             return join([base,supfold,"flux",fname],"/")
         end
     end
+end
+
+# a lot of replicated code with the verify_drp.jl apFlux checker... would be good to consolidate
+function build_apFluxPaths(release_dir,redux_ver,tele,field,plate,mjd)
+    plateFile = build_platepath(release_dir,redux_ver,tele,field,plate,mjd,"a")
+    frame_lst = getFramesFromPlate(plateFile)
+    firstVisitExp =  minimum(parse.(Int,frame_lst))
+    expFile = build_expPath(release_dir,redux_ver,tele,mjd)
+
+    if !isfile(expFile)
+        return 3
+    end
+    f = FITS(expFile)
+    EXPNUM = read(f[2],"NUM")
+    IMAGETYP = read(f[2],"IMAGETYP")
+    CARTID = read(f[2],"CARTID")
+    close(f)
+
+    firstVisitInd = findfirst(EXPNUM.==firstVisitExp)
+    cartVisit = CARTID[firstVisitInd]
+
+    expIndex_before = findlast((IMAGETYP.=="DomeFlat") .& (EXPNUM .< firstVisitExp))
+    expIndex_after = findfirst((IMAGETYP.=="DomeFlat") .& (EXPNUM .> firstVisitExp))
+
+    # This is great logic, if the DRP did not only do the first two in the FPI era
+    # I am leaving it and overriding it because I want to be able to revert to this
+    expIndex = if isnothing(expIndex_before) & isnothing(expIndex_after)
+        error("No DomeFlats taken")
+    elseif !isnothing(expIndex_before) && (CARTID[expIndex_before] == cartVisit)
+        expIndex_before
+    elseif !isnothing(expIndex_after) && (CARTID[expIndex_after] == cartVisit)
+        expIndex_after
+    else
+        error("No DomeFlats taken with the right CARTID")
+    end
+
+    for off in vcat(0,-1:-1:-3,1:3)
+        if (1 <= expIndex+off <= length(CARTID)) && isfile(build_apFluxPath(release_dir,redux_ver,tele,mjd,"a",EXPNUM[expIndex+off])) && (CARTID[expIndex+off] == cartVisit)
+            expIndex+=off
+            break
+        end
+    end
+
+    # This is to handle bad DRP behavior upstream
+    if all(CARTID.==0)
+        allDomes = findall(IMAGETYP.=="DomeFlat")
+        testinds = allDomes[(allDomes .<= expIndex)]
+        for testind in testinds[end:-1:1]
+            fluxFile = build_apFluxPath(release_dir,redux_ver,tele,mjd,"a",EXPNUM[testind])
+            if isfile(fluxFile)
+                expIndex = testind
+                break
+            else
+                error("No apFlux files exist for the whole (FPS era) night")
+            end
+        end
+    end
+
+    expectDome = EXPNUM[expIndex]
+
+    fluxFiles = []
+    for chip in ["a","b","c"]
+        fluxFile = build_apFluxPath(release_dir,redux_ver,tele,mjd,chip,expectDome)
+        push!(fluxFiles,fluxFile)
+    end
+    return fluxFiles, expectDome
 end
