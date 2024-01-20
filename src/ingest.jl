@@ -3,6 +3,23 @@
 
 using AstroTime
 
+function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_dir="../local_cache")
+    flux_paths, domeflat_expid = build_apFluxPaths(release_dir,redux_ver,tele,field,plate,mjd)
+    fluxingcache = cache_fluxname(tele,field,plate,mjd; cache_dir=cache_dir)
+
+    hdr = FITSHeader(["pipeline","git_branch","git_commit","domeflat_expid"],["apMADGICS.jl",git_branch,git_commit,string(domeflat_expid)],["","","",""])
+    h = FITS(fluxingcache,"w")
+    write(h,[0],header=hdr,name="header_only")
+    for (chipind,chip) in enumerate(["a","b","c"])
+        flux_path = flux_paths[chipind]
+        f = FITS(flux_path)
+        thrpt = read(f[3])
+        close(f)
+        write(h,thrpt,name=chip)
+    end
+    close(h)
+end
+
 function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; caching=false,cache_dir="../local_cache")
     
     ### Find all of the Sky Fibers
@@ -91,7 +108,16 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
 
     plateFile = build_platepath(release_dir,redux_ver,tele,field,plate,mjd,"a")
     frame_lst = getFramesFromPlate(plateFile)
-
+    
+    #make a dictionary of values for chip a,b,c from fluxing fits
+    thrptDict = Dict{String,Float64}()
+    f = FITS(cache_fluxname(tele,field,plate,mjd; cache_dir=cache_dir))
+    for chip in ["a","b","c"]
+        thrpt = read(f[chip],fiberindx)
+        thrptDict[chip] = thrpt
+    end
+    close(f)
+    
     fill!(outvec,0)
     fill!(outvar,0)
     fill!(cntvec,0)
@@ -109,9 +135,9 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
             hdr = read_header(f[1])
             midtime = modified_julian(TAIEpoch(hdr["DATE-OBS"]))+(hdr["EXPTIME"]/2/3600/24)days #TAI or UTC?
             push!(time_lsts[chipind],AstroTime.value(midtime))
-            Xd = read(f[2],:,fiberindx);
+            Xd = read(f[2],:,fiberindx)./thrptDict[chip];
             Xd_stack[(1:2048).+(chipind-1)*2048] .= Xd[end:-1:1]
-            Xd_std = read(f[3],:,fiberindx);
+            Xd_std = read(f[3],:,fiberindx)./thrptDict[chip];
             Xd_std_stack[(1:2048).+(chipind-1)*2048] .= Xd_std[end:-1:1]
             pixmsk = read(f[4],:,fiberindx);
             pixmsk_stack[(1:2048).+(chipind-1)*2048] .= pixmsk[end:-1:1]
@@ -163,6 +189,6 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
     chipmidtimes = zeros(3)
     chipmidtimes[goodframeIndx] .= mean.(time_lsts[goodframeIndx]) #consider making this flux weighted (need to worry about skyline variance driving it)
     chipmidtimes[.!goodframeIndx] .= NaN
-    metaexport = (starscale,framecnts,varoffset,(c^2*starscale^p))
+    metaexport = (starscale,framecnts,varoffset,(c^2*starscale^p),thrptDict["a"],thrptDict["b"],thrptDict["c"])
     return outvec, outvar, cntvec, chipmidtimes, metaexport
 end

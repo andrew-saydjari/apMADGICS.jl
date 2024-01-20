@@ -9,57 +9,110 @@ using FITSIO, StatsBase, ProgressMeter, Distributed, Serialization, Glob, Delimi
 src_dir = abspath("./")
 include(src_dir*"/fileNameHandling.jl")
 
-outdir = "../../../2024_01_09/outlists/"
+outdir = "../../../2024_01_19/outlists/"
 if !ispath(outdir)
     mkpath(outdir)
 end
 
-release_dir = "sdsswork/mwm"
-redux_ver = "1.2"
+# release_dir = "sdsswork/mwm"
+# redux_ver = "1.2"
+
+release_dir = "dr17"
+redux_ver = "dr17"
 
 release_dir_n = replace(release_dir,"/"=>"_")
-redux_ver_n = replace(redux_ver,"."=>"_")
+redux_ver_n = replace(redux_ver,"."=>"p")
 
-check_ap1d = false
-check_apCframes = false
-check_exp = false
+check_ap1d = true
+check_apCframes = true
+check_exp = true
 check_flux = true
 
 ### Ingest allVisit File
-tele_try_list = ["apo25m","lco25m"]
-tele_list = []
-for tele in tele_try_list
-    allVisitpath = getUtahBase(release_dir, redux_ver)*"summary/allVisit-$(redux_ver)-$(tele).fits"
-    # println(allVisitpath)
-    if isfile(allVisitpath)
-        push!(tele_list,tele)
+function summary_file_by_dr(release_dir,redux_ver,dr_number)
+    if dr_number==17
+        return replace(getUtahBase(release_dir,redux_ver),"redux"=>"aspcap")*"synspec/allVisit-$(redux_ver)-synspec.fits"
+    elseif dr_number==16
+        return replace(getUtahBase(release_dir,redux_ver),"redux"=>"aspcap")*"l33/allVisit-$(redux_ver)-l33.fits"
+    elseif dr_number==15
+        return getUtahBase(release_dir,redux_ver)*"allVisit-l31c.2.fits"
+    else
+        error("No support for $(dr_number) yet, due to inhomogenous summary files")
     end
 end
 
-if length(tele_list) == 0
-    println("No Summary Files for Either Instrument?")
-end
+function ingest_allVisit_file(release_dir,redux_ver)
+    dr_number = if occursin("dr", release_dir)
+        parse(Int, match(r"dr(\d+)", release_dir).captures[1])
+    else
+        -1
+    end
+    
+    tele_try_list = ["apo25m","lco25m"]
+    
+    if (10 <= dr_number <= 17)
+        # there is only one for the early DRs
+        sum_file = summary_file_by_dr(release_dir,redux_ver,dr_number)
+        
+        f = FITS(sum_file)
+        TELESCOPE = read(f[2],"TELESCOPE")
+        FIELD = read(f[2],"FIELD")
+        PLATE = read(f[2],"PLATE")
+        MJD = read(f[2],"MJD")
+        FIBERID = read(f[2],"FIBERID")
+        close(f)
+        
+        msk_tele = zeros(Bool,length(TELESCOPE))
+        for tele_try in tele_try_list
+            msk_tele .|= (TELESCOPE .== tele_try)
+        end
+        
+        tele_list = unique(TELESCOPE[msk_tele])
 
-TELESCOPE_LST = []
-FIELD_LST = []
-PLATE_LST = []
-MJD_LST = []
-FIBERID_LST = []
-for tele in tele_list
-    f = FITS(getUtahBase(release_dir, redux_ver)*"summary/allVisit-$(redux_ver)-$(tele).fits")
-    push!(TELESCOPE_LST,read(f[2],"TELESCOPE"))
-    push!(FIELD_LST,read(f[2],"FIELD"))
-    push!(PLATE_LST,read(f[2],"PLATE"))
-    push!(MJD_LST,read(f[2],"MJD"))
-    push!(FIBERID_LST,read(f[2],"FIBERID"))
-    close(f)
-end
+        println("Found $(length(TELESCOPE[msk_tele])) visits to run")
+        
+        return tele_list, TELESCOPE[msk_tele], FIELD[msk_tele], PLATE[msk_tele], MJD[msk_tele], FIBERID[msk_tele]
+        ## TBD
+    else
+        tele_list = []
+        for tele in tele_try_list
+            allVisitpath = getUtahBase(release_dir, redux_ver)*"summary/allVisit-$(redux_ver)-$(tele).fits"
+            # println(allVisitpath)
+            if isfile(allVisitpath)
+                push!(tele_list,tele)
+            end
+        end
 
-TELESCOPE = vcat(TELESCOPE_LST...)
-FIELD = vcat(FIELD_LST...)
-PLATE = vcat(PLATE_LST...)
-MJD = vcat(MJD_LST...)
-FIBERID = vcat(FIBERID_LST...)
+        if length(tele_list) == 0
+            println("No Summary Files for Either Instrument?")
+        end
+
+        TELESCOPE_LST = []
+        FIELD_LST = []
+        PLATE_LST = []
+        MJD_LST = []
+        FIBERID_LST = []
+        for tele in tele_list
+            f = FITS(getUtahBase(release_dir, redux_ver)*"summary/allVisit-$(redux_ver)-$(tele).fits")
+            push!(TELESCOPE_LST,read(f[2],"TELESCOPE"))
+            push!(FIELD_LST,read(f[2],"FIELD"))
+            push!(PLATE_LST,read(f[2],"PLATE"))
+            push!(MJD_LST,read(f[2],"MJD"))
+            push!(FIBERID_LST,read(f[2],"FIBERID"))
+            close(f)
+        end
+
+        TELESCOPE = vcat(TELESCOPE_LST...)
+        FIELD = vcat(FIELD_LST...)
+        PLATE = vcat(PLATE_LST...)
+        MJD = vcat(MJD_LST...)
+        FIBERID = vcat(FIBERID_LST...)
+
+        println("Found $(length(TELESCOPE)) visits to run")
+        
+        return tele_list, TELESCOPE, FIELD, PLATE, MJD, FIBERID
+    end
+end
 
 ### Boot Up Workers
 addprocs(32)
@@ -76,6 +129,8 @@ end
 println("##########################################################################################")
 println("############## Checking APOGEE DRP $(release_dir), version $(redux_ver) products ####################")
 println("##########################################################################################")
+
+tele_list, TELESCOPE, FIELD, PLATE, MJD, FIBERID = ingest_allVisit_file(release_dir,redux_ver)
 
 ### Get Stars to Run (write apMADGICS.jl run files)
 ### Check Last Entry of ap1D Files
@@ -173,9 +228,9 @@ if check_ap1d
     end
 
     badfilevec = unique(vcat(map(x->vcat(x...),badlst)...))
-
+    
+    println("Total bad ap1D files: ",length(badfilevec))
     if length(badfilevec)>0
-        println("Total bad ap1D files: ",length(badfilevec))
         writedlm(outdir*"$(release_dir_n)_$(redux_ver_n)_bad_ap1D.txt",badfilevec,',')
     end
 end
@@ -252,7 +307,7 @@ for telematch in tele_list
     for fiber in 1:300
         teleind = (telematch == "lco25m") ? 2 : 1
         adjfibindx = (teleind-1)*300 + fiber
-        run_per_fiber = deserialize(outdir*"star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+        run_per_fiber = deserialize(outdir*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
         push!(run_lsts,run_per_fiber)
         push!(run_lens,length(run_per_fiber))
     end
@@ -410,9 +465,14 @@ for telematch in tele_list
         adjfibindx = (teleind-1)*300 + fiber
         star_input = deserialize(outdir*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
         msk = deserialize(outdir*"$(release_dir_n)_$(redux_ver_n)_star_msk_fluxing_lst_"*lpad(adjfibindx,3,"0")*".jdat")
-        serialize(outdir*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_msked"*lpad(adjfibindx,3,"0")*".jdat",star_input[.!msk])
+        subiter = star_input[.!msk]
+        new_vec = map(i->map(x->x[i],subiter),1:length(subiter[1]))
+        nstar = length(new_vec[1])
+        new_vec[1]=1:nstar
+        serialize(outdir*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_msked_"*lpad(adjfibindx,3,"0")*".jdat",collect(Iterators.zip(new_vec...)))
     end
 end
 
 rmprocs(workers())
 
+# julia +1.8.2 verify_drp.jl | tee ../../outlists/sdsswork_mwm_1p2.log
