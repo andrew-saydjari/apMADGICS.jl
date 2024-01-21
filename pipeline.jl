@@ -5,11 +5,9 @@ import Pkg; using Dates; t0 = now(); t_then = t0;
 using InteractiveUtils; versioninfo()
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
-
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
 addprocs(SlurmManager())
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
-
 activateout = @capture_out begin
     @everywhere begin
         import Pkg
@@ -17,7 +15,6 @@ activateout = @capture_out begin
     end
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker activation took $dt"); t_then = t_now; flush(stdout)
-
 @everywhere begin
     using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays
     using Interpolations, SparseArrays, ParallelDataTransfer, AstroTime, Suppressor
@@ -78,7 +75,6 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     waveobs_stack = zeros(3*2048)
     waveobs_stack_old = zeros(3*2048)
     pixmsk_stack = zeros(Int,3*2048)
-    telluric_stack = zeros(3*2048)
     fullBit = zeros(Int,3*2048);
     outvec = zeros(length(wavetarg))
     outvar = zeros(length(wavetarg))

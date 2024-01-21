@@ -3,6 +3,7 @@
 *.jl.mem
 /Manifest.toml
 /slurm_logs/*
+*/slurm_logs/*
 *_cache
 *.out
 *.err
