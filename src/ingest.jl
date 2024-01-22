@@ -8,7 +8,10 @@ function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_d
     fluxingcache = cache_fluxname(tele,field,plate,mjd; cache_dir=cache_dir)
 
     hdr = FITSHeader(["pipeline","git_branch","git_commit","domeflat_expid"],["apMADGICS.jl",git_branch,git_commit,string(domeflat_expid)],["","","",""])
-    h = FITS(fluxingcache,"w")
+
+    #should implement this everywhere to avoid race conditions
+    tmpfname = tempname()*"fits"
+    h = FITS(tmpfname,"w")
     write(h,[0],header=hdr,name="header_only")
     for (chipind,chip) in enumerate(["a","b","c"])
         flux_path = flux_paths[chipind]
@@ -18,6 +21,9 @@ function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_d
         write(h,thrpt,name=chip)
     end
     close(h)
+    if !isfile(fluxingcache)
+        mv(tmpfname,fluxingcache,force=true)
+    end
 end
 
 function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; caching=false,cache_dir="../local_cache")
@@ -189,7 +195,7 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
 
         if telluric_div
             Rinv = generateInterpMatrix_sparse_inv(waveobs_stack,ones(Int,length(fullBit)).*2^3,wavetarg,(1:length(waveobs_stack)));
-            telvec .+= telluric_stack[goodpix]
+            telvec .+= Rinv*telluric_stack
         end
     end
     framecnts = maximum(cntvec)

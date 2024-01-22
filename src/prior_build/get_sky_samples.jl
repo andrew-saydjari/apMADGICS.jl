@@ -2,7 +2,7 @@
 # Author - Andrew Saydjari, CfA
 import Pkg; using Dates; t0 = now(); t_then = t0;
 using InteractiveUtils; versioninfo()
-Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
+Pkg.activate("../../"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
 addprocs(SlurmManager())
@@ -10,7 +10,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 activateout = @capture_out begin
     @everywhere begin
         import Pkg
-        Pkg.activate("./")
+        Pkg.activate("../../")
     end
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker activation took $dt"); t_then = t_now; flush(stdout)
@@ -20,7 +20,8 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     using ThreadPinning
 
     prior_dir = "/uufs/chpc.utah.edu/common/home/u6039752/scratch1/working/"
-    src_dir = "../../apMADGICS.jl/"
+    prior_dir0 = "/uufs/chpc.utah.edu/common/home/u6039752/scratch/working/"
+    src_dir = "../../"
     include(src_dir*"src/utils.jl")
     include(src_dir*"src/gridSearch.jl")
     include(src_dir*"src/componentAndPosteriors.jl")
@@ -33,6 +34,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     include(src_dir*"src/prior_build/prior_utils.jl")
     
     using StatsBase, LinearAlgebra, ProgressMeter
+    using SortFilters, BasisFunctions, AstroTime, Random
     using BLISBLAS
     BLAS.set_num_threads(1)
 end
@@ -69,9 +71,19 @@ end
     function ingest_skyVisit_stack(argtup;cache_dir="./local_cache_sky")
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
 
+        # Get Throughput Fluxing 
+        fluxingcache = cache_fluxname(tele,field,plate,mjd; cache_dir=cache_dir)
+        if !isfile(fluxingcache)
+            dirName = splitdir(fluxingcache)[1]
+            if !ispath(dirName)
+                mkpath(dirName)
+            end
+            getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd,cache_dir=cache_dir)
+        end
+
         skyLineCache = cache_skynameSpec(tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
         if !isfile(skyLineCache)
-            fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx)
+            fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
             dirName = splitdir(skyLineCache)[1]
             if !ispath(dirName)
                 mkpath(dirName)
@@ -81,7 +93,7 @@ end
 
         skyLineCache_tellDiv = cache_skynameSpec(tele,field,plate,mjd,fiberindx,telluric_div=true,cache_dir=cache_dir)
         if !isfile(skyLineCache_tellDiv)
-            fvec, fvarvec, cntvec, chipmidtimes, metaexport, telvec = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,telluric_div=true)
+            fvec, fvarvec, cntvec, chipmidtimes, metaexport, telvec = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,telluric_div=true,cache_dir=cache_dir)
             dirName = splitdir(skyLineCache_tellDiv)[1]
             if !ispath(dirName)
                 mkpath(dirName)
@@ -91,21 +103,21 @@ end
     end
 end
 @everywhere begin
-    function sky_smooth_wrapper(argtup;telluric_div=false,cache_dir="./local_cache_sky")
+    function sky_smooth_wrapper(argtup,chebmsk_exp,Vpoly_scaled;telluric_div=false,cache_dir="./local_cache_sky")
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
 
         skyLineCache_tellDiv = cache_skynameSpec(tele,field,plate,mjd,fiberindx,telluric_div=true,cache_dir=cache_dir)
         fvec, fvarvec, cntvec, chipmidtimes, metaexport, telvecN = deserialize(skyLineCache_tellDiv)
         simplemsk = (cntvec.==maximum(cntvec)) .& chebmsk_exp;
         if telluric_div
-            fnew = sky_smooth_fit(fvec,fvarvec,simplemsk)
+            fnew = sky_smooth_fit(fvec,fvarvec,simplemsk,Vpoly_scaled)
         else
-            fnew = sky_smooth_fit(fvec,fvarvec,simplemsk).*telvecN
+            fnew = sky_smooth_fit(fvec,fvarvec,simplemsk,Vpoly_scaled).*telvecN
         end
         return fnew
     end
 
-    function sky_line_wrapper(argtup;telluric_div=false,cache_dir="./local_cache_sky")
+    function sky_line_wrapper(argtup,skycont;telluric_div=false,cache_dir="./local_cache_sky")
         ival = argtup[1]
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
 
@@ -113,7 +125,7 @@ end
         fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skyLineCache) #ignore telvecN since not using even in tell_div case
         simplemsk = (cntvec.==maximum(cntvec));
         
-        fnew = fvec.-skycont[:,ival] #### UHHHHH IS THIS A GROSS GLOBAL???? YES :( FIXME
+        fnew = fvec.-skycont[:,ival]
         fnew[.!simplemsk].=0
         return fnew
     end
@@ -127,7 +139,7 @@ end
         return simplemsk
     end
 
-    function sky_smooth_fit(outvec,outvar,simplemsk)
+    function sky_smooth_fit(outvec,outvar,simplemsk,Vpoly_scaled)
         ## Select data for use (might want to handle mean more generally)
         wave_obs = wavetarg[simplemsk]
         Xd_obs0 = outvec[simplemsk];
@@ -154,20 +166,25 @@ end
 
 @everywhere begin
     # contScale is a tuning parameter we might want to investigate
-    function get_sky_samples(adjfibindx,contscale=5e2,loc_parallel=false)
+    function get_sky_samples(adjfibindx;contscale=5e2,loc_parallel=false,seed=2023)
         
-        ntuplst = deserialize("../2023_05_21/sky_input_lists/sky_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+        # there is a race condition if loc_parallel is true... so added a shuffle... not a great solution, but fine for testing?
+        ntuplst = deserialize(prior_dir*"2024_01_20/dr17_dr17_sky_input_lst_plate_cleanManual_"*lpad(adjfibindx,3,"0")*".jdat")
+        # if loc_parallel
+        #     rng = MersenneTwister(seed)
+        #     shuffle!(rng,ntuplst)
+        # end
 
         if adjfibindx>300
-            global medframes = deserialize(prior_dir*"2023_04_07/medframes_lco.jdat");
+            global medframes = deserialize(prior_dir0*"2023_04_07/medframes_lco.jdat");
         else
-            global medframes = deserialize(prior_dir*"2023_04_01/medframes.jdat");
+            global medframes = deserialize(prior_dir0*"2023_04_01/medframes.jdat");
         end
 
-        global Vpoly, msknall = generate_poly_prior(adjfibindx)
-        global Vpoly_scaled = contscale*Vpoly
-        global chebmsk = .!msknall
-        global chebmsk_exp = expand_msk(chebmsk;rad=12);
+        Vpoly, msknall = generate_poly_prior(adjfibindx)
+        Vpoly_scaled = contscale*Vpoly
+        chebmsk = .!msknall
+        chebmsk_exp = expand_msk(chebmsk;rad=12);
 
         ### Stack and Strip Sky From Visits
         pout = if loc_parallel
@@ -178,11 +195,12 @@ end
 
         ### Save samples with usual telluric contributions included
         savename = "sky_prior_disk/skycont_"*lpad(adjfibindx,3,"0")*".jdat"
+        sky_smooth_wrapper_bound(argtup) = sky_smooth_wrapper(argtup,chebmsk_exp,Vpoly_scaled)
         if !isfile(savename)
             pout = if loc_parallel
-                @showprogress pmap(sky_smooth_wrapper,ntuplst);
+                @showprogress pmap(sky_smooth_wrapper_bound,ntuplst);
             else
-                map(sky_smooth_wrapper,ntuplst);
+                map(sky_smooth_wrapper_bound,ntuplst);
             end
             global skycont = zeros(8700,size(pout,1));
             for i=1:size(pout,1)
@@ -199,11 +217,12 @@ end
         end
 
         savename = "sky_prior_disk/skyline_"*lpad(adjfibindx,3,"0")*".jdat"
+        sky_line_wrapper_bound(argtup) = sky_line_wrapper(argtup,skycont)
         if !isfile(savename)
             pout = if loc_parallel
-                @showprogress pmap(sky_line_wrapper,ntuplst);
+                @showprogress pmap(sky_line_wrapper_bound,ntuplst);
             else
-                map(sky_line_wrapper,ntuplst);
+                map(sky_line_wrapper_bound,ntuplst);
             end
             global skyline = zeros(8700,size(pout,1));
             for i=1:size(pout,1)
@@ -231,8 +250,8 @@ end
         end
 
         ### Save samples of tell-free sky decomposition for building Tfun/starCont prior
-        sky_smooth_wrapper_tell(argtup) = sky_smooth_wrapper(argtup,telluric_div=true)
-        sky_line_wrapper_tell(argtup) = sky_line_wrapper(argtup,telluric_div=true)
+        sky_smooth_wrapper_tell(argtup) = sky_smooth_wrapper(argtup,chebmsk_exp,Vpoly_scaled,telluric_div=true)
+        sky_line_wrapper_tell(argtup) = sky_line_wrapper(argtup,skycont,telluric_div=true)
 
         savename = "sky_prior_disk/skycont_tellDiv_"*lpad(adjfibindx,3,"0")*".jdat"
         if !isfile(savename)

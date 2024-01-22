@@ -4,6 +4,10 @@
 /Manifest.toml
 /slurm_logs/*
 */slurm_logs/*
+*/*/slurm_logs/*
+*/*/*/slurm_logs/*
 *_cache
+*/*/*_cache*
 *.out
 *.err
+/src/prior_build/sky_prior_disk/*
