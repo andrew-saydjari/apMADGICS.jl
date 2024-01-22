@@ -8,7 +8,10 @@ function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_d
     fluxingcache = cache_fluxname(tele,field,plate,mjd; cache_dir=cache_dir)
 
     hdr = FITSHeader(["pipeline","git_branch","git_commit","domeflat_expid"],["apMADGICS.jl",git_branch,git_commit,string(domeflat_expid)],["","","",""])
-    h = FITS(fluxingcache,"w")
+
+    #should implement this everywhere to avoid race conditions
+    tmpfname = tempname()*"fits"
+    h = FITS(tmpfname,"w")
     write(h,[0],header=hdr,name="header_only")
     for (chipind,chip) in enumerate(["a","b","c"])
         flux_path = flux_paths[chipind]
@@ -18,6 +21,9 @@ function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_d
         write(h,thrpt,name=chip)
     end
     close(h)
+    if !isfile(fluxingcache)
+        mv(tmpfname,fluxingcache,force=true)
+    end
 end
 
 function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; caching=false,cache_dir="../local_cache")
@@ -43,10 +49,10 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; cach
             skycacheSpec = cache_skynameSpec(tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
             if (isfile(skycacheSpec) & caching)
                 fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
-                starscale,framecnts,varoffset,varflux = metaexport
+                starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux = metaexport
             else
-                fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberind)
-                starscale,framecnts,varoffset,varflux = metaexport
+                fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
+                starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux = metaexport
                 if caching
                     dirName = splitdir(skycacheSpec)[1]
                     if !ispath(dirName)
@@ -96,7 +102,7 @@ function sky_decomp(outvec,outvar,simplemsk)
     return x_comp_lst[1]
 end
 
-function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffset=16.6)
+function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffset=16.6, telluric_div=false, cache_dir="../local_cache")
 
     # # hardcoded flux-dep variance correction (empitical IPC + LSF correction)
     # power 2 model
@@ -121,6 +127,9 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
     fill!(outvec,0)
     fill!(outvar,0)
     fill!(cntvec,0)
+    if telluric_div
+        fill!(telvec,0)
+    end
     time_lsts = [[],[],[]]
     for imid in frame_lst
         fill!(Xd_stack,0)
@@ -145,11 +154,25 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
             waveobs_stack[(1:2048).+(chipind-1)*2048] .= waveobsa[end:-1:1]
             fullBit[(1:2048).+(chipind-1)*2048] .+= 2^chipind
             close(f)
+            if telluric_div
+                vpath = build_visitpath(release_dir,redux_ver,tele,field,plate,mjd,fiberindx)
+                cpath = visit2cframe(vpath,tele,imid,chip)
+                f = FITS(cpath)
+                telluric = read(f[8]);
+                tellmsk = dropdims(sum(telluric,dims=1).!=0,dims=1)
+                tellindx = find_nearest_nz(tellmsk,fiberindx)
+                telluric_stack[(1:2048).+(chipind-1)*2048] .= telluric[end:-1:1,tellindx]
+                close(f)
+            end
         end
         fullBit[((pixmsk_stack .& 2^0).!=0)] .+= 2^4 # call pixmask bit 0 bad
         fullBit[fullBit.==0] .+= 2^4 # call chip gaps bad for alt space
 
         goodpix = ((pixmsk_stack .& 2^0).==0) .& ((fullBit .& 2^4).==0)
+        if telluric_div
+            Xd_stack./= telluric_stack
+            Xd_std_stack./= telluric_stack
+        end
 
         obsBit = fullBit[goodpix]
         Xd_obs = Xd_stack[goodpix]
@@ -169,10 +192,18 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
         outvec .+= fullvec
         outvar .+= varvec
         cntvec .+= msk_inter
+
+        if telluric_div
+            Rinv = generateInterpMatrix_sparse_inv(waveobs_stack,ones(Int,length(fullBit)).*2^3,wavetarg,(1:length(waveobs_stack)));
+            telvec .+= Rinv*telluric_stack
+        end
     end
     framecnts = maximum(cntvec)
     outvec./=framecnts
     outvar./=(framecnts^2)
+    if telluric_div
+        telvec./=framecnts
+    end
     
     simplemsk = (cntvec.==framecnts)
     starscale = if count(simplemsk .& (.!isnan.(outvec)))==0
@@ -190,5 +221,8 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
     chipmidtimes[goodframeIndx] .= mean.(time_lsts[goodframeIndx]) #consider making this flux weighted (need to worry about skyline variance driving it)
     chipmidtimes[.!goodframeIndx] .= NaN
     metaexport = (starscale,framecnts,varoffset,(c^2*starscale^p),thrptDict["a"],thrptDict["b"],thrptDict["c"])
+    if telluric_div
+        return outvec, outvar, cntvec, chipmidtimes, metaexport, telvec
+    end
     return outvec, outvar, cntvec, chipmidtimes, metaexport
 end

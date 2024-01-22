@@ -5,11 +5,9 @@ import Pkg; using Dates; t0 = now(); t_then = t0;
 using InteractiveUtils; versioninfo()
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
-
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
 addprocs(SlurmManager())
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
-
 activateout = @capture_out begin
     @everywhere begin
         import Pkg
@@ -17,7 +15,6 @@ activateout = @capture_out begin
     end
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker activation took $dt"); t_then = t_now; flush(stdout)
-
 @everywhere begin
     using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays
     using Interpolations, SparseArrays, ParallelDataTransfer, AstroTime, Suppressor
@@ -78,7 +75,6 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     waveobs_stack = zeros(3*2048)
     waveobs_stack_old = zeros(3*2048)
     pixmsk_stack = zeros(Int,3*2048)
-    telluric_stack = zeros(3*2048)
     fullBit = zeros(Int,3*2048);
     outvec = zeros(length(wavetarg))
     outvar = zeros(length(wavetarg))
@@ -152,12 +148,12 @@ end
         starcache = cache_starname(tele,field,plate,mjd,fiberindx,cache_dir=cache_dir,inject_cache_dir=inject_cache_dir)
         if (isfile(starcache) & caching)
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(starcache)
-            starscale,framecnts,varoffset,varflux = metaexport
+            starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux = metaexport
         elseif tele[end]=='i'
             warn("Injections not found at injection cache dir!")
         else
-            fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx)
-            starscale,framecnts,varoffset,varflux = metaexport
+            fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
+            starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux = metaexport
             if caching
                 dirName = splitdir(starcache)[1]
                 if !ispath(dirName)
@@ -168,7 +164,7 @@ end
         end
         simplemsk = (cntvec.==framecnts) .& skymsk;
         
-        push!(out,(count(simplemsk), starscale, framecnts, chipmidtimes, varoffset, varflux, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
+        push!(out,(count(simplemsk), starscale, framecnts, chipmidtimes, varoffset, varflux, a_relFlux, b_relFlux, c_relFlux, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
 
         if sky_off
             meanLocSky.=0
@@ -370,8 +366,11 @@ end
                 (x->x[metai][4],                        "chip_midtimes"),
                 (x->x[metai][5],                        "varoffset"),
                 (x->x[metai][6],                        "varflux"),
-                (x->x[metai][7],                        "flux"),
-                (x->x[metai][8],                        "fluxerr2"),
+                (x->x[metai][7],                        "a_relFlux"),
+                (x->x[metai][8],                        "b_relFlux"),
+                (x->x[metai][9],                        "c_relFlux"),
+                (x->x[metai][10],                       "flux"),
+                (x->x[metai][11],                       "fluxerr2"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
@@ -467,7 +466,7 @@ iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
 
 for adjfibindx = 295:295 #1:600 #295, 245
-    subiter = deserialize(prior_dir*"2024_01_19/outlists/star_input_lst_msked"*lpad(adjfibindx,3,"0")*".jdat")
+    subiter = deserialize(prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end
