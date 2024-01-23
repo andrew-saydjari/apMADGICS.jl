@@ -136,7 +136,7 @@ end
         skyLineCache = cache_skynameSpec(tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
         fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skyLineCache)
         simplemsk = (cntvec.==maximum(cntvec));
-        return simplemsk
+        return simplemsk, fvarvec
     end
 
     function sky_smooth_fit(outvec,outvar,simplemsk,Vpoly_scaled)
@@ -169,7 +169,7 @@ end
     function get_sky_samples(adjfibindx;contscale=5e2,loc_parallel=false,seed=2023)
         
         # there is a race condition if loc_parallel is true... so added a shuffle... not a great solution, but fine for testing?
-        ntuplst = deserialize(prior_dir*"2024_01_20/dr17_dr17_sky_input_lst_plate_cleanManual_"*lpad(adjfibindx,3,"0")*".jdat")
+        ntuplst = deserialize(prior_dir*"2024_01_22/outlists/sky/dr17_dr17_sky_input_lst_plate_msked_"*lpad(adjfibindx,3,"0")*".jdat")
         # if loc_parallel
         #     rng = MersenneTwister(seed)
         #     shuffle!(rng,ntuplst)
@@ -234,19 +234,24 @@ end
         end
 
         savename = "sky_prior_disk/skymsk_"*lpad(adjfibindx,3,"0")*".jdat"
-        if !isfile(savename)
+        savename1 = "sky_prior_disk/skyvar_"*lpad(adjfibindx,3,"0")*".jdat"
+        if !(isfile(savename) & isfile(savename1))
             pout = if loc_parallel 
                 @showprogress pmap(sky_msk_wrapper,ntuplst);
             else
                 map(sky_msk_wrapper,ntuplst);
             end
             global skymsk = zeros(8700,size(pout,1));
+            global skyvar = zeros(8700,size(pout,1));
             for i=1:size(pout,1)
-                skymsk[:,i].=pout[i]
+                skymsk[:,i].=pout[i][1]
+                skyvar[:,i].=pout[i][2]
             end
             serialize(savename,skymsk)
+            serialize(savename1,skyvar)
         else
             global skymsk = deserialize(savename)
+            global skyvar = deserialize(savename1)
         end
 
         ### Save samples of tell-free sky decomposition for building Tfun/starCont prior
@@ -292,20 +297,26 @@ end
 
         # this is identical... just saving under a new name, but it is cheap
         savename = "sky_prior_disk/skymsk_tellDiv_"*lpad(adjfibindx,3,"0")*".jdat"
-        if !isfile(savename)
+        savename1 = "sky_prior_disk/skyvar_tellDiv_"*lpad(adjfibindx,3,"0")*".jdat"
+        if !(isfile(savename) & isfile(savename1))
             pout = if loc_parallel 
                 @showprogress pmap(sky_msk_wrapper,ntuplst);
             else
                 map(sky_msk_wrapper,ntuplst);
             end
             global skymsk = zeros(8700,size(pout,1));
+            global skyvar = zeros(8700,size(pout,1));
             for i=1:size(pout,1)
-                skymsk[:,i].=pout[i]
+                skymsk[:,i].=pout[i][1]
+                skyvar[:,i].=pout[i][2]
             end
             serialize(savename,skymsk)
+            serialize(savename1,skyvar)
         else
             global skymsk = deserialize(savename)
+            global skyvar = deserialize(savename1)
         end
+        serialize("sky_prior_disk/chebmsk_exp_"*lpad(adjfibindx,3,"0")*".jdat",chebmsk_exp)
     end
 end
 

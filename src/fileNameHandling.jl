@@ -239,5 +239,5 @@ function build_apFluxPaths(release_dir,redux_ver,tele,field,plate,mjd)
         fluxFile = build_apFluxPath(release_dir,redux_ver,tele,mjd,chip,expectDome)
         push!(fluxFiles,fluxFile)
     end
-    return fluxFiles, expectDome
+    return fluxFiles, expectDome, cartVisit
 end
