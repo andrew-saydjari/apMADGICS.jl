@@ -131,7 +131,7 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
         thrpt = read(f[chip],fiberindx)
         thrptDict[chip] = thrpt
     end
-    cartVisit = read_header(f[1])["CARTID"]
+    cartVisit = parse(Int,read_header(f[1])["CARTID"])
     close(f)
     
     fill!(outvec,0)
