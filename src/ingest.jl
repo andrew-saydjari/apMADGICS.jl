@@ -136,7 +136,9 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
         fill!(Xd_std_stack,0)
         fill!(waveobs_stack,0)
         fill!(pixmsk_stack,0)
-        fill!(telluric_stack,0)
+        if telluric_div
+            fill!(telluric_stack,0)
+        end
         fill!(fullBit,0)
         for (chipind,chip) in enumerate(["c","b","a"]) #needs to be c,b,a for chip ind to be right
             fname = build_framepath(release_dir,redux_ver,tele,mjd,imid,chip)
