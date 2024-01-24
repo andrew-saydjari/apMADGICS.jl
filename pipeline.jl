@@ -148,12 +148,12 @@ end
         starcache = cache_starname(tele,field,plate,mjd,fiberindx,cache_dir=cache_dir,inject_cache_dir=inject_cache_dir)
         if (isfile(starcache) & caching)
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(starcache)
-            starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux = metaexport
+            starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
         elseif tele[end]=='i'
             warn("Injections not found at injection cache dir!")
         else
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
-            starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux = metaexport
+            starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
             if caching
                 dirName = splitdir(starcache)[1]
                 if !ispath(dirName)
@@ -164,7 +164,7 @@ end
         end
         simplemsk = (cntvec.==framecnts) .& skymsk;
         
-        push!(out,(count(simplemsk), starscale, framecnts, chipmidtimes, varoffset, varflux, a_relFlux, b_relFlux, c_relFlux, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
+        push!(out,(count(simplemsk), starscale, framecnts, chipmidtimes, varoffset, varflux, a_relFlux, b_relFlux, c_relFlux, cartVisit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
 
         if sky_off
             meanLocSky.=0
@@ -369,8 +369,9 @@ end
                 (x->x[metai][7],                        "a_relFlux"),
                 (x->x[metai][8],                        "b_relFlux"),
                 (x->x[metai][9],                        "c_relFlux"),
-                (x->x[metai][10],                       "flux"),
-                (x->x[metai][11],                       "fluxerr2"),
+                (x->x[metai][10],                       "cartVisit"),
+                (x->x[metai][11],                       "flux"),
+                (x->x[metai][12],                       "fluxerr2"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),

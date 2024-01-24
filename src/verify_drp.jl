@@ -1,39 +1,50 @@
 ##### Verify APOGEE DRP Products from Release are Production Ready
 
+println("##########################################################################################")
+println("############################## Starting verify_drp.jl ####################################")
+println("##########################################################################################")
+
 import Pkg
 using InteractiveUtils; versioninfo()
 Pkg.activate("../"); Pkg.instantiate(); Pkg.precompile()
 
-using FITSIO, StatsBase, ProgressMeter, Distributed, Serialization, Glob, DelimitedFiles
+using FITSIO, StatsBase, ProgressMeter, Distributed, Serialization, Glob, DelimitedFiles, Suppressor
 
 src_dir = abspath("./")
 include(src_dir*"/fileNameHandling.jl")
 
-outdir = "../../outlists/" #mistakenly pointed to 2024_01_19 on 2024_01_20
+outdir = "../../outlists/"
 if !ispath(outdir)
     mkpath(outdir)
 end
-outdirsubs = [outdir*"summary/",outdir*"star/",outdir*"sky/"]
+outdirsubs = [outdir*"summary/",outdir*"star/",outdir*"sky/",outdir*"tell/"]
 for outsub in outdirsubs
     if !ispath(outsub)
         mkpath(outsub)
     end
 end
 
-# release_dir = "sdsswork/mwm"
-# redux_ver = "1.2"
+release_dir = "sdsswork/mwm"
+redux_ver = "1.2"
 
-release_dir = "dr17"
-redux_ver = "dr17"
+# release_dir = "dr17"
+# redux_ver = "dr17"
+
+# release_dir = ARGS[1]
+# redux_ver = ARGS[2]
 
 release_dir_n = replace(release_dir,"/"=>"_")
 redux_ver_n = replace(redux_ver,"."=>"p")
 
-check_ap1d = false
-check_apCframes = false
-check_exp = false
-check_flux = false
+check_ap1d = true
+check_apCframes = true
+check_exp = true
+check_flux = true
 check_plates = true
+write_sky = true
+write_star_plate = true
+write_tell = true
+
 
 ### Ingest allVisit File
 function summary_file_by_dr(release_dir,redux_ver,dr_number)
@@ -123,11 +134,15 @@ end
 
 ### Boot Up Workers
 addprocs(32)
-@everywhere begin
-    import Pkg
-    Pkg.activate("../")
+activateout = @capture_out begin 
+    @everywhere begin
+        import Pkg
+        Pkg.activate("../"); Pkg.instantiate(); #comment out instantiate next time
+    end
+end
 
-    using FITSIO, StatsBase, ProgressMeter, Distributed, Serialization, Glob, DelimitedFiles
+@everywhere begin
+    using FITSIO, StatsBase, ProgressMeter, Distributed, Serialization, Glob, DelimitedFiles, ParallelDataTransfer, DataFrames
 
     src_dir = abspath("./")
     include(src_dir*"/fileNameHandling.jl")
@@ -483,13 +498,13 @@ end
 @everywhere begin
     function strip_plates(fname;nfiber=300)
         sname = split(fname,"/")
-        pltmatchpath = join(sname[1:15],"/")
-        tele = sname[13]
-        field = sname[14]
-        plate = sname[15]
-        mjd = parse(Int,sname[16])
-        sname2 = split(sname[17],"-")
+        tele = sname[end-4]
+        field = sname[end-3]
+        plate = sname[end-2]
+        mjd = parse(Int,sname[end-1])
+        sname2 = split(sname[end],"-")
         chip = sname2[2]
+
         f = FITS(fname)
         plugs = read(f[12],"OBJTYPE")
         close(f)
@@ -500,7 +515,7 @@ end
 @passobj 1 workers() redux_ver
 
 if check_plates
-    println("##### Checking the apFlux Files #####")
+    println("##### Using plate files to generate sky/telluric run lists #####")
     plate_flst = []
     for tele in tele_list
         if tele[1:6] =="apo25m"
@@ -539,59 +554,210 @@ if check_plates
     df_plate_unique = unique(df_plate, [:release_dir, :redux_ver, :tele_id, :field_id, :plate_id, :mjd_id, :fiberindx, :fibertype]);
     serialize(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_df_plates_unique.jdat",df_plate_unique)
 
-    skycounts_raw = zeros(300*length(tele_list))
-    skycounts_wind = zeros(300*length(tele_list))
-    skycounts_wind_msked = zeros(300*length(tele_list))
-    wind = 5
-    for (teleind_sp,tele) in enumerate(tele_list)
-        teleind = (tele[1:6] == "lco25m") ? 2 : 1
-        @showprogress for fiberindx = 1:300
-            adjfibindx = (teleind-1)*300 + fiberindx
-            msk = (df_plate_unique.fibertype .== "SKY") 
-            msk .&= (df_plate_unique.tele_id .== tele)
-            msk .&= (abs.(df_plate_unique.fiberindx .- fiberindx).<=wind) 
-            skycounts_wind[adjfibindx] = count(msk)
-            skycounts_wind_msked[adjfibindx] = count(msk)
-            if skycounts_wind[adjfibindx] > 0
-                df_sub = df_plate_unique[msk,:];
-                temp = Iterators.zip(
-                    rownumber.(eachrow(df_sub)),
-                    df_sub.release_dir,
-                    df_sub.redux_ver,
-                    df_sub.tele_id,
-                    df_sub.field_id,
-                    df_sub.plate_id,
-                    df_sub.mjd_id,
-                    df_sub.fiberindx
-                )
-                sky_input = collect(temp)
-                pout = @showprogress pmap(test_apFlux,sky_input)
-                msk = (pout.!=0)
+    if write_sky
+        skycounts_raw = zeros(300*length(tele_list))
+        skycounts_wind = zeros(300*length(tele_list))
+        skycounts_wind_msked = zeros(300*length(tele_list))
+        wind = 5
+        for (teleind_sp,tele) in enumerate(tele_list)
+            teleind = (tele[1:6] == "lco25m") ? 2 : 1
+            @showprogress for fiberindx = 1:300
+                adjfibindx = (teleind-1)*300 + fiberindx
+                msk = (df_plate_unique.fibertype .== "SKY") 
+                msk .&= (df_plate_unique.tele_id .== tele)
+                msk .&= (abs.(df_plate_unique.fiberindx .- fiberindx).==0) 
+                skycounts_raw[adjfibindx] = count(msk)
+                msk = (df_plate_unique.fibertype .== "SKY") 
+                msk .&= (df_plate_unique.tele_id .== tele)
+                msk .&= (abs.(df_plate_unique.fiberindx .- fiberindx).<=wind) 
+                skycounts_wind[adjfibindx] = count(msk)
                 skycounts_wind_msked[adjfibindx] = count(msk)
+                if skycounts_wind[adjfibindx] > 0
+                    df_sub = df_plate_unique[msk,:];
+                    temp = Iterators.zip(
+                        rownumber.(eachrow(df_sub)),
+                        df_sub.release_dir,
+                        df_sub.redux_ver,
+                        df_sub.tele_id,
+                        df_sub.field_id,
+                        df_sub.plate_id,
+                        df_sub.mjd_id,
+                        df_sub.fiberindx
+                    )
+                    sky_input = collect(temp)
+                    tout = pmap(test_apFlux,sky_input)
+                    msk = (tout.!=0)
+                    skycounts_wind_msked[adjfibindx] = count(.!msk)
 
-                subiter = sky_input[.!msk]
-                new_vec = map(i->map(x->x[i],subiter),1:length(subiter[1]))
-                nstar = length(new_vec[1])
-                new_vec[1]=1:nstar
-                if skycounts_wind_msked[adjfibindx]>0
-                    serialize(outdir*"sky/"*"$(release_dir_n)_$(redux_ver_n)_sky_input_lst_plate_msked_"*lpad(adjfibindx,3,"0")*".jdat",collect(Iterators.zip(new_vec...)))
+                    subiter = sky_input[.!msk]
+                    new_vec = map(i->map(x->x[i],subiter),1:length(subiter[1]))
+                    nstar = length(new_vec[1])
+                    new_vec[1]=1:nstar
+                    if skycounts_wind_msked[adjfibindx]>0
+                        serialize(outdir*"sky/"*"$(release_dir_n)_$(redux_ver_n)_sky_input_lst_plate_msked_"*lpad(adjfibindx,3,"0")*".jdat",collect(Iterators.zip(new_vec...)))
+                    end
                 end
             end
-            msk .&= (abs.(df_plate_unique.fiberindx .- fiberindx).==0) 
-            skycounts_raw[adjfibindx] = count(msk)
         end
-    end
-    
-    writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_skycounts_raw.txt",skycounts_raw,',')
-    writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_skycounts_wind.txt",skycounts_wind,',')
-    writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_skycounts_wind_msked.txt",skycounts_wind_msked,',')
+        
+        writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_skycounts_raw.txt",skycounts_raw,',')
+        writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_skycounts_wind.txt",skycounts_wind,',')
+        writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_skycounts_wind_msked.txt",skycounts_wind_msked,',')
 
-    println("Sky visits per fiber: min $(minimum(skycounts_raw)), max $(maximum(skycounts_raw)), median $(median(skycounts_raw))")
-    println("Sky visits per fiber with $(wind)-fiber window: min $(minimum(skycounts_wind)), max $(maximum(skycounts_wind)), median $(median(skycounts_wind))")
-    println("Sky visits per fiber with $(wind)-fiber window lost to missing flux files: $(sum(skycounts_wind)-sum(skycounts_wind_msked)) , $(100*(sum(skycounts_wind)-sum(skycounts_wind_msked))/sum(skycounts_wind))%")
+        println("Sky visits per fiber: min $(minimum(skycounts_raw)), max $(maximum(skycounts_raw)), median $(median(skycounts_raw))")
+        println("Sky visits per fiber with $(wind)-fiber window: min $(minimum(skycounts_wind)), max $(maximum(skycounts_wind)), median $(median(skycounts_wind))")
+        println("Sky visits per fiber with $(wind)-fiber window lost to missing flux files: $(sum(skycounts_wind)-sum(skycounts_wind_msked)) , $(100*(sum(skycounts_wind)-sum(skycounts_wind_msked))/sum(skycounts_wind))%")
+    end
+
+    if write_star_plate
+        ## Star from plate list (for comparison at the moment)
+        starcounts_raw = zeros(300*length(tele_list))
+        starcounts_msked = zeros(300*length(tele_list))
+        for (teleind_sp,tele) in enumerate(tele_list)
+            teleind = (tele[1:6] == "lco25m") ? 2 : 1
+            @showprogress for fiberindx = 1:300
+                adjfibindx = (teleind-1)*300 + fiberindx
+                msk = (df_plate_unique.fibertype .== "STAR") 
+                msk .&= (df_plate_unique.tele_id .== tele)
+                msk .&= (abs.(df_plate_unique.fiberindx .- fiberindx).==0) 
+                starcounts_raw[adjfibindx] = count(msk)
+                if starcounts_raw[adjfibindx] > 0
+                    df_sub = df_plate_unique[msk,:];
+                    temp = Iterators.zip(
+                        rownumber.(eachrow(df_sub)),
+                        df_sub.release_dir,
+                        df_sub.redux_ver,
+                        df_sub.tele_id,
+                        df_sub.field_id,
+                        df_sub.plate_id,
+                        df_sub.mjd_id,
+                        df_sub.fiberindx
+                    )
+                    star_input = collect(temp)
+                    tout = pmap(test_apFlux,star_input)
+                    msk = (tout.!=0)
+                    starcounts_msked[adjfibindx] = count(.!msk)
+
+                    subiter = star_input[.!msk]
+                    new_vec = map(i->map(x->x[i],subiter),1:length(subiter[1]))
+                    nstar = length(new_vec[1])
+                    new_vec[1]=1:nstar
+                    if starcounts_msked[adjfibindx]>0
+                        serialize(outdir*"sky/"*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_plate_msked_"*lpad(adjfibindx,3,"0")*".jdat",collect(Iterators.zip(new_vec...)))
+                    end
+                end
+            end
+        end
+        
+        writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_starcounts_plate_raw.txt",starcounts_raw,',')
+        writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_starcounts_plate_msked.txt",starcounts_msked,',')
+
+        println("Star visits (plate) per fiber: min $(minimum(starcounts_raw)), max $(maximum(starcounts_raw)), median $(median(starcounts_raw))")
+        println("Star visits (plate) per fiber lost to missing flux files: $(sum(starcounts_raw)-sum(starcounts_msked)) , $(100*(sum(starcounts_raw)-sum(starcounts_msked))/sum(starcounts_raw))%")
+        
+        run_lsts_loc = []
+        run_lens_loc = []
+        for telematch in tele_list
+            for fiber in 1:300
+                teleind = (telematch == "lco25m") ? 2 : 1
+                adjfibindx = (teleind-1)*300 + fiber
+                run_per_fiber = deserialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_msked_"*lpad(adjfibindx,3,"0")*".jdat")
+                push!(run_lsts_loc,run_per_fiber)
+                push!(run_lens_loc,length(run_per_fiber))
+            end
+        end
+        run_lst_loc = vcat(run_lsts_loc...)
+        
+        println("Stars in visit summary not in plate files: $(length(run_lst_loc)-sum(starcounts_msked)) , $(100*(length(run_lst_loc)-sum(starcounts_msked))/length(run_lst_loc))%")
+    end
+
+    # Telluric standard star observations
+    # I don't love the current input form to the Tfun script, but generate this way for now.
+    # Can modify here later.
+    if write_tell
+        tellcounts_raw = zeros(300*length(tele_list))
+        tellcounts_msked = zeros(300*length(tele_list))
+        for (teleind_sp,tele) in enumerate(tele_list)
+            teleind = (tele[1:6] == "lco25m") ? 2 : 1
+            @showprogress for fiberindx = 1:300
+                adjfibindx = (teleind-1)*300 + fiberindx
+                msk = (df_plate_unique.fibertype .== "HOT_STD") 
+                msk .&= (df_plate_unique.tele_id .== tele)
+                msk .&= (abs.(df_plate_unique.fiberindx .- fiberindx).==0) 
+                tellcounts_raw[adjfibindx] = count(msk)
+                
+                if tellcounts_raw[adjfibindx] > 0
+                    df_sub = df_plate_unique[msk,:];
+                    temp = Iterators.zip(
+                        rownumber.(eachrow(df_sub)),
+                        df_sub.release_dir,
+                        df_sub.redux_ver,
+                        df_sub.tele_id,
+                        df_sub.field_id,
+                        df_sub.plate_id,
+                        df_sub.mjd_id,
+                        df_sub.fiberindx
+                    )
+                    tell_input = collect(temp)
+                    tout = pmap(test_apFlux,tell_input)
+                    msk = (tout.!=0)
+                    tellcounts_msked[adjfibindx] = count(.!msk)
+
+                    subiter = tell_input[.!msk]
+                    new_vec = map(i->map(x->x[i],subiter),1:length(subiter[1]))
+                    nstar = length(new_vec[1])
+                    new_vec[1]=1:nstar
+                    if tellcounts_msked[adjfibindx]>0
+                        serialize(outdir*"tell/"*"$(release_dir_n)_$(redux_ver_n)_tell_input_lst_plate_msked_"*lpad(adjfibindx,3,"0")*".jdat",collect(Iterators.zip(new_vec...)))
+                    end
+                end
+            end
+        end
+        
+        writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_tellcounts_raw.txt",tellcounts_raw,',')
+        writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_tellcounts_msked.txt",tellcounts_msked,',')
+
+        good_tell_list = findall(tellcounts_msked.>0);
+        writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_good_tell_list.txt",good_tell_list,',')
+
+        println("Telluric visits (plate) per fiber: min $(minimum(tellcounts_raw)), max $(maximum(tellcounts_raw)), median $(median(tellcounts_raw))")
+        println("Telluric visits (plate) per fiber lost to missing flux files: $(sum(tellcounts_raw)-sum(tellcounts_msked)) , $(100*(sum(tellcounts_raw)-sum(tellcounts_msked))/sum(tellcounts_raw))%")
+
+        samp_lst = []
+        tellcounts_wind = zeros(300*length(tele_list))
+        for (teleind_sp,tele) in enumerate(tele_list)
+            teleind = (tele[1:6] == "lco25m") ? 2 : 1
+            for fiberindx = 1:300
+                adjfibindx = (teleind-1)*300 + fiberindx
+                for wid=0:5
+                    test_inds = if (teleind == 2)
+                        unique(clamp.(adjfibindx .+ (-wid:wid),301,600))
+                    else
+                        unique(clamp.(adjfibindx .+ (-wid:wid),1,300))
+                    end
+                    samp_len = 0
+                    for test_ind in test_inds
+                        fname = outdir*"tell/"*"$(release_dir_n)_$(redux_ver_n)_tell_input_lst_plate_msked_"*lpad(test_ind,3,"0")*".jdat"
+                        if isfile(fname)
+                            samp_len += length(deserialize(fname))
+                        end
+                    end
+                    if samp_len>20
+                        push!(samp_lst,test_inds)
+                        tellcounts_wind[adjfibindx] = samp_len
+                        break
+                    end
+                end
+            end
+        end
+        writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_tellcounts_wind.txt",tellcounts_wind,',')
+        writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_tellSamples2read.txt",samp_lst,',')
+
+        println("Telluric visits (plate) per fiber with variable width window: min $(minimum(tellcounts_wind)), max $(maximum(tellcounts_wind)), median $(median(tellcounts_wind))")
+    end
 end
 
 rmprocs(workers())
 
-# julia +1.8.2 verify_drp.jl | tee ../../outlists/sdsswork_mwm_1p2.log
-# julia +1.8.2 verify_drp.jl | tee ../../outlists/dr17_dr17.log
+# julia +1.8.2 verify_drp.jl > > (tee -a ../../outlists/sdsswork_mwm_1p2.log) 2> >(tee -a ../../outlists/sdsswork_mwm_1p2.err >&2)
+# julia +1.8.2 verify_drp.jl > > (tee -a ../../outlists/dr17_dr17_stdout.log) 2> >(tee -a ../../outlists/dr17_dr17_stderr.log >&2)

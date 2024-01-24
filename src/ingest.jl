@@ -3,11 +3,11 @@
 
 using AstroTime
 
-function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_dir="../local_cache")
-    flux_paths, domeflat_expid = build_apFluxPaths(release_dir,redux_ver,tele,field,plate,mjd)
+function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_dir="../local_cache",nattempts=5)
+    flux_paths, domeflat_expid, cartVisit = build_apFluxPaths(release_dir,redux_ver,tele,field,plate,mjd)
     fluxingcache = cache_fluxname(tele,field,plate,mjd; cache_dir=cache_dir)
 
-    hdr = FITSHeader(["pipeline","git_branch","git_commit","domeflat_expid"],["apMADGICS.jl",git_branch,git_commit,string(domeflat_expid)],["","","",""])
+    hdr = FITSHeader(["pipeline","git_branch","git_commit","domeflat_expid","CARTID"],["apMADGICS.jl",git_branch,git_commit,string(domeflat_expid),string(cartVisit)],["","","","",""])
 
     #should implement this everywhere to avoid race conditions
     tmpfname = tempname()*"fits"
@@ -21,7 +21,16 @@ function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_d
         write(h,thrpt,name=chip)
     end
     close(h)
-    if !isfile(fluxingcache)
+    try
+        for i=1:nattempts
+            if !isfile(fluxingcache)
+                mv(tmpfname,fluxingcache,force=true)
+                break
+            else
+                break
+            end
+        end
+    catch
         mv(tmpfname,fluxingcache,force=true)
     end
 end
@@ -122,6 +131,7 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
         thrpt = read(f[chip],fiberindx)
         thrptDict[chip] = thrpt
     end
+    cartVisit = read_header(f[1])["CARTID"]
     close(f)
     
     fill!(outvec,0)
@@ -222,7 +232,7 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
     chipmidtimes = zeros(3)
     chipmidtimes[goodframeIndx] .= mean.(time_lsts[goodframeIndx]) #consider making this flux weighted (need to worry about skyline variance driving it)
     chipmidtimes[.!goodframeIndx] .= NaN
-    metaexport = (starscale,framecnts,varoffset,(c^2*starscale^p),thrptDict["a"],thrptDict["b"],thrptDict["c"])
+    metaexport = (starscale,framecnts,varoffset,(c^2*starscale^p),thrptDict["a"],thrptDict["b"],thrptDict["c"],cartVisit)
     if telluric_div
         return outvec, outvar, cntvec, chipmidtimes, metaexport, telvec
     end
