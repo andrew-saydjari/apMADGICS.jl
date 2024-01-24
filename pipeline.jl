@@ -316,7 +316,7 @@ end
                 close(f)
 
                 f = h5open(prior_dir*"2024_01_22/sky_priors/APOGEE_skyline_svd_120_20_8_6_1en3_f"*lpad(adjfibindx,3,"0")*".h5") #revert temp
-                global V_skyline = read(f["Vmat"])./sqrt(6000)
+                global V_skyline = read(f["Vmat"])./(6000 .^2)
                 submsk = convert.(Bool,read(f["submsk"]))
                 close(f)
 
