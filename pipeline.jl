@@ -115,7 +115,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, sky_off=false, cache_dir="../local_cache", inject_cache_dir=prior_dir*"2023_08_22/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, sky_off=false, cache_dir="../local_cache_1", inject_cache_dir=prior_dir*"2023_08_22/inject_local_cache")
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
         out = []
 
@@ -315,8 +315,8 @@ end
                 chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
                 close(f)
 
-                f = h5open(prior_dir*"2024_01_22/sky_priors/APOGEE_skyline_svd_120_20_8_6_1en3_f"*lpad(adjfibindx,3,"0")*".h5") #revert temp
-                global V_skyline = read(f["Vmat"])./(6000 .^2)
+                f = h5open(prior_dir*"2024_01_22/sky_priors/APOGEE_skyline_svd_120_f"*lpad(adjfibindx,3,"0")*".h5") #revert temp
+                global V_skyline = read(f["Vmat"]).*(6000)
                 submsk = convert.(Bool,read(f["submsk"]))
                 close(f)
 

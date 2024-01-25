@@ -24,14 +24,14 @@ for outsub in outdirsubs
     end
 end
 
-release_dir = "ipl-3"
-redux_ver = "1.2"
+# release_dir = "ipl-3"
+# redux_ver = "1.2"
 
 # release_dir = "dr17"
 # redux_ver = "dr17"
 
-# release_dir = ARGS[1]
-# redux_ver = ARGS[2]
+release_dir = ARGS[1]
+redux_ver = ARGS[2]
 
 release_dir_n = replace(replace(release_dir,"/"=>"_"),"-"=>"_")
 redux_ver_n = replace(redux_ver,"."=>"p")
