@@ -24,16 +24,16 @@ for outsub in outdirsubs
     end
 end
 
-release_dir = "sdsswork/mwm"
-redux_ver = "1.2"
+# release_dir = "ipl-3"
+# redux_ver = "1.2"
 
 # release_dir = "dr17"
 # redux_ver = "dr17"
 
-# release_dir = ARGS[1]
-# redux_ver = ARGS[2]
+release_dir = ARGS[1]
+redux_ver = ARGS[2]
 
-release_dir_n = replace(release_dir,"/"=>"_")
+release_dir_n = replace(replace(release_dir,"/"=>"_"),"-"=>"_")
 redux_ver_n = replace(redux_ver,"."=>"p")
 
 check_ap1d = true
@@ -760,4 +760,5 @@ end
 rmprocs(workers())
 
 # julia +1.8.2 verify_drp.jl > > (tee -a ../../outlists/sdsswork_mwm_1p2.log) 2> >(tee -a ../../outlists/sdsswork_mwm_1p2.err >&2)
+# julia +1.8.2 verify_drp.jl > > (tee -a ../../outlists/ipl_3_1p2.log) 2> >(tee -a ../../outlists/ipl_3_1p2.err >&2)
 # julia +1.8.2 verify_drp.jl > > (tee -a ../../outlists/dr17_dr17_stdout.log) 2> >(tee -a ../../outlists/dr17_dr17_stderr.log >&2)
