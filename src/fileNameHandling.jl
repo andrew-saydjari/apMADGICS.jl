@@ -121,7 +121,7 @@ function build_expPath(release_dir,redux_ver,tele,mjd)
     end
 end
 
-function build_apFPILinesPath(release_dir,redux_ver,tele,mjd,chip,expnum)
+function build_apFPILinesPath(release_dir,redux_ver,tele,mjd,chip,expnums)
     base = getUtahBase(release_dir,redux_ver)*"cal"
     expnum = lpad(expnums,8,"0")
     if tele[1:6] =="apo25m"

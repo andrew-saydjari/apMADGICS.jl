@@ -20,7 +20,7 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
 # arc_group [dither 1, dither 2],[ThAr, UNe], but for now only one dither dimension (removed #1)
 arc_grp_tup = [[("sdsswork/mwm", "daily", "apo25m", "59608", 40460007), ("sdsswork/mwm", "daily", "apo25m", "59608", 40460008)]]
 fpi_tup = ("sdsswork/mwm", "daily", "apo25m", "59608", 40460010)
-function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, show_plot_on = false, saveplotspath = "./wavecal_plots/", cache_dir="../local_cache")
+function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, show_plot_on = false, saveplotspath = "./wavecal_plots/", cache_dir="../local_cache", output_on=false)
     if !ispath(saveplotspath) & save_plot_on
         mkpath(saveplotspath)
     end
@@ -51,7 +51,21 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, 
     resid_arc_smooth_partial(fiber) = resid_arc_smooth(wavelst_arc,xpix_arc,param_lst,offset_param_lst,fiber)
     outlst_arc_smooth = resid_arc_smooth_partial.(f2do);
     make_resid_plot2d_arc(outlst_arc,outlst_arc_smooth,mjd5arc,expidarc,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
-    ## stop if no FPI and save (add later) FIX ME!!!
+    # save the arc based solution
+    wavesavename = cache_wavename(arc_grp_tup[1][1][end-2:end-1]...,cache_dir=cache_dir)
+    dirName = splitdir(wavesavename)[1]
+    if !ispath(dirName)
+        mkpath(dirName)
+    end
+    save_wavecal(wavesavename,outlst_arc,arc_grp_tup[1][1],"arc")
+    ## stop if no FPI
+    if length(fpi_tup) == 0
+        if output_on
+            return outlst_arc
+        else
+            return
+        end
+    end
 
     ##### FPI Section #####
     # Ingest FPI data (and transfer wavelength solution to FPI) (consider detector frame corrections, before bad detector replaced)?
@@ -70,34 +84,33 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, 
     # refit cavity (maybe we need to regenerate wavelstcombo_FPI, this would be an iterative improvement towards a joint cavity and chipgap fit)
     cavp = fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5fpi,expidfpi,dcav_init=3.736e7,msklst=mmsk_lst,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
     # refit wavelength solution
-    fit_pix2wave_FPI_partial1(fiber) = fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,offset_param_lst,cavp,fiber,msklst=mmsk_lst)
+    fit_pix2wave_FPI_partial1(fiber) = fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,offset_param_lst,cavp,fiber,msklst=mmsk_lst,scale_on=true)
     outlst_FPI = fit_pix2wave_FPI_partial1.(f2do);
-    param_lst_fpi, offset_param_lst_fpi = fit_smoothFibDep(outlst_FPI,mjd5fpi,expidfpi,"FPI";f2do=f2do,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
+    param_lst_fpi, offset_param_lst_fpi = fit_smoothFibDep(outlst_FPI,mjd5fpi,expidfpi,"FPI";f2do=f2do,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath,scale_on=true)
 
     # compute/save arclamp residuals
-    resid_arc_FPI_partial(fiber) = resid_arc_FPI(wavelst_arc,xpix_arc,outlst_FPI,fiber)
+    resid_arc_FPI_partial(fiber) = resid_arc_FPI(wavelst_arc,xpix_arc,outlst_FPI,fiber,scale_on=true)
     outlst_arc_fpi = resid_arc_FPI_partial.(f2do);
 
     # save plots
     make_resid_plot1d_fpi(outlst_FPI,outlst_arc_fpi,mjd5fpi,expidfpi;fiber=-1,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
     make_resid_plot2d_fpi(outlst_FPI,outlst_arc_fpi,mjd5fpi,expidfpi;save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
 
-    # local cache nightly wave cal (probably fits) [complicated since they did arcs every exposure in IV]
-    wavesavename = cache_wavename(fpi_tup[end-2:end-1]...,cache_dir=cache_dir)
-    dirName = splitdir(wavesavename)[1]
-    if !ispath(dirName)
-        mkpath(dirName)
-    end
-    save_wavecal(wavesavename,outlst_FPI,cavp,fpi_tup)
+    # local cache nightly wave cal [complicated since they did arcs every exposure in IV]
+    save_wavecal(wavesavename,outlst_FPI,fpi_tup,"fpi",cavp=cavp,write_mode="r+")
 
-    return outlst_FPI
+    if output_on
+        return outlst_FPI
+    else
+        return
+    end
 end
 
 #### Assorted functions ####
 
-function save_wavecal(wavesavename,outlst_FPI,cavp,fpi_tup)
+function save_wavecal(wavesavename,outlst,run_tup,wavetype;cavp=nothing,write_mode="w")
     # get the pixel to wavelength polynomial coefficients
-    x = extract_nth.(outlst_FPI,4)
+    x = extract_nth.(outlst,4)
     binds = findall(length.(x).==0)
     for bind in binds
         x[bind] = NaN*ones(length(x[x.!=0][1]))
@@ -105,24 +118,25 @@ function save_wavecal(wavesavename,outlst_FPI,cavp,fpi_tup)
     pmat = hcat(x...)
 
     # get the chip gap polynomial coefficients
-    x = extract_nth.(outlst_FPI,3)
+    x = extract_nth.(outlst,3)
     binds = findall(length.(x).==0)
     for bind in binds
         x[bind] = NaN*ones(length(x[x.!=0][1]))
     end
     gmat = hcat(x...)
 
-    # make cavity dictionary
-    cavColNames = ["dcav", "m0"]
-    cavColVals = [[cavp[1]],[cavp[2]]]
+    hdr = FITSHeader(["pipeline","git_branch","git_commit","wave_expid","wavetype"],["apMADGICS.jl",git_branch,git_commit,string(run_tup[end]),wavetype],["","","","",""])
 
-    hdr = FITSHeader(["pipeline","git_branch","git_commit","fpi_expid"],["apMADGICS.jl",git_branch,git_commit,string(fpi_tup[end])],["","",""])
-
-    f = FITS(wavesavename,"w")
-    write(f,[0],header=hdr,name="header_only")
-    write(f,pmat,name="pix2wave_polycoeff")
-    write(f,gmat,name="chipgap_polycoeff")
-    write(f,cavColNames,cavColVals,name="cavity_params")
+    f = FITS(wavesavename,write_mode)
+    write(f,[0],header=hdr,name="$(wavetype)_header_only")
+    write(f,pmat,name="$(wavetype)_pix2wave_polycoeff")
+    write(f,gmat,name="$(wavetype)_chipgap_polycoeff")
+    if wavetype == "fpi"
+        # make cavity dictionary
+        cavColNames = ["dcav", "m0"]
+        cavColVals = [[cavp[1]],[cavp[2]]]
+        write(f,cavColNames,cavColVals,name="$(wavetype)_cavity_params")
+    end
     close(f)
 end
 
@@ -362,15 +376,15 @@ end
 
 # x_pixels = pixlst_FPI[chipind][fiber]
 # used to make the x-axis for global fit across the chips 
-function make_xvec(x_pixels, paramst; chip2do = ["a","b","c"])
+function make_xvec(x_pixels, paramst; chip2do = ["a","b","c"], chip_coord_norm=[1.0001,1.0,0.99981])
     pixlst = []
     for (chipind, chip) in enumerate(chip2do)
         if (length(x_pixels)>=1) & (getChipIndx(chip) == 1)
-            push!(pixlst,x_pixels[chipind].-paramst[1].-1024)
+            push!(pixlst,(x_pixels[chipind])./chip_coord_norm[1].-paramst[1].-1024)
         elseif (length(x_pixels)>=1) & (getChipIndx(chip) == 2)
-            push!(pixlst,x_pixels[chipind].-1024)
+            push!(pixlst,(x_pixels[chipind]).-1024)
         elseif (length(x_pixels)>=1) & (getChipIndx(chip) == 3)
-            push!(pixlst,x_pixels[chipind].-paramst[2].-1024)
+            push!(pixlst,(x_pixels[chipind])./chip_coord_norm[3].-paramst[2].-1024)
         else
             push!(pixlst,[])
         end
@@ -405,7 +419,7 @@ function m2lam(m,p;moff=0)
     return 2 ./ (m.+m0).*(dparams[1])# + dparams[2]*madj/m0)# + dparams[3]*(madj/m0)^2)
 end
 
-function fit_smoothFibDep(outlst_arc,mjd5,expid,exptype;f2do=1:300,save_plot_on=false,show_plot_on=false,savepath="./")
+function fit_smoothFibDep(outlst_arc,mjd5,expid,exptype;f2do=1:300,save_plot_on=false,show_plot_on=false,savepath="./",scale_on=false)
     fibaxis = (f2do.-150)/150
     
     # Fit Poly pix2wave Poly Order v Fiber Index
@@ -426,10 +440,11 @@ function fit_smoothFibDep(outlst_arc,mjd5,expid,exptype;f2do=1:300,save_plot_on=
     end
     
     # Fit Detector Offsets v Fiber Index
-    order_lst = [1,1]
+    order_lst = scale_on ? [1,1,1,1,] : [1,1]
     offset_param_lst = []
     fit_offset_xyf = []
-    for i=1:2
+    n_params = scale_on ? 4 : 2
+    for i=1:n_params
         outP = map(x->extract_nth(x[end-1],i),outlst_arc);
         msk = (outP .== 0) .| (isnan.(outP))
         xs = fibaxis[.!msk]
@@ -441,7 +456,7 @@ function fit_smoothFibDep(outlst_arc,mjd5,expid,exptype;f2do=1:300,save_plot_on=
     end
     
     if save_plot_on | show_plot_on
-        make_fitplots(fit_xyf,fit_offset_xyf,mjd5,expid,exptype,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=savepath)
+        make_fitplots(fit_xyf,fit_offset_xyf,mjd5,expid,exptype,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=savepath,scale_on=scale_on)
     end
     return param_lst, offset_param_lst
 end
@@ -517,7 +532,7 @@ function fit_pix2wave_arc(wavelst_arc,xpix_arc,fiber;msklst=nothing)
 end
 
 
-function fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,arc_fit_offset_poly,cavp,fiber;msklst=nothing)
+function fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,arc_fit_offset_poly,cavp,fiber;msklst=nothing,scale_on=false)
     if length(mloclst_FPI[fiber]) > 0
         wavec = m2lam(mloclst_FPI[fiber],cavp);
         msk = if isnothing(msklst)
@@ -526,12 +541,20 @@ function fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,arc_fit_offset_poly,cavp,fiber;ms
             msklst[fiber]
         end
         pvec_off = Polynomial.(arc_fit_offset_poly)
-        offset_init = map(x->x((fiber-150)/150),pvec_off)
-        partial_loss_FPI(offsetv) = loss_FPI_NL(xpix_FPI[fiber],wavec,offsetv,msk=msk)
+        offset_init = if scale_on
+            [map(x->x((fiber-150)/150),pvec_off)...,1.0001,0.99981] #1.0001,1.0,0.99981 #### 1.00025,0.9999
+        else
+            map(x->x((fiber-150)/150),pvec_off)
+        end
+        partial_loss_FPI(offsetv) = loss_FPI_NL(xpix_FPI[fiber],wavec,offsetv,msk=msk,scale_on=scale_on)
         res = optimize(partial_loss_FPI, offset_init, LBFGS(), Optim.Options(show_trace=false))
         # show(res)
         params_opt = Optim.minimizer(res)
-        x_FPI = make_xvec(xpix_FPI[fiber], params_opt)
+        x_FPI = if scale_on 
+            make_xvec(xpix_FPI[fiber],params_opt[1:2],chip_coord_norm=[params_opt[3],1.0,params_opt[4]])
+        else
+            make_xvec(xpix_FPI[fiber],params_opt[1:2])
+        end
         Axfpi = positional_poly_mat(x_FPI[msk])
         tparam = Axfpi\wavec[msk]
         return (x_FPI[msk],wavec[msk].-Axfpi*tparam,params_opt,tparam)
@@ -560,13 +583,19 @@ function resid_arc_smooth(wavelst_arc,xpix_arc,param_lst,offset_param_lst,fiber)
     end
 end
 
-function resid_arc_FPI(wavelst_arc,xpix_arc,fpi_out_params,fiber)
+function resid_arc_FPI(wavelst_arc,xpix_arc,fpi_out_params,fiber;scale_on=false)
     wvec_arc = make_wvec_arc(wavelst_arc,fiber,sgindx=1);
     if (length(wvec_arc) > 1) & (length(fpi_out_params[fiber][end-1]) > 0)
         xvec_arc = []
         # forcing to only use one dither, here I only have one (last one, but could use better handling)
-        for i=1:length(xpix_arc[1]) 
-            xvec_arc = vcat(xvec_arc,make_xvec(xpix_arc[1][i][fiber],fpi_out_params[fiber][end-1]))
+        for i=1:length(xpix_arc[1])
+            params_opt = fpi_out_params[fiber][end-1]
+            x_FPI = if scale_on 
+                make_xvec(xpix_arc[1][i][fiber],params_opt[1:2],chip_coord_norm=[params_opt[3],1.0,params_opt[4]])
+            else
+                make_xvec(xpix_arc[1][i][fiber],params_opt[1:2])
+            end
+            xvec_arc = vcat(xvec_arc,x_FPI)
         end
         Axarc = positional_poly_mat(xvec_arc)
         wavepred_arc = Axarc*fpi_out_params[fiber][end];
@@ -585,15 +614,20 @@ function loss_arc_NL(pixlst, wavec, fiber, offsetv; msk=nothing)
     return sum((wavecm.-Axfpi*tparam).^2)
 end
 
-function loss_FPI_NL(pixlst, wavec, offsetv; msk=nothing)
+function loss_FPI_NL(pixlst, wavec, paramvec; msk=nothing, scale_on=false)
     wavecm = wavec[msk]
-    xvec = make_xvec(pixlst,offsetv)
+    offsetv = paramvec[1:2]
+    xvec = if scale_on 
+        make_xvec(pixlst,offsetv,chip_coord_norm=[paramvec[3],1.0,paramvec[4]])
+    else
+        make_xvec(pixlst,offsetv)
+    end
     Axfpi = positional_poly_mat(xvec[msk])
     tparam = Axfpi\wavecm
     return sum((wavecm.-Axfpi*tparam).^2)
 end
 
-function make_fitplots(fit_xyf,fit_offset_xyf,mjd5,expid,exptype;save_plot_on=false,show_plot_on=false,savepath="./")
+function make_fitplots(fit_xyf,fit_offset_xyf,mjd5,expid,exptype;save_plot_on=false,show_plot_on=false,savepath="./",scale_on = false)
     szfit = length(fit_xyf)
     # Poly Fit Plots
     fig = plt.figure(figsize=(24,8),dpi=150)
@@ -608,7 +642,9 @@ function make_fitplots(fit_xyf,fit_offset_xyf,mjd5,expid,exptype;save_plot_on=fa
         ax = fig.add_subplot(2,szfit-1,szfit-1+i-1)
         ax.scatter(x*150 .+150,y.-f,s=1)
         ax.axhline(0,lw=1,linestyle="--")
-        ax.set_xlabel("Fiber Index")
+        if !scale_on
+            ax.set_xlabel("Fiber Index")
+        end
         ax.set_ylabel("Residuals")
     end
     if save_plot_on
@@ -619,10 +655,13 @@ function make_fitplots(fit_xyf,fit_offset_xyf,mjd5,expid,exptype;save_plot_on=fa
     end
     
     # Detector Centering Plots
-    fig = plt.figure(figsize=(24,8),dpi=150)
+    n_det_plots = scale_on ? 4 : 2
+    y_plot_size = scale_on ? 16 : 8
+    fig = plt.figure(figsize=(24,y_plot_size),dpi=150)
     x,y,f = fit_xyf[1]
-    plt.suptitle(exptype*"\n MJD5: $(mjd5)",y=0.97,fontsize=14)
-    ax = fig.add_subplot(2,3,1)
+    plt.suptitle(exptype*"\n MJD5: $(mjd5)",y=0.94,fontsize=14)
+    plt.subplots_adjust(hspace=0.2,wspace=0.2)
+    ax = fig.add_subplot(n_det_plots,3,1)
     ax.scatter(x*150 .+150,y,s=1)
     ax.set_title("Wavelength at G Detector Center (Å)")
 
@@ -630,17 +669,34 @@ function make_fitplots(fit_xyf,fit_offset_xyf,mjd5,expid,exptype;save_plot_on=fa
     title_lst = ["G to B","G to R"]
     for i=1:2
         x,y,f = fit_offset_xyf[i]
-        ax = fig.add_subplot(2,3,1+i)
+        ax = fig.add_subplot(n_det_plots,3,1+i)
         ax.scatter(x*150 .+150,y,s=1)
         ax.plot(x*150 .+150,f,color="red",lw=1)
         ax.set_title("Distance from $(title_lst[i]) Detector Centers (pixels)")
 
-        ax = fig.add_subplot(2,3,4+i)
+        ax = fig.add_subplot(n_det_plots,3,4+i)
         ax.scatter(x*150 .+150,y.-f,s=1)
         ax.axhline(0,lw=1,linestyle="--")
         ax.set_xlabel("Fiber Index")
         ax.set_ylabel("Residuals")
     end
+    if scale_on
+        title_lst = ["R","B"] # check on the label ordering
+        for i=3:4
+            x,y,f = fit_offset_xyf[i]
+            ax = fig.add_subplot(n_det_plots,3,5+i)
+            ax.scatter(x*150 .+150,y,s=1)
+            ax.plot(x*150 .+150,f,color="red",lw=1)
+            ax.set_title("Scale Factor for $(title_lst[i-2]) Detector")
+    
+            ax = fig.add_subplot(n_det_plots,3,8+i)
+            ax.scatter(x*150 .+150,y.-f,s=1)
+            ax.axhline(0,lw=1,linestyle="--")
+            ax.set_xlabel("Fiber Index")
+            ax.set_ylabel("Residuals")
+        end
+    end
+
     if save_plot_on
         fig.savefig(savepath*"detector_fit_arc_$(mjd5)_$(expid).png", bbox_inches="tight", pad_inches=0.1);
     end
