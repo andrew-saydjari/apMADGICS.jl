@@ -30,9 +30,9 @@ function cache_wavename(tele,mjd; cache_dir="../local_cache")
     return join([cache_dir,tele,mjd,join(["wavecal",tele,mjd],"_")],"/")*".fits"
 end
 
-function cache_waveLinesFPIname(tele,mjd,expnums; cache_dir="../local_cache")
+function cache_waveLinesFPIname(tele,mjd,expnums,chip; cache_dir="../local_cache")
     expnum = lpad(expnums,8,"0")
-    return join([cache_dir,tele,mjd,join(["waveLinesFPI",tele,mjd,expnum],"_")],"/")*".fits"
+    return join([cache_dir,tele,mjd,join(["waveLinesFPI",tele,mjd,expnum,chip],"_")],"/")*".fits"
 end
 
 function cache_fluxname(tele,field,plate,mjd; cache_dir="../local_cache")
