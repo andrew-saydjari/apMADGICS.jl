@@ -114,3 +114,16 @@ function prop_p2z(p; delLog=6e-6)
     println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
     return git_branch, git_commit
  end
+
+ function grow_msk2d(msk; rad=1)
+    (sx, sy) = size(msk)
+    msknew = zeros(Bool,(sx,sy))
+    for i=1:sx
+        for j=1:sy
+            srngx = maximum([1,i-rad]):minimum([sx,i+rad])
+            srngy = maximum([1,j-rad]):minimum([sy,j+rad])
+            msknew[i,j] = any(msk[srngx,srngy])
+        end
+    end
+    return msknew
+end
