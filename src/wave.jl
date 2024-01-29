@@ -337,11 +337,6 @@ function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10
     wvect = map(maximum_empty,wavelstcombo_FPI1)
     wvect[isnan.(wvect)] .= 0 # the problem was the NaN handling here... FIXME 
     mwval, mwind = findmax(wvect)
-    # dstep = if length(wavelstcombo_FPI1[mwind])!=0
-    #     median(running_median(diff(wavelstcombo_FPI1[mwind]),swindow,:asymmetric_truncated)[1:leadwindow])
-    # else
-    #     1
-    # end
     dstep = median(running_median(diff(wavelstcombo_FPI1[mwind]),swindow,:asymmetric_truncated)[1:leadwindow])
     madd = roundnan.((wvect.-mwval)./dstep);
     
@@ -616,14 +611,8 @@ function loss_arc_NL(pixlst, wavec, fiber, offsetv; msk=nothing)
     wavecm = wavec[msk]
     xvec = make_xvec_arc_wrap(pixlst, offsetv, fiber)
     Axfpi = positional_poly_mat(xvec[msk],porder=3)
-    try
-        tparam = Axfpi\wavecm
-        return sum((wavecm.-Axfpi*tparam).^2)
-    catch
-        println(typeof.(wavec))
-        tparam = Axfpi\wavecm
-        return sum((wavecm.-Axfpi*tparam).^2)
-    end
+    tparam = Axfpi\wavecm
+    return sum((wavecm.-Axfpi*tparam).^2)
 end
 
 function loss_FPI_NL(pixlst, wavec, paramvec; msk=nothing, scale_on=false)
