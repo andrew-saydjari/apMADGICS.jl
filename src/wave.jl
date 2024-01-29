@@ -46,6 +46,9 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, dcav_init=3.73652e7, 
     end
     fit_pix2wave_arc_partial(fiber) = fit_pix2wave_arc(wavelst_arc,xpix_arc,fiber,msklst=msklst)
     outlst_arc = fit_pix2wave_arc_partial.(f2do);
+    if sum(map(x->length(x[1]),outlst_arc)) == 0
+        return -1 # no good arc lamp lines to use
+    end
 
     param_lst, offset_param_lst = fit_smoothFibDep(outlst_arc,mjd5arc,expidarc,"Arc";f2do=f2do,save_plot_on=save_plot_on,show_plot_on=show_plot_on,savepath=saveplotspath)
     resid_arc_smooth_partial(fiber) = resid_arc_smooth(wavelst_arc,xpix_arc,param_lst,offset_param_lst,fiber)
@@ -63,7 +66,7 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, dcav_init=3.73652e7, 
         if output_on
             return outlst_arc
         else
-            return
+            return 1 # arc only success
         end
     end
 
@@ -71,7 +74,9 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, dcav_init=3.73652e7, 
     # Ingest FPI data (and transfer wavelength solution to FPI) (consider detector frame corrections, before bad detector replaced)?
     wavelstcombo_FPI0, xpix_FPI0 = ingestFPI(fpi_tup,param_lst,offset_param_lst,f2do=f2do,cache_dir=cache_dir);
     mjd5fpi, expidfpi = fpi_tup[end-1], string(fpi_tup[end])
-
+    if sum(map(x->length(x[1]),xpix_FPI0)) == 0
+        return -2 # no good FPI lamp lines to use, was the FPI source on?
+    end
     # Fit Cavity (derive a "relative" calibration independent of arc lamps based on cavity physics)
     mloclst_FPI, mloclst_msk_FPI, wavelstcombo_FPI = make_mvec(wavelstcombo_FPI0,f2do=f2do,dcav_init=dcav_init);
     xpix_FPI = remove_mask_chip_healper(xpix_FPI0,mloclst_msk_FPI,f2do=f2do)
@@ -102,7 +107,7 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, dcav_init=3.73652e7, 
     if output_on
         return outlst_FPI
     else
-        return
+        return 0 # success
     end
 end
 
@@ -177,7 +182,7 @@ function ingestArc(glist; chip2do = ["a","b","c"], f2do = 1:300)
                 fiberlstloc = []
                 pixlstloc = []
                 for fiber=f2do
-                    msk = (row .== fiber-1) .& (chipv.==getChipIndx(chip)) .& (0 .< pixel .< 2049)
+                    msk = (row .== fiber-1) .& (chipv.==getChipIndx(chip)) .& (1 .< pixel .< 2048)
                     push!(fiberlstloc,wave[msk])
                     push!(pixlstloc,pixel[msk])
                 end
@@ -330,7 +335,13 @@ function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10
     
     wavelstcombo_FPI1 = remove_mask_healper(wavelstcombo_FPI,mloclst_msk_FPI,f2do=f2do)
     wvect = map(maximum_empty,wavelstcombo_FPI1)
-    mwval, mwind = findmax(filter(!isnan,wvect))
+    wvect[isnan.(wvect)] .= 0 # the problem was the NaN handling here... FIXME 
+    mwval, mwind = findmax(wvect)
+    # dstep = if length(wavelstcombo_FPI1[mwind])!=0
+    #     median(running_median(diff(wavelstcombo_FPI1[mwind]),swindow,:asymmetric_truncated)[1:leadwindow])
+    # else
+    #     1
+    # end
     dstep = median(running_median(diff(wavelstcombo_FPI1[mwind]),swindow,:asymmetric_truncated)[1:leadwindow])
     madd = roundnan.((wvect.-mwval)./dstep);
     
@@ -502,7 +513,7 @@ function fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5,expid; msklst=nothi
 end
 
 function fit_pix2wave_arc(wavelst_arc,xpix_arc,fiber;msklst=nothing)
-    wvec_arc = make_wvec_arc(wavelst_arc,fiber,sgindx=1);
+    wvec_arc = convert(Vector{Float64},make_wvec_arc(wavelst_arc,fiber,sgindx=1));
     if length(wvec_arc) > 0 
         offset_init = [2191.5, -2202.5]
         msk = if isnothing(msklst)
@@ -605,8 +616,14 @@ function loss_arc_NL(pixlst, wavec, fiber, offsetv; msk=nothing)
     wavecm = wavec[msk]
     xvec = make_xvec_arc_wrap(pixlst, offsetv, fiber)
     Axfpi = positional_poly_mat(xvec[msk],porder=3)
-    tparam = Axfpi\wavecm
-    return sum((wavecm.-Axfpi*tparam).^2)
+    try
+        tparam = Axfpi\wavecm
+        return sum((wavecm.-Axfpi*tparam).^2)
+    catch
+        println(typeof.(wavec))
+        tparam = Axfpi\wavecm
+        return sum((wavecm.-Axfpi*tparam).^2)
+    end
 end
 
 function loss_FPI_NL(pixlst, wavec, paramvec; msk=nothing, scale_on=false)
@@ -803,7 +820,7 @@ end
 function make_resid_plot1d_fpi(outlst_FPI,outlst_arc,mjd5,expid;fiber=-1,save_plot_on=false,show_plot_on=false,savepath="./",f2do=1:300)
     fibertst = if fiber<0
         rng = MersenneTwister(parse(Int,expid))
-        rand(rng,f2do)
+        rand(rng,findall(map(x->length(x[1]),outlst_arc).!=0))
     else
         fiber
     end
@@ -927,7 +944,7 @@ end
 
 ####
 
-function extractFPIpeaks(fpi_tup,chip;use_drp=false,peak_wid=5,widx=3,cache_dir="./local_cache")
+function extractFPIpeaks(fpi_tup,chip;use_drp=false,peak_wid=5,widx=3,min_peak=1e3,max_peak=2e5,avg_flux_cut=1e3,rad_grow=1,cache_dir="./local_cache")
     if use_drp
         fname = build_apFPILinesPath(fpi_tup[1:end-1]...,chip,fpi_tup[end])
         f = FITS(fname)
@@ -953,15 +970,20 @@ function extractFPIpeaks(fpi_tup,chip;use_drp=false,peak_wid=5,widx=3,cache_dir=
             close(f)
 
             msk_bad = (flg_img .& (2^0 | 2^1 | 2^2 | 2^3 | 2^4 | 2^5 | 2^6 | 2^7 | 2^12 | 2^13 | 2^14) .!=0) #https://www.sdss4.org/dr17/irspec/apogee-bitmasks/
+            msk_bad .|= grow_msk2d(flg_img .& (2^14) .!=0,rad=rad_grow)
             nan_img = copy(ref_img)
             nan_img[msk_bad].=NaN;
+
+            if nansum(nan_img)./count(.!isnan.(msk_bad)) < avg_flux_cut # FPI exposure likely taken without FPI light on
+                return [],[]
+            end
 
             FPIoutlst = []
             for fibindx in 1:300
                 dat_vec = nan_img[:,fibindx]
                 err_vec = err_img[:,fibindx]
                 pks_i, vals_i = findmaxima(dat_vec,peak_wid,strict=false)
-                msk = 0.0 .< vals_i .< 1e5
+                msk = min_peak .< vals_i .< max_peak
                 pks = pks_i[msk]
                 vals = vals_i[msk]
                 get_gaussian_indx_partial(gindx) = get_gaussian_indx(gindx,pks,vals,dat_vec,err_vec,fibindx,widx=widx)

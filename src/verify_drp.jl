@@ -12,6 +12,7 @@ using FITSIO, StatsBase, ProgressMeter, Distributed, Serialization, Glob, Delimi
 
 src_dir = abspath("./")
 include(src_dir*"/fileNameHandling.jl")
+include(src_dir*"/utils.jl")
 
 outdir = "../../outlists/"
 if !ispath(outdir)
@@ -36,14 +37,16 @@ redux_ver = ARGS[2]
 release_dir_n = replace(replace(release_dir,"/"=>"_"),"-"=>"_")
 redux_ver_n = replace(redux_ver,"."=>"p")
 
-check_ap1d = true
-check_apCframes = true
-check_exp = true
-check_flux = true
-check_plates = true
-write_sky = true
-write_star_plate = true
-write_tell = true
+check_ap1d = false
+check_apCframes = false
+check_exp = false
+check_flux = false
+check_plates = false
+write_sky = false
+write_star_plate = false
+write_tell = false
+check_wavecal = true
+tele_try_list = ["apo25m"] #,"lco25m"]
 
 
 ### Ingest allVisit File
@@ -59,14 +62,12 @@ function summary_file_by_dr(release_dir,redux_ver,dr_number)
     end
 end
 
-function ingest_allVisit_file(release_dir,redux_ver)
+function ingest_allVisit_file(release_dir,redux_ver;tele_try_list=["apo25m","lco25m"])
     dr_number = if occursin("dr", release_dir)
         parse(Int, match(r"dr(\d+)", release_dir).captures[1])
     else
         -1
     end
-    
-    tele_try_list = ["apo25m","lco25m"]
     
     if (10 <= dr_number <= 17)
         # there is only one for the early DRs
@@ -146,13 +147,15 @@ end
 
     src_dir = abspath("./")
     include(src_dir*"/fileNameHandling.jl")
+    include(src_dir*"/utils.jl")
 end
 
 println("##########################################################################################")
 println("############## Checking APOGEE DRP $(release_dir), version $(redux_ver) products ####################")
 println("##########################################################################################")
+println("##### Considering files from $(tele_try_list) #####")
 
-tele_list, TELESCOPE, FIELD, PLATE, MJD, FIBERID = ingest_allVisit_file(release_dir,redux_ver)
+tele_list, TELESCOPE, FIELD, PLATE, MJD, FIBERID = ingest_allVisit_file(release_dir,redux_ver,tele_try_list=tele_try_list)
 
 ### Get Stars to Run (write apMADGICS.jl run files)
 ### Check Last Entry of ap1D Files
@@ -757,8 +760,234 @@ if check_plates
     end
 end
 
+@everywhere begin
+    function getWaveCalsFromNightRunner(runtup; cont_wid = 6)
+        release_dir,redux_ver,tele,mjd = runtup
+        fname = build_expPath(release_dir,redux_ver,tele,mjd)
+        f = FITS(fname)
+        EXPNUM = read(f[2],"NUM")
+        IMAGETYP = read(f[2],"IMAGETYP")
+        QRTZ = read(f[2],"QRTZ")
+        THAR = read(f[2],"THAR")
+        UNE = read(f[2],"UNE");
+        DITHPIX = read(f[2],"DITHPIX");
+        close(f)
+    
+        tharmsk = (IMAGETYP.=="ArcLamp") .& (THAR.==1)
+        unemsk = (IMAGETYP.=="ArcLamp") .& (UNE.==1)
+        fpimsk = (IMAGETYP.=="ArcLamp") .& (THAR.==0) .& (UNE.==0) .& (QRTZ.==0)
+        keep_msk = tharmsk .| unemsk .| fpimsk;
+        jump_ind = cumsum([0, (diff(EXPNUM[keep_msk]).>cont_wid)...]);
+        
+        backing_files_good = zeros(Bool,count(keep_msk))
+    
+        check_fpi = Iterators.zip(repeat([release_dir],count(fpimsk)),
+            repeat([redux_ver],count(fpimsk)),
+            repeat([tele],count(fpimsk)),
+            repeat([mjd],count(fpimsk)),
+            EXPNUM[fpimsk],
+            )
+        fpi_good = check_FPI_1d_good.(check_fpi)
+        backing_files_good[fpimsk[keep_msk]].= fpi_good
+    
+        arc_msk = tharmsk .| unemsk
+        check_arc = Iterators.zip(repeat([release_dir],count(arc_msk)),
+            repeat([redux_ver],count(arc_msk)),
+            repeat([tele],count(arc_msk)),
+            repeat([mjd],count(arc_msk)),
+            EXPNUM[arc_msk],
+            )
+        arc_good = check_arc_Lines_good.(check_arc)
+        backing_files_good[arc_msk[keep_msk]].= arc_good
+        bad_files = vcat(collect(check_fpi)[.!fpi_good],collect(check_arc)[.!arc_good])
+        
+        wave_run_lst = []    
+        if count(keep_msk)>0
+            df = DataFrame([EXPNUM[keep_msk], IMAGETYP[keep_msk], fpimsk[keep_msk], tharmsk[keep_msk], unemsk[keep_msk], DITHPIX[keep_msk], backing_files_good, jump_ind],["EXPNUM", "IMAGETYP", "FPI", "THAR", "UNE", "DITHPIX", "FILES_GOOD","CONTINDX"])
+            grouped_df = groupby(df, [:DITHPIX, :CONTINDX])
+    
+            for group in grouped_df
+                push!(wave_run_lst,wavedf2list(group,release_dir,redux_ver,tele,mjd))
+            end
+        end
+        return wave_run_lst, bad_files, count(IMAGETYP.=="Object")
+    end
+    
+    function wavedf2list(df_subgroup,release_dir,redux_ver,tele,mjd)
+        dfs = DataFrame(df_subgroup)
+        wavecallst = []
+        glist = []
+        while (count(dfs.THAR)>0) & (count(dfs.UNE)>0)
+            sgrp = []
+            # Find ThAr
+            ind = findfirst(dfs.THAR)
+            push!(sgrp,(release_dir,redux_ver,tele,mjd,dfs.EXPNUM[ind],dfs.DITHPIX[ind],dfs.FILES_GOOD[ind]))
+            delete!(dfs, ind)
+            # Find UNe
+            ind = findfirst(dfs.UNE)
+            push!(sgrp,(release_dir,redux_ver,tele,mjd,dfs.EXPNUM[ind],dfs.DITHPIX[ind],dfs.FILES_GOOD[ind]))
+            delete!(dfs, ind)
+            push!(glist,sgrp)
+        end
+        push!(wavecallst,glist)
+        fpi_lst = []
+        if count(dfs.FPI)>0
+            fpi_inds = findall(dfs.FPI)
+            for fpi_indx in fpi_inds
+                push!(fpi_lst,(release_dir,redux_ver,tele,mjd,dfs.EXPNUM[fpi_indx],dfs.DITHPIX[fpi_indx],dfs.FILES_GOOD[fpi_indx]))
+            end
+        end
+        push!(wavecallst,fpi_lst)
+        return wavecallst
+    end
+
+    function sub_select(wave_tup)
+        if length(wave_tup)>0
+            fpi_grps = findall(map(x->length(x[2])!=0,wave_tup))
+            for grp_indx in fpi_grps # group forces same dither
+                wave_cal_lst = []
+                # grab the first good arc pair
+                for arc_indx in 1:length(wave_tup[grp_indx][1])
+                    if (wave_tup[grp_indx][1][arc_indx][1][end] & wave_tup[grp_indx][1][arc_indx][2][end])
+                        push!(wave_cal_lst,[[wave_tup[grp_indx][1][arc_indx][1][1:end-2],wave_tup[grp_indx][1][arc_indx][2][1:end-2]]])
+                        break
+                    end
+                end
+                # grab the first good fpi
+                for fpi_indx in 1:length(wave_tup[grp_indx][2])
+                    if wave_tup[grp_indx][2][fpi_indx][end]
+                        push!(wave_cal_lst,wave_tup[grp_indx][2][fpi_indx][1:end-2])
+                        break
+                    end
+                end
+                # check if both parts of run tuple are right length, if yes return
+                if (length(wave_cal_lst) == 2) && (length(wave_cal_lst[1][1]) == 2)
+                    return wave_cal_lst
+                end
+            end
+        end
+        if length(wave_tup)>0
+            # if no good fpi groups, loop over all groups, and only make the arc part
+            for grp_indx in 1:length(wave_tup) # group forces same dither
+                wave_cal_lst = []
+                # grab the first good arc pair
+                for arc_indx in 1:length(wave_tup[grp_indx][1])
+                    if (wave_tup[grp_indx][1][arc_indx][1][end] & wave_tup[grp_indx][1][arc_indx][2][end])
+                        push!(wave_cal_lst,[[wave_tup[grp_indx][1][arc_indx][1][1:end-2],wave_tup[grp_indx][1][arc_indx][2][1:end-2]]])
+                        push!(wave_cal_lst,())
+                        break
+                    end
+                end
+                # check if arcpart parts of run tuple are right length, if yes return
+                if (length(wave_cal_lst)>0) && (length(wave_cal_lst[1][1]) == 2)
+                    return wave_cal_lst
+                end
+            end
+        end
+        wave_cal_lst = []
+        return wave_cal_lst # failure, length 0
+    end
+    
+    function check_FPI_1d_good(fpi_tup;avg_flux_cut=1e3,rad_grow=1) # could change to read file rather than just exists
+        good_flag = true
+        for chip in ["a","b","c"]
+            good_flag &= isfile(build_framepath(fpi_tup...,chip))
+            if good_flag
+                ap1D_path = build_framepath(fpi_tup...,chip)
+                f = FITS(ap1D_path)
+                ref_img = read(f[2]);
+                flg_img = read(f[4]);
+                close(f)
+    
+                msk_bad = (flg_img .& (2^0 | 2^1 | 2^2 | 2^3 | 2^4 | 2^5 | 2^6 | 2^7 | 2^12 | 2^13 | 2^14) .!=0) #https://www.sdss4.org/dr17/irspec/apogee-bitmasks/
+                msk_bad .|= grow_msk2d(flg_img .& (2^14) .!=0,rad=rad_grow)
+                nan_img = copy(ref_img)
+                nan_img[msk_bad].=NaN;
+                good_flag &= (nansum(nan_img)./count(.!isnan.(msk_bad)) > avg_flux_cut)
+            end
+        end
+        return good_flag
+    end
+    
+    function check_arc_Lines_good(arc_tup) # could change to read file rather than just exists
+        good_flag = true
+        # for chip in ["a","b","c"]
+            good_flag &= isfile(build_apLinesPath(arc_tup...))
+        # end
+        return good_flag
+    end
+
+    function checkIfFPIoption(wave_tup)
+        fpi_option = false
+        for subgrpindx in 1:length(wave_tup)
+            fpi_option |= length(wave_tup[subgrpindx][2]).!=0
+        end
+        return fpi_option
+    end
+
+end
+
+if check_wavecal
+    println("##### Checking the files backing wavecal #####")
+    wave_lst = []
+    for tele in tele_list
+        if tele[1:6] =="apo25m"
+            tele_alias = "apogee-n"
+            wave_flst = sort(glob("*/*exp.fits",getUtahBase(release_dir,redux_ver)*"exposures/$(tele_alias)/"))
+            mjdlst = map(x->split(x,"/")[end-1],wave_flst);
+            runlst = Iterators.zip(repeat([release_dir],length(mjdlst)),repeat([redux_ver],length(mjdlst)),repeat([tele],length(mjdlst)),mjdlst);
+            push!(wave_lst,collect(runlst))
+        elseif tele[1:6]=="lco25m"
+            tele_alias = "apogee-s"
+            wave_flst = sort(glob("*/*exp.fits",getUtahBase(release_dir,redux_ver)*"exposures/$(tele_alias)/"))
+            mjdlst = map(x->split(x,"/")[end-1],wave_flst);
+            runlst = Iterators.zip(repeat([release_dir],length(mjdlst)),repeat([redux_ver],length(mjdlst)),repeat([tele],length(mjdlst)),mjdlst);
+            push!(wave_lst,collect(runlst))
+        else
+            error("What telescope ($(tele)) are you talking about?")
+        end 
+    end
+    wave_lst_all = vcat(wave_lst...)
+
+    pout_all = @showprogress pmap(getWaveCalsFromNightRunner,wave_lst_all);
+    pout = map(x->x[1],pout_all)
+    bad_files = vcat(map(x->x[2],pout_all)...)
+    obj_cnts = map(x->x[3],pout_all)
+
+    FPIpossiblevec = checkIfFPIoption.(pout)
+    numFPIpossible = count(FPIpossiblevec)
+    
+    # subselect for current runs
+    # some day, I want to just run them all (if we replace the DRP's upstream ap1D production)
+    fout = sub_select.(pout);
+    msklen = (length.(fout) .!=0)
+    fpi_found_vec = map(x->(length(x)!=0) && (length(x[end]).!=0),fout)
+    fpi_found = findall(fpi_found_vec)
+
+    serialize(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_wavecal_input_lst.jdat",fout[msklen]);
+    writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_bad_wavecals.txt",bad_files,',')
+
+    println("Number of missing wavecal backing files: $(length(bad_files))")
+    println("MJDs without any wavecal exposures: $(count(.!msklen)) out of $(length(msklen)), $(100*count(.!msklen)/length(msklen))%")
+    println("Total of $numFPIpossible nights with FPI, only $(length(fpi_found)) files found. Lost FPI for $(numFPIpossible - length(fpi_found)) nights.")
+    println("Number of Object exposures that could have FPI, but don't $(sum(obj_cnts[.!fpi_found_vec .& FPIpossiblevec]))")
+    println("Number of Object exposures that could have wavecal, but don't: $(sum(obj_cnts[.!msklen]))")
+
+    mjds_wo_cal = map(x->parse(Int,x[4]),wave_lst_all[.!msklen])
+    mjds_wo_fpi = map(x->parse(Int,x[1][1][1][4]),fout[.!fpi_found_vec .& FPIpossiblevec .& msklen])
+    mjds_w_science = map(x->x[7],run_lst)
+    mjd_wo_cal_sci_msk = mjds_wo_cal .∈ [mjds_w_science]
+    mjd_wo_fpi_sci_msk = mjds_wo_fpi .∈ [mjds_w_science]
+    println("Number of science MJDs without good wavecal files: $(count(mjd_wo_cal_sci_msk))")
+    if count(mjd_wo_cal_sci_msk)>0
+        writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_bad_mjd_nowavecal.txt",mjds_wo_cal[mjd_wo_cal_sci_msk],',')
+    end
+    println("Number of science MJDs without good FPI files: $(count(mjd_wo_fpi_sci_msk))")
+    if count(mjd_wo_fpi_sci_msk)>0
+        writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_bad_mjd_nofpi.txt",mjds_wo_fpi[mjd_wo_fpi_sci_msk],',')
+    end
+end
+
 rmprocs(workers())
 
-# julia +1.8.2 verify_drp.jl > > (tee -a ../../outlists/sdsswork_mwm_1p2.log) 2> >(tee -a ../../outlists/sdsswork_mwm_1p2.err >&2)
-# julia +1.8.2 verify_drp.jl > > (tee -a ../../outlists/ipl_3_1p2.log) 2> >(tee -a ../../outlists/ipl_3_1p2.err >&2)
-# julia +1.8.2 verify_drp.jl > > (tee -a ../../outlists/dr17_dr17_stdout.log) 2> >(tee -a ../../outlists/dr17_dr17_stderr.log >&2)
+# julia +1.8.2 verify_drp.jl "sdsswork/mwm" "1.2" | tee -a ../../outlists/sdsswork_1p2.log
