@@ -46,7 +46,7 @@ write_sky = false
 write_star_plate = false
 write_tell = false
 check_wavecal = true
-tele_try_list = ["apo25m"] #,"lco25m"]
+tele_try_list =  ["lco25m"] # ["apo25m"] #,"lco25m"]
 
 
 ### Ingest allVisit File
@@ -566,16 +566,17 @@ if check_plates
             teleind = (tele[1:6] == "lco25m") ? 2 : 1
             @showprogress for fiberindx = 1:300
                 adjfibindx = (teleind-1)*300 + fiberindx
+                sfibindx = (length(tele_list)==2) ? adjfibindx : fiberindx
                 msk = (df_plate_unique.fibertype .== "SKY") 
                 msk .&= (df_plate_unique.tele_id .== tele)
                 msk .&= (abs.(df_plate_unique.fiberindx .- fiberindx).==0) 
-                skycounts_raw[adjfibindx] = count(msk)
+                skycounts_raw[sfibindx] = count(msk)
                 msk = (df_plate_unique.fibertype .== "SKY") 
                 msk .&= (df_plate_unique.tele_id .== tele)
                 msk .&= (abs.(df_plate_unique.fiberindx .- fiberindx).<=wind) 
-                skycounts_wind[adjfibindx] = count(msk)
-                skycounts_wind_msked[adjfibindx] = count(msk)
-                if skycounts_wind[adjfibindx] > 0
+                skycounts_wind[sfibindx] = count(msk)
+                skycounts_wind_msked[sfibindx] = count(msk)
+                if skycounts_wind[sfibindx] > 0
                     df_sub = df_plate_unique[msk,:];
                     temp = Iterators.zip(
                         rownumber.(eachrow(df_sub)),
@@ -590,13 +591,13 @@ if check_plates
                     sky_input = collect(temp)
                     tout = pmap(test_apFlux,sky_input)
                     msk = (tout.!=0)
-                    skycounts_wind_msked[adjfibindx] = count(.!msk)
+                    skycounts_wind_msked[sfibindx] = count(.!msk)
 
                     subiter = sky_input[.!msk]
                     new_vec = map(i->map(x->x[i],subiter),1:length(subiter[1]))
                     nstar = length(new_vec[1])
                     new_vec[1]=1:nstar
-                    if skycounts_wind_msked[adjfibindx]>0
+                    if skycounts_wind_msked[sfibindx]>0
                         serialize(outdir*"sky/"*"$(release_dir_n)_$(redux_ver_n)_sky_input_lst_plate_msked_"*lpad(adjfibindx,3,"0")*".jdat",collect(Iterators.zip(new_vec...)))
                     end
                 end
@@ -620,11 +621,12 @@ if check_plates
             teleind = (tele[1:6] == "lco25m") ? 2 : 1
             @showprogress for fiberindx = 1:300
                 adjfibindx = (teleind-1)*300 + fiberindx
+                sfibindx = (length(tele_list)==2) ? adjfibindx : fiberindx
                 msk = (df_plate_unique.fibertype .== "STAR") 
                 msk .&= (df_plate_unique.tele_id .== tele)
                 msk .&= (abs.(df_plate_unique.fiberindx .- fiberindx).==0) 
-                starcounts_raw[adjfibindx] = count(msk)
-                if starcounts_raw[adjfibindx] > 0
+                starcounts_raw[sfibindx] = count(msk)
+                if starcounts_raw[sfibindx] > 0
                     df_sub = df_plate_unique[msk,:];
                     temp = Iterators.zip(
                         rownumber.(eachrow(df_sub)),
@@ -639,13 +641,13 @@ if check_plates
                     star_input = collect(temp)
                     tout = pmap(test_apFlux,star_input)
                     msk = (tout.!=0)
-                    starcounts_msked[adjfibindx] = count(.!msk)
+                    starcounts_msked[sfibindx] = count(.!msk)
 
                     subiter = star_input[.!msk]
                     new_vec = map(i->map(x->x[i],subiter),1:length(subiter[1]))
                     nstar = length(new_vec[1])
                     new_vec[1]=1:nstar
-                    if starcounts_msked[adjfibindx]>0
+                    if starcounts_msked[sfibindx]>0
                         serialize(outdir*"sky/"*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_plate_msked_"*lpad(adjfibindx,3,"0")*".jdat",collect(Iterators.zip(new_vec...)))
                     end
                 end
@@ -684,12 +686,13 @@ if check_plates
             teleind = (tele[1:6] == "lco25m") ? 2 : 1
             @showprogress for fiberindx = 1:300
                 adjfibindx = (teleind-1)*300 + fiberindx
+                sfibindx = (length(tele_list)==2) ? adjfibindx : fiberindx
                 msk = (df_plate_unique.fibertype .== "HOT_STD") 
                 msk .&= (df_plate_unique.tele_id .== tele)
                 msk .&= (abs.(df_plate_unique.fiberindx .- fiberindx).==0) 
-                tellcounts_raw[adjfibindx] = count(msk)
+                tellcounts_raw[sfibindx] = count(msk)
                 
-                if tellcounts_raw[adjfibindx] > 0
+                if tellcounts_raw[sfibindx] > 0
                     df_sub = df_plate_unique[msk,:];
                     temp = Iterators.zip(
                         rownumber.(eachrow(df_sub)),
@@ -704,13 +707,13 @@ if check_plates
                     tell_input = collect(temp)
                     tout = pmap(test_apFlux,tell_input)
                     msk = (tout.!=0)
-                    tellcounts_msked[adjfibindx] = count(.!msk)
+                    tellcounts_msked[sfibindx] = count(.!msk)
 
                     subiter = tell_input[.!msk]
                     new_vec = map(i->map(x->x[i],subiter),1:length(subiter[1]))
                     nstar = length(new_vec[1])
                     new_vec[1]=1:nstar
-                    if tellcounts_msked[adjfibindx]>0
+                    if tellcounts_msked[sfibindx]>0
                         serialize(outdir*"tell/"*"$(release_dir_n)_$(redux_ver_n)_tell_input_lst_plate_msked_"*lpad(adjfibindx,3,"0")*".jdat",collect(Iterators.zip(new_vec...)))
                     end
                 end
@@ -732,6 +735,7 @@ if check_plates
             teleind = (tele[1:6] == "lco25m") ? 2 : 1
             for fiberindx = 1:300
                 adjfibindx = (teleind-1)*300 + fiberindx
+                sfibindx = (length(tele_list)==2) ? adjfibindx : fiberindx
                 for wid=0:5
                     test_inds = if (teleind == 2)
                         unique(clamp.(adjfibindx .+ (-wid:wid),301,600))
@@ -747,7 +751,7 @@ if check_plates
                     end
                     if samp_len>20
                         push!(samp_lst,test_inds)
-                        tellcounts_wind[adjfibindx] = samp_len
+                        tellcounts_wind[sfibindx] = samp_len
                         break
                     end
                 end
@@ -973,9 +977,12 @@ if check_wavecal
     println("Number of Object exposures that could have FPI, but don't $(sum(obj_cnts[.!fpi_found_vec .& FPIpossiblevec]))")
     println("Number of Object exposures that could have wavecal, but don't: $(sum(obj_cnts[.!msklen]))")
 
+    mjd_vec = map(x->x[4],wave_lst_all)
     mjds_wo_cal = map(x->parse(Int,x[4]),wave_lst_all[.!msklen])
     mjds_wo_fpi = map(x->parse(Int,x[1][1][1][4]),fout[.!fpi_found_vec .& FPIpossiblevec .& msklen])
     mjds_w_science = map(x->x[7],run_lst)
+    writedlm(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_mjds_w_science.txt",mjds_w_science,',')
+    serialize(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_wave_obj_cnts.jdat",[mjd_vec, obj_cnts])
     mjd_wo_cal_sci_msk = mjds_wo_cal .∈ [mjds_w_science]
     mjd_wo_fpi_sci_msk = mjds_wo_fpi .∈ [mjds_w_science]
     println("Number of science MJDs without good wavecal files: $(count(mjd_wo_cal_sci_msk))")
