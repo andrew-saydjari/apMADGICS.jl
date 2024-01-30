@@ -19,7 +19,7 @@ println("Running on branch: $git_branch, commit: $git_commit"); flush(stdout)
 # example for testing (move to an actual test)
 # arc_grp_tup = [[("sdsswork/mwm", "daily", "apo25m", "59608", 40460007), ("sdsswork/mwm", "daily", "apo25m", "59608", 40460008)]]
 # fpi_tup = ("sdsswork/mwm", "daily", "apo25m", "59608", 40460010)
-function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, dcav_init=3.73652e7, save_plot_on = true, show_plot_on = false, saveplotspath = "./wavecal_plots/", cache_dir="../local_cache", output_on=false)
+function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, show_plot_on = false, saveplotspath = "./wavecal_plots/", cache_dir="../local_cache", output_on=false)
     if !ispath(saveplotspath) & save_plot_on
         mkpath(saveplotspath)
     end
@@ -72,7 +72,15 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, dcav_init=3.73652e7, 
     ##### FPI Section #####
     # Ingest FPI data (and transfer wavelength solution to FPI) (consider detector frame corrections, before bad detector replaced)?
     wavelstcombo_FPI0, xpix_FPI0 = ingestFPI(fpi_tup,param_lst,offset_param_lst,f2do=f2do,cache_dir=cache_dir);
-    mjd5fpi, expidfpi = fpi_tup[end-1], string(fpi_tup[end])
+    tele, mjd5fpi, expidfpi = fpi_tup[end-2], fpi_tup[end-1], string(fpi_tup[end])
+    dcav_init = if (tele[1:6] == "apo25m") 
+        3.73652e7 
+    elseif (tele[1:6] == "lco25m")
+        3.73611e7
+    else
+        error("What telescope is this?")
+    end
+
     if sum(map(x->length(x[1]),xpix_FPI0)) == 0
         return -2 # no good FPI lamp lines to use, was the FPI source on?
     end
@@ -389,8 +397,17 @@ function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10
     for fiber=f2do
         wavelen = length(wavelstcombo_FPI[fiber])
         if wavelen>1
+            mtemp = 2*dcav_init./wavelstcombo_FPI[fiber] # you don't need to know the cavity all that well to assign deltaM
+            mtemp_rnd0 = round.(Int,mtemp)
+            mtemp_off = nanmedian(mtemp.-mtemp_rnd0)
+            mtemp_rnd = round.(Int,mtemp.-mtemp_off)
+            non_unique_vec = non_unique_elements(mtemp_rnd)
+            mskg = ones(Bool,length(mtemp))
+            for nu_ele in non_unique_vec
+                mskg[findall(mtemp_rnd .== nu_ele)].=false
+            end
+            mskg .&= abs.(mtemp.-mtemp_rnd.-mtemp_off).<0.04 #this is a bit of a hack because it assumes I know the non-Int part of m0 (need to relax if we change poly model)
             waveindx = 1:wavelen
-            mskg = ones(Bool,wavelen)
             for i=1:maxpass 
                 dvec = diff(wavelstcombo_FPI[fiber][mskg])
                 mbad = abs.(dvec) .< dvec_cut
@@ -421,10 +438,16 @@ function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10
                     # println("Bad m index removal failed badly, $fiber")
                 end
             end
-            mtemp = 2*dcav_init./wavelstcombo_FPI[fiber][mskg] # you don't need to know the cavity all that well to assign deltaM
-            mloc = roundnan.(mtemp .- mtemp[1] .+ 1)
-            push!(mloclst_FPI,mloc)
-            push!(mloclst_msk_FPI,mskg)
+
+            if count(mskg) != 0
+                mloc = roundnan.(mtemp[mskg] .- mtemp[mskg][1] .+ 1)
+                push!(mloclst_FPI,mloc)
+                push!(mloclst_msk_FPI,mskg)
+            else
+                push!(mloclst_FPI,[])
+                push!(mloclst_msk_FPI,[])
+            end
+
         else
             push!(mloclst_FPI,[])
             push!(mloclst_msk_FPI,[])
@@ -532,6 +555,11 @@ function fit_smoothFibDep(outlst_arc,mjd5,expid,exptype;f2do=1:300,save_plot_on=
         xs = fibaxis[.!msk]
         ys = outP[.!msk]
         p = Polynomials.fit(xs,ys,order_lst[i-1])
+        resid = outP - p.(fibaxis)
+        mskr = msk .| (abs.(resid).>7*iqr(resid))
+        xs = fibaxis[.!mskr]
+        ys = outP[.!mskr]
+        p = Polynomials.fit(xs,ys,order_lst[i-1])
         push!(param_lst,p.coeffs)
         push!(fit_xyf,(fibaxis,outP,p.(fibaxis)))
     end
@@ -547,7 +575,11 @@ function fit_smoothFibDep(outlst_arc,mjd5,expid,exptype;f2do=1:300,save_plot_on=
         xs = fibaxis[.!msk]
         ys = outP[.!msk]
         p = Polynomials.fit(xs,ys,order_lst[i])
-
+        resid = outP - p.(fibaxis)
+        mskr = msk .| (abs.(resid).>7*iqr(resid))
+        xs = fibaxis[.!mskr]
+        ys = outP[.!mskr]
+        p = Polynomials.fit(xs,ys,order_lst[i])
         push!(offset_param_lst,p.coeffs)
         push!(fit_offset_xyf,(fibaxis,outP,p.(fibaxis)))
     end
@@ -1035,7 +1067,7 @@ end
 
 ####
 
-function extractFPIpeaks(fpi_tup,chip;use_drp=false,peak_wid=5,widx=3,min_peak=1e3,max_peak=2e5,avg_flux_cut=1e3,rad_grow=1,cache_dir="./local_cache")
+function extractFPIpeaks(fpi_tup,chip;use_drp=false,peak_wid=5,widx=3,min_peak=1e1,max_peak=2e5,avg_flux_cut=1e3,rad_grow=1,cache_dir="./local_cache")
     if use_drp
         fname = build_apFPILinesPath(fpi_tup[1:end-1]...,chip,fpi_tup[end])
         f = FITS(fname)
@@ -1149,4 +1181,14 @@ function get_smoothed_cav_params(tele,mjd5;cache_dir="./local_cache")
         end
     end
     return NaN, NaN #failure because out of MJD... should not happen if run correctly
+end
+
+function non_unique_elements(vec)
+    # Count the occurrences of each element in the vector
+    counts = countmap(vec)
+    
+    # Filter elements with counts greater than 1
+    non_unique = [k for (k, v) in counts if v > 1]
+    
+    return non_unique
 end
