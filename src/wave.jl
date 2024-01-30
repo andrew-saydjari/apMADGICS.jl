@@ -88,7 +88,7 @@ function nightly_wavecal(arc_grp_tup, fpi_tup; f2do=1:300, save_plot_on = true, 
     mloclst_FPI, mloclst_msk_FPI, wavelstcombo_FPI = make_mvec(wavelstcombo_FPI0,f2do=f2do,dcav_init=dcav_init);
     xpix_FPI = remove_mask_chip_healper(xpix_FPI0,mloclst_msk_FPI,f2do=f2do)
 
-    cavp = fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5fpi,expidfpi,f2do=f2do,dcav_init =dcav_init,save_plot_on=false,show_plot_on=false,savepath=saveplotspath)
+    cavp = fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5fpi,expidfpi,f2do=f2do,dcav_init=dcav_init,save_plot_on=false,show_plot_on=false,savepath=saveplotspath)
     ## Fit wavelength solution to FPI; compute/save FPI residuals
     fit_pix2wave_FPI_partial0(fiber) = fit_pix2wave_FPI(mloclst_FPI,xpix_FPI,offset_param_lst,cavp,fiber)
     outlst_FPI = fit_pix2wave_FPI_partial0.(f2do);
@@ -556,7 +556,7 @@ function fit_smoothFibDep(outlst_arc,mjd5,expid,exptype;f2do=1:300,save_plot_on=
         ys = outP[.!msk]
         p = Polynomials.fit(xs,ys,order_lst[i-1])
         resid = outP - p.(fibaxis)
-        mskr = msk .| (abs.(resid).>7*iqr(resid))
+        mskr = msk .| (abs.(resid).>7*naniqr(resid))
         xs = fibaxis[.!mskr]
         ys = outP[.!mskr]
         p = Polynomials.fit(xs,ys,order_lst[i-1])
@@ -576,7 +576,7 @@ function fit_smoothFibDep(outlst_arc,mjd5,expid,exptype;f2do=1:300,save_plot_on=
         ys = outP[.!msk]
         p = Polynomials.fit(xs,ys,order_lst[i])
         resid = outP - p.(fibaxis)
-        mskr = msk .| (abs.(resid).>7*iqr(resid))
+        mskr = msk .| (abs.(resid).>7*naniqr(resid))
         xs = fibaxis[.!mskr]
         ys = outP[.!mskr]
         p = Polynomials.fit(xs,ys,order_lst[i])
@@ -606,16 +606,17 @@ function fit_cavity_params(mloclst_FPI,wavelstcombo_FPI,mjd5,expid; msklst=nothi
     ## refine series of initial guesses
     # first guess for m0
     m0est = vcat(map(fiber->2*dcav_init./wavelstcombo_FPI[fiber].-mloclst_FPI[fiber],f2do)...);
-    moff_0 = round(Int,median(filter(!isnan,m0est)))
-    # refine dcavity
-    A = reshape(2 ./(moff_0.+mvec),(:,1)).* reshape(ones(length(mvec)),:,1);
-    d_cav = (A\wvec)[1]
-    # final guess for m0
-    m0est = vcat(map(fiber->2*d_cav./wavelstcombo_FPI[fiber].-mloclst_FPI[fiber],f2do)...);
-    m0final = median(filter(!isnan,m0est))
+    # moff_0 = round(Int,median(filter(!isnan,m0est)))
+    moff_1 = median(filter(!isnan,m0est))
+    # # refine dcavity
+    # A = reshape(2 ./(moff_0.+mvec),(:,1)).* reshape(ones(length(mvec)),:,1);
+    # d_cav = (A\wvec)[1]
+    # # final guess for m0
+    # m0est = vcat(map(fiber->2*d_cav./wavelstcombo_FPI[fiber].-mloclst_FPI[fiber],f2do)...);
+    # m0final = median(filter(!isnan,m0est))
     # curve fit using LM through LsqFit.jl to obtain cavity parameters
-    p0 = [d_cav, m0final]
-    # p0 = [dcav_init, moff_0]
+    # p0 = [d_cav, m0final]
+    p0 = [dcav_init, moff_1]
     # I guess we need to set these bounds differently for the LCO case
     fit = curve_fit(m2lam, mvec, wvec, p0, autodiff=:forwarddiff, show_trace=false) #, lower=[3.73651e7,1], upper=[3.73653e7,Inf])
     fit_out = fit.param
@@ -1067,7 +1068,7 @@ end
 
 ####
 
-function extractFPIpeaks(fpi_tup,chip;use_drp=false,peak_wid=5,widx=3,min_peak=1e1,max_peak=2e5,avg_flux_cut=1e3,rad_grow=1,cache_dir="./local_cache")
+function extractFPIpeaks(fpi_tup,chip;use_drp=false,peak_wid=5,widx=3,min_peak=5e1,max_peak=2e5,avg_flux_cut=1e3,rad_grow=1,cache_dir="./local_cache")
     if use_drp
         fname = build_apFPILinesPath(fpi_tup[1:end-1]...,chip,fpi_tup[end])
         f = FITS(fname)

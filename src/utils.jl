@@ -10,6 +10,9 @@ nansum(x,y) = mapslices(nansum,x,dims=y)
 nanmedian(x) = median(filter(!isnan,x))
 nanmedian(x,y) = mapslices(nanmedian,x,dims=y)
 
+naniqr(x) = iqr(filter(!isnan,x))/1.34896
+naniqr(x,y) = mapslices(naniqr,x,dims=y)
+
 function gaussian_post(x,x0,s0)
     return 1/sqrt(2π)/s0*exp(-0.5*((x-x0)/s0)^2)
 end
