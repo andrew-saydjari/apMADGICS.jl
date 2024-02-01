@@ -115,7 +115,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, sky_off=false, cache_dir="../local_cache_1", inject_cache_dir=prior_dir*"2023_08_22/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, sky_off=false, cache_dir="../local_cache", inject_cache_dir=prior_dir*"2023_08_22/inject_local_cache")
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
         out = []
 
