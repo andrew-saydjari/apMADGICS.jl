@@ -320,12 +320,12 @@ end
                 chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
                 close(f)
 
-                f = h5open(prior_dir*"2024_02_04/sky_priors/APOGEE_skyline_bright_svd_120_f"*lpad(adjfibindx,3,"0")*".h5") #revert temp
+                f = h5open(prior_dir*"2024_02_04/sky_priors/APOGEE_skyline_bright_svd_120_20_8_6_1en3_f"*lpad(adjfibindx,3,"0")*".h5") #revert temp
                 global V_skyline_bright = read(f["Vmat"])
                 submsk_bright = convert.(Bool,read(f["submsk"]))
                 close(f)
 
-                f = h5open(prior_dir*"2024_02_04/sky_priors/APOGEE_skyline_faint_svd_120_f"*lpad(adjfibindx,3,"0")*".h5") #revert temp
+                f = h5open(prior_dir*"2024_02_04/sky_priors/APOGEE_skyline_faint_svd_120_20_8_6_1en3_f"*lpad(adjfibindx,3,"0")*".h5") #revert temp
                 global V_skyline_faint = read(f["Vmat"])
                 submsk_faint = convert.(Bool,read(f["submsk"]))
                 close(f)
