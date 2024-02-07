@@ -35,7 +35,7 @@ function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_d
     end
 end
 
-function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; caching=false,cache_dir="../local_cache")
+function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skymsk,V_skyline_bright,V_skyline_faint,V_skycont; caching=false,cache_dir="../local_cache")
     
     ### Find all of the Sky Fibers
     vname = build_visitpath(release_dir,redux_ver,tele,field,plate,mjd,fiberindx)
@@ -54,7 +54,7 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; cach
     ### Decompose all of the Sky Fibers
     outcont = zeros(length(wavetarg),length(skyinds));
     for (findx,fiberind) in enumerate(skyinds)
-        try
+        # try
             skycacheSpec = cache_skynameSpec(tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
             if (isfile(skycacheSpec) & caching)
                 fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
@@ -72,14 +72,14 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; cach
             end
 
             simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
-            contvec = sky_decomp(fvec, fvarvec, simplemsk)
+            contvec = sky_decomp(fvec, fvarvec, simplemsk,V_skyline_bright, V_skyline_faint, V_skycont)
             # do we want to save the other components to disk? I am not sure we do.
             outcont[:,findx] .= contvec
-        catch
-            # we should figure out how often this happens and why
-            @warn "Bad Sky: ($tele,$field,$plate,$mjd,$fiberind)"
-            outcont[:,findx] .= 0
-        end
+        # catch
+            # # we should figure out how often this happens and why
+            # @warn "Bad Sky: ($tele,$field,$plate,$mjd,$fiberind)"
+            # outcont[:,findx] .= 0
+        # end
     end
 
     msk = (dropdims(nansum(outcont,1),dims=1)) .> 0
@@ -89,7 +89,7 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; cach
     return meanLocSky, VLocSky
 end
 
-function sky_decomp(outvec,outvar,simplemsk)   
+function sky_decomp(outvec,outvar,simplemsk,V_skyline_bright,V_skyline_faint,V_skycont)   
     ## Select data for use (might want to handle mean more generally)
     Xd_obs = outvec[simplemsk];
 
@@ -98,13 +98,15 @@ function sky_decomp(outvec,outvar,simplemsk)
     Ainv = Diagonal(1 ./outvar[simplemsk]);
 
     ## Set up priors
-    V_skyline_c = V_skyline
-    V_skyline_r = V_skyline_c[simplemsk,:]
+    V_skyline_bright_c = V_skyline_bright
+    V_skyline_bright_r = V_skyline_bright_c[simplemsk,:]
+    V_skyline_faint_c = V_skyline_faint
+    V_skyline_faint_r = V_skyline_faint_c[simplemsk,:]
     V_skycont_c = V_skycont
     V_skycont_r = V_skycont_c[simplemsk,:]
     
     # Compute sky line/continuum separation
-    Vcomb = hcat(V_skyline_r,V_skycont_r);
+    Vcomb = hcat(V_skyline_bright_r,V_skyline_faint_r,V_skycont_r);
     Ctotinv = LowRankMultMat([Ainv,Vcomb],wood_precomp_mult,wood_fxn_mult);
     x_comp_lst = deblend_components_all_asym(Ctotinv, Xd_obs, (V_skycont_r, ), (V_skycont_c, ))
 
