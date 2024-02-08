@@ -72,7 +72,7 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
             end
 
             simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
-            contvec = sky_decomp(fvec, fvarvec, simplemsk,V_skyline_bright, V_skyline_faint, V_skycont)
+            contvec = sky_decomp(fvec, fvarvec, simplemsk, V_skyline_bright, V_skyline_faint, V_skycont)
             # do we want to save the other components to disk? I am not sure we do.
             outcont[:,findx] .= contvec
         # catch

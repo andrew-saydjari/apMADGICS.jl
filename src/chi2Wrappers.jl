@@ -57,6 +57,21 @@ function chi2_wrapper(sval,intup)
     )
 end
 
+function chi2_wrapper_res(sval,intup)
+    (simplemsk,Ctotinv,Xd_obs,Dscale,V_new,pre_Vslice,Cres) = intup
+    # transform val to index
+    rval = indInt(sval)
+    tval = indTenth(sval)
+    pre_Vslice .= view(ShiftedArrays.circshift(view(V_new,:,:,tval),(rval,0)),simplemsk,:)
+    pre_Vslice .*= Dscale 
+    return woodbury_update_inv_tst_res(
+        Ctotinv,
+        Xd_obs,
+        pre_Vslice,
+        Cres
+    )
+end
+
 function update_Ctotinv_Vstarstarlines(svald,Ainv,simplemsk,Dscale,Vcomb_0,V_starlines)
     rval = indInt(svald)
     tval = indTenth(svald)
