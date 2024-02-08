@@ -81,6 +81,18 @@ function woodbury_update_inv_tst(Ainv::LowRankMultMatIP,Xd,V)
     return -(XdAinvV*(Minvc\XdAinvV'))[1]/2
 end
 
+function woodbury_update_inv_tst_res(Ainv::LowRankMultMatIP,Xd,V,Cres::Diagonal)
+    mul!(Ainv,V)
+    AinvV = Ainv.precompList[end]
+    XdAinvV = reshape(Xd,1,:)*AinvV
+    XdAinvCresAinvV = reshape(Xd,1,:)*(Ainv*(Cres*AinvV)) # super not ideal
+    M = V'*AinvV
+    dind = diagind(M)
+    M[dind] .+= 1
+    Minvc = cholesky!(Symmetric(M))
+    return -(XdAinvCresAinvV*(Minvc\XdAinvV'))[1]/2
+end
+
 function woodbury_update_inv_tst(Ainv::Union{LowRankMultMat,AbstractMatrix},Xd,V)
     AinvV = Ainv*V
     XdAinvV = reshape(Xd,1,:)*AinvV
