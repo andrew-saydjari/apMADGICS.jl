@@ -115,7 +115,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=true, rv_chi2tot=true, cache_dir="../local_cache", inject_cache_dir=prior_dir*"2024_02_08/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=true, rv_chi2tot=true, cache_dir="../local_cache", inject_cache_dir=prior_dir*"2024_02_10/inject_local_cache_skycont")
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
         out = []
 
@@ -150,7 +150,7 @@ end
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(starcache)
             starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
         elseif tele[end]=='i'
-            warn("Injections not found at injection cache dir!")
+            @warn "Injections not found at injection cache dir!"
         else
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
             starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
