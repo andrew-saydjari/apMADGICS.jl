@@ -85,7 +85,7 @@ function woodbury_update_inv_tst_res(Ainv::LowRankMultMatIP,Xd,V,Cres::Diagonal)
     mul!(Ainv,V)
     AinvV = Ainv.precompList[end]
     XdAinvV = reshape(Xd,1,:)*AinvV
-    XdAinvCresAinvV = reshape(Xd,1,:)*(Ainv*(Cres*AinvV)) # super not ideal
+    XdAinvCresAinvV = (Ainv*reshape(Xd,:,1))'*(Cres*AinvV) # super not ideal
     M = V'*AinvV
     dind = diagind(M)
     M[dind] .+= 1

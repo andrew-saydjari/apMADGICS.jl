@@ -37,16 +37,16 @@ redux_ver = ARGS[2]
 release_dir_n = replace(replace(release_dir,"/"=>"_"),"-"=>"_")
 redux_ver_n = replace(redux_ver,"."=>"p")
 
-check_ap1d = false
-check_apCframes = false
-check_exp = false
-check_flux = false
-check_plates = false
-write_sky = false
-write_star_plate = false
-write_tell = false
+check_ap1d = true
+check_apCframes = true
+check_exp = true
+check_flux = true
+check_plates = true
+write_sky = true
+write_star_plate = true
+write_tell = true
 check_wavecal = true
-tele_try_list =  ["lco25m"] # ["apo25m"] #,"lco25m"]
+tele_try_list =  ["apo25m","lco25m"]
 
 
 ### Ingest allVisit File
@@ -326,20 +326,20 @@ end
     end
 end
 
-run_lsts = []
-run_lens = []
-for telematch in tele_list
-    for fiber in 1:300
-        teleind = (telematch == "lco25m") ? 2 : 1
-        adjfibindx = (teleind-1)*300 + fiber
-        run_per_fiber = deserialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
-        push!(run_lsts,run_per_fiber)
-        push!(run_lens,length(run_per_fiber))
-    end
-end
-run_lst = vcat(run_lsts...)
-
 if check_exp
+    run_lsts = []
+    run_lens = []
+    for telematch in tele_list
+        for fiber in 1:300
+            teleind = (telematch == "lco25m") ? 2 : 1
+            adjfibindx = (teleind-1)*300 + fiber
+            run_per_fiber = deserialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+            push!(run_lsts,run_per_fiber)
+            push!(run_lens,length(run_per_fiber))
+        end
+    end
+    run_lst = vcat(run_lsts...)
+
     println("##### Checking the MJDexp Files #####")
     pout = @showprogress pmap(exp_check,run_lst)
 
@@ -483,18 +483,20 @@ if check_flux
     end
 end
 
-# apply any other masking to the star list and generate final star lists
-for telematch in tele_list
-    for fiber in 1:300
-        teleind = (telematch == "lco25m") ? 2 : 1
-        adjfibindx = (teleind-1)*300 + fiber
-        star_input = deserialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
-        msk = deserialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_msk_fluxing_lst_"*lpad(adjfibindx,3,"0")*".jdat")
-        subiter = star_input[.!msk]
-        new_vec = map(i->map(x->x[i],subiter),1:length(subiter[1]))
-        nstar = length(new_vec[1])
-        new_vec[1]=1:nstar
-        serialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_msked_"*lpad(adjfibindx,3,"0")*".jdat",collect(Iterators.zip(new_vec...)))
+if check_ap1d | check_apCframes | check_exp | check_flux
+    # apply any other masking to the star list and generate final star lists
+    for telematch in tele_list
+        for fiber in 1:300
+            teleind = (telematch == "lco25m") ? 2 : 1
+            adjfibindx = (teleind-1)*300 + fiber
+            star_input = deserialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+            msk = deserialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_msk_fluxing_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+            subiter = star_input[.!msk]
+            new_vec = map(i->map(x->x[i],subiter),1:length(subiter[1]))
+            nstar = length(new_vec[1])
+            new_vec[1]=1:nstar
+            serialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_msked_"*lpad(adjfibindx,3,"0")*".jdat",collect(Iterators.zip(new_vec...)))
+        end
     end
 end
 
@@ -998,3 +1000,4 @@ end
 rmprocs(workers())
 
 # julia +1.8.2 verify_drp.jl "sdsswork/mwm" "1.2" | tee -a ../../outlists/sdsswork_1p2.log
+# julia +1.8.2 verify_drp.jl "dr17" "dr17" | tee -a ../../outlists/dr17_dr17.log

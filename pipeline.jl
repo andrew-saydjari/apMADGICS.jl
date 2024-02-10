@@ -115,7 +115,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, sky_off=false, rv_chi2tot=true, cache_dir="../local_cache", inject_cache_dir=prior_dir*"2023_08_22/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, sky_off=false, rv_chi2tot=false, cache_dir="../local_cache", inject_cache_dir=prior_dir*"2024_02_08/inject_local_cache")
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
         out = []
 
@@ -292,7 +292,7 @@ end
 end
 
 @everywhere begin
-    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=true)
+    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=false)
         ### Set up
         out = []
         startind = indsubset[1][1]
@@ -342,9 +342,8 @@ end
                 global V_starcont = read(f["Vmat"])
                 close(f)
 
-                # can consider changing dimension at the full DR17 reduction stage
-                # this only exists for the 295 fiber for the moment (can easily batch generate the rest)
-                f = h5open(prior_dir*"2023_09_26/star_priors/APOGEE_starCor_svd_50_subpix_f"*lpad(adjfibindx,3,"0")*".h5")
+                # can consider changing dimension at the full reduction stage
+                f = h5open(prior_dir*"2023_08_22/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 close(f)
                 if ddstaronly
@@ -485,7 +484,7 @@ iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
 
 for adjfibindx = 295:295 #1:600 #295, 245
-    subiter = deserialize(prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"*lpad(adjfibindx,3,"0")*".jdat")
+    subiter = deserialize(prior_dir*"2024_02_08/inject_sky/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end
