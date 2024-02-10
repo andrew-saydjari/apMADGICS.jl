@@ -115,7 +115,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=true, rv_chi2tot=true, cache_dir="../local_cache", inject_cache_dir=prior_dir*"2024_02_10/inject_local_cache_skycont")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2tot=true, cache_dir="../local_cache_skystar", inject_cache_dir=prior_dir*"2024_02_10/inject_local_cache_why")
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
         out = []
 
@@ -486,7 +486,7 @@ iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
 
 for adjfibindx = 295:295 #1:600 #295, 245
-    subiter = deserialize(prior_dir*"2024_02_10/inject_skycont/injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+    subiter = deserialize(prior_dir*"2024_02_10/dr17_dr17_skystar_input_lst_plate_msked_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end
