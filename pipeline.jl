@@ -66,7 +66,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     close(f)
 
     alpha = 1;
-    f = h5open(prior_dir*"2023_08_22/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
+    f = h5open(prior_dir*"2024_02_11/moonLine_priors/APOGEE_solar_exact_1_subpix_th22500.h5")
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
@@ -120,7 +120,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=true, rv_chi2tot=true, cache_dir="../local_cache_skystar", inject_cache_dir=prior_dir*"2024_02_10/inject_local_cache_why")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2tot=true, cache_dir="../local_cache_skystar", inject_cache_dir=prior_dir*"2024_02_10/inject_local_cache_why")
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
         out = []
 
@@ -351,7 +351,7 @@ end
                 close(f)
 
                 # can consider changing dimension at the full reduction stage
-                f = h5open(prior_dir*"2023_08_22/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir*"2024_02_11/moonLine_priors/APOGEE_solar_exact_1_subpix_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 close(f)
                 if ddstaronly
