@@ -84,7 +84,12 @@ end
 # it would be great to move this into a parameter file that is read for each run
 @everywhere begin
     refine_iters = 1
-    
+
+    # Moon Wave
+    mlvl1 = -2:1//10:2
+    mlvl_tuple = (mlvl1,)
+    # tuple1dprint(mlvl_tuple)
+
     # Star Wave
     lvl1 = -70:1//2:70
     lvl2 = -8:2//10:8
@@ -209,7 +214,7 @@ end
         else
             Base.Fix2(chi2_wrapper_res,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice,A))
         end
-        lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=1//10,stepx=8)
+        lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,mlvl_tuple,minres=1//10,stepx=8)
         push!(out,lout) # 2
 
         # update the Ctotinv to include the stellar line component (iterate to refine starCont_Mscale)
@@ -338,7 +343,8 @@ end
 
                 global skymsk_bright = chebmsk_exp .& submsk_bright #.& msk_starCor;
                 global skymsk_faint = chebmsk_exp .& submsk_faint #.& msk_starCor;
-                global skymsk = chebmsk_exp .& (submsk_bright .| submsk_faint) #.& msk_starCor;
+                # global skymsk = chebmsk_exp .& (submsk_bright .| submsk_faint) #.& msk_starCor;
+                global skymsk = chebmsk_exp .& submsk_faint # completely masking all bright lines;
 
                 f = h5open(prior_dir*"2023_07_22/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
                 global V_starcont = read(f["Vmat"])
