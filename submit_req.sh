@@ -1,6 +1,7 @@
 #!/bin/bash
-#SBATCH --account=sdss-np
-#SBATCH --partition=sdss-shared-np
+#SBATCH --account=sdss-np-fast
+#SBATCH --partition=sdss-np
+#SBATCH --qos=sdss-np-req
 #SBATCH --nodes=4
 #SBATCH --ntasks-per-node=64
 
