@@ -85,12 +85,14 @@ function woodbury_update_inv_split_tst(Ainv::LowRankMultMatIP,Xd,V2,AinvV1,XdAin
     mul!(Ainv,V2)
     AinvV2 = Ainv.precompList[end]
     XdAinvV2 = reshape(Xd,1,:)*AinvV2
-    M = V1TAinvV1 + V2'*(AinvV2 + 2 .*AinvV1) # intel speedup?
+    V2TAinvV2 = V2'*AinvV2
+    V2TAinvV1 = V2'*AinvV1
+    M = [V1TAinvV1 V2TAinvV1';V2TAinvV1  V2TAinvV2] # how efficient is this block allocation?
     dind = diagind(M)
     M[dind] .+= 1
     Minvc = cholesky!(Symmetric(M))
-    XdAinvV1pXdAinvV2 = XdAinvV1 + XdAinvV2
-    return -(XdAinvV1pXdAinvV2*(Minvc\XdAinvV1pXdAinvV2'))[1]/2
+    XdAinvV1V2 = hcat(XdAinvV1,XdAinvV2)
+    return -(XdAinvV1V2*(Minvc\XdAinvV1V2'))[1]/2
 end
 
 function woodbury_update_inv_tst_res(Ainv::LowRankMultMatIP,Xd,V,Cres::Diagonal)
