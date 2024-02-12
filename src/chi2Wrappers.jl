@@ -83,7 +83,6 @@ function chi2_wrapper_split(sval,intup)
         Ctotinv,
         Xd_obs,
         pre_Vslice,
-        Cres,
         AinvV1,
         XdAinvV1,
         V1TAinvV1

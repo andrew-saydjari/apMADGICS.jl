@@ -6,14 +6,16 @@ function cache_skyname(tele,field,plate,mjd; cache_dir="../local_cache")
 end
 #do not remake for each fiber
 
-function cache_skynameSpec(tele,field,plate,mjd,fiberindx; telluric_div=false, cache_dir="../local_cache",inject_cache_dir="../inject_local_cache")
+# choose not to cache the skyspec in injection_cache_dir (change injection tests to point cache_dir to injection_cache_dir for skyspec)
+function cache_skynameSpec(tele,field,plate,mjd,fiberindx; telluric_div=false, cache_dir="../local_cache")#,inject_cache_dir="../inject_local_cache")
     teleind = (tele[1:6] == "lco25m") ? 2 : 1
     adjfibindx = (teleind-1)*300 + fiberindx
-    basedir = if tele[end]=='i'
-        inject_cache_dir
-    else
-        cache_dir
-    end
+    # basedir = if tele[end]=='i'
+    #     inject_cache_dir
+    # else
+    #     cache_dir
+    # end
+    basedir = cache_dir
     if telluric_div
         return join([basedir,mjd,lpad(adjfibindx,3,"0"),join(["skySpec","tellDiv",tele,field,plate,mjd,fiberindx],"_")],"/")*".jdat"
     else

@@ -8,10 +8,12 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
 addprocs(SlurmManager())
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
-activateout = @capture_out begin
-    @everywhere begin
-        import Pkg
-        Pkg.activate("./")
+if VERSION < v"1.9-"
+    activateout = @capture_out begin
+        @everywhere begin
+            import Pkg
+            Pkg.activate("./")
+        end
     end
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker activation took $dt"); t_then = t_now; flush(stdout)
@@ -220,8 +222,7 @@ end
         chi2_wrapper_partial = if rv_chi2res
             Base.Fix2(chi2_wrapper_res,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice,A))
         elseif rv_split
-            mul!(Ctotinv_cur,V_skyline_tot_r)
-            AinvV1 = Ctotinv_cur.precompList[end]
+            AinvV1 = Ctotinv_cur*V_skyline_tot_r
             XdAinvV1 = reshape(Xd_obs,1,:)*AinvV1
             V1TAinvV1 = V_skyline_tot_r'*AinvV1
             Base.Fix2(chi2_wrapper_split,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice,AinvV1,XdAinvV1,V1TAinvV1))
