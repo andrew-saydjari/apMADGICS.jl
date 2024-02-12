@@ -220,7 +220,7 @@ end
 
         # compute delta chi2 for adding skylines (helps normalize the joint chi2 below with starLines)
         chi2skyoffset = woodbury_update_inv_tst(
-            Ctotinv_cur,
+            LowRankMultMatIP([Ainv,Vcomb_cur],wood_precomp_mult_mat([Ainv,Vcomb_cur],(size(Ainv,1),size(V_skyline_tot_r,2))),wood_fxn_mult,wood_fxn_mult_mat!),
             Xd_obs,
             V_skyline_tot_r
         )
