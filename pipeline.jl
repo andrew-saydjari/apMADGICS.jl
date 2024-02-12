@@ -8,10 +8,12 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
 addprocs(SlurmManager())
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
-activateout = @capture_out begin
-    @everywhere begin
-        import Pkg
-        Pkg.activate("./")
+if VERSION < v"1.9-"
+    activateout = @capture_out begin
+        @everywhere begin
+            import Pkg
+            Pkg.activate("./")
+        end
     end
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker activation took $dt"); t_then = t_now; flush(stdout)
