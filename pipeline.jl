@@ -217,6 +217,13 @@ end
         # now take out the skylines to be included in the scanning
         Vcomb_cur = hcat(V_locSky_r,V_starCont_r);
         Ctotinv_cur = LowRankMultMatIP([Ainv,Vcomb_cur],wood_precomp_mult_mat([Ainv,Vcomb_cur],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
+
+        # compute delta chi2 for adding skylines (helps normalize the joint chi2 below with starLines)
+        chi2skyoffset = woodbury_update_inv_tst(
+            Ctotinv_cur,
+            Xd_obs,
+            V_skyline_tot_r
+        )
   
         pre_Vslice = zeros(count(simplemsk),size(V_subpix,2))
         chi2_wrapper_partial = if rv_chi2res
@@ -225,7 +232,7 @@ end
             AinvV1 = Ctotinv_cur*V_skyline_tot_r
             XdAinvV1 = reshape(Xd_obs,1,:)*AinvV1
             V1TAinvV1 = V_skyline_tot_r'*AinvV1
-            Base.Fix2(chi2_wrapper_split,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice,AinvV1,XdAinvV1,V1TAinvV1))
+            Base.Fix2(chi2_wrapper_split,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice,AinvV1,XdAinvV1,V1TAinvV1,chi2skyoffset))
         else
             Base.Fix2(chi2_wrapper,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice))
         end
@@ -423,8 +430,8 @@ end
                 (x->x[RVchi][1],                        "RVchi2_residuals"),
                                     
                 (x->x[RVind][2][1][3],                  "RV_p5delchi2_lvl1"),
-                # (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
-                # (x->x[RVind][2][3][3],                  "RV_p5delchi2_lvl3"),
+                (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
+                (x->x[RVind][2][3][3],                  "RV_p5delchi2_lvl3"),
 
                 (x->x[RVcom][1],                        "x_residuals_z_v0"),
                 (x->x[RVcom][2],                        "x_residuals_v0"),

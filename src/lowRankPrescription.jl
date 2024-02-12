@@ -81,7 +81,7 @@ function woodbury_update_inv_tst(Ainv::LowRankMultMatIP,Xd,V)
     return -(XdAinvV*(Minvc\XdAinvV'))[1]/2
 end
 
-function woodbury_update_inv_split_tst(Ainv::LowRankMultMatIP,Xd,V2,AinvV1,XdAinvV1,V1TAinvV1)
+function woodbury_update_inv_split_tst(Ainv::LowRankMultMatIP,Xd,V2,AinvV1,XdAinvV1,V1TAinvV1;chi2offset=0.0)
     mul!(Ainv,V2)
     AinvV2 = Ainv.precompList[end]
     XdAinvV2 = reshape(Xd,1,:)*AinvV2
@@ -92,7 +92,7 @@ function woodbury_update_inv_split_tst(Ainv::LowRankMultMatIP,Xd,V2,AinvV1,XdAin
     M[dind] .+= 1
     Minvc = cholesky!(Symmetric(M))
     XdAinvV1V2 = hcat(XdAinvV1,XdAinvV2)
-    return -(XdAinvV1V2*(Minvc\XdAinvV1V2'))[1]/2
+    return -(XdAinvV1V2*(Minvc\XdAinvV1V2'))[1]/2-chi2offset
 end
 
 function woodbury_update_inv_tst_res(Ainv::LowRankMultMatIP,Xd,V,Cres::Diagonal)

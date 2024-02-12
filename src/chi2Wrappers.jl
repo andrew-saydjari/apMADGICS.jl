@@ -73,7 +73,7 @@ function chi2_wrapper_res(sval,intup)
 end
 
 function chi2_wrapper_split(sval,intup)
-    (simplemsk,Ctotinv,Xd_obs,Dscale,V_new,pre_Vslice,AinvV1,XdAinvV1,V1TAinvV1) = intup
+    (simplemsk,Ctotinv,Xd_obs,Dscale,V_new,pre_Vslice,AinvV1,XdAinvV1,V1TAinvV1,chi2offset) = intup
     # transform val to index
     rval = indInt(sval)
     tval = indTenth(sval)
@@ -85,7 +85,8 @@ function chi2_wrapper_split(sval,intup)
         pre_Vslice,
         AinvV1,
         XdAinvV1,
-        V1TAinvV1
+        V1TAinvV1,
+        chi2offset = chi2offset
     )
 end
 
