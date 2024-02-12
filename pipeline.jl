@@ -120,7 +120,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2tot=true, cache_dir="../local_cache_skystar", inject_cache_dir=prior_dir*"2024_02_10/inject_local_cache_why")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=true, cache_dir="../local_cache", inject_cache_dir="../inject_local_cache")
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
         out = []
 
@@ -192,10 +192,14 @@ end
         fullBitprox[.!simplemsk] .= 2^4
 
         ## Set up priors
-        V_skyline_bright_c = V_skyline_bright
-        V_skyline_bright_r = V_skyline_bright_c[simplemsk,:]
+        # V_skyline_bright_c = V_skyline_bright
+        # V_skyline_bright_r = V_skyline_bright_c[simplemsk,:]
         V_skyline_faint_c = V_skyline_faint
         V_skyline_faint_r = V_skyline_faint_c[simplemsk,:]
+        # V_skyline_tot_c = hcat(V_skyline_bright_c,V_skyline_faint_c)
+        # V_skyline_tot_r = hcat(V_skyline_bright_r,V_skyline_faint_r)
+        V_skyline_tot_c = V_skyline_faint_c
+        V_skyline_tot_r = V_skyline_faint_r
         V_locSky_c = VLocSky
         V_locSky_r = V_locSky_c[simplemsk,:]
         V_starCont_c = starscale*V_starcont
@@ -203,39 +207,50 @@ end
 
         ## Solve RV of Star
         # compute stellar continuum to modify stellar line prior
-        Vcomb_cur = hcat(V_skyline_bright_r,V_skyline_faint_r,V_locSky_r,V_starCont_r);
-        Ctotinv_cur = LowRankMultMatIP([Ainv,Vcomb_cur],wood_precomp_mult_mat([Ainv,Vcomb_cur],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
-        x_comp_lst = deblend_components_all(Ctotinv_cur, Xd_obs, (V_starCont_r,))
-
+        Vcomb_skylines = hcat(V_skyline_tot_r,V_locSky_r,V_starCont_r);
+        Ctotinv_skylines = LowRankMultMatIP([Ainv,Vcomb_skylines],wood_precomp_mult_mat([Ainv,Vcomb_skylines],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
+        x_comp_lst = deblend_components_all(Ctotinv_skylines, Xd_obs, (V_starCont_r,))
         starCont_Mscale = x_comp_lst[1]
+
+        # now take out the skylines to be included in the scanning
+        Vcomb_cur = hcat(V_locSky_r,V_starCont_r);
+        Ctotinv_cur = LowRankMultMatIP([Ainv,Vcomb_cur],wood_precomp_mult_mat([Ainv,Vcomb_cur],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
+  
         pre_Vslice = zeros(count(simplemsk),size(V_subpix,2))
-        chi2_wrapper_partial = if rv_chi2tot
-            Base.Fix2(chi2_wrapper,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice))
-        else
+        chi2_wrapper_partial = if rv_chi2res
             Base.Fix2(chi2_wrapper_res,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice,A))
+        elseif rv_split
+            mul!(Ctotinv_cur,V_skyline_tot_r)
+            AinvV1 = Ctotinv_cur.precompList[end]
+            XdAinvV1 = reshape(Xd_obs,1,:)*AinvV1
+            V1TAinvV1 = V_skyline_tot_r'*AinvV1
+            Base.Fix2(chi2_wrapper_split,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice,AinvV1,XdAinvV1,V1TAinvV1))
+        else
+            Base.Fix2(chi2_wrapper,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice))
         end
-        lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,mlvl_tuple,minres=1//10,stepx=8)
+        lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=1//10,stepx=8)
         push!(out,lout) # 2
 
         # update the Ctotinv to include the stellar line component (iterate to refine starCont_Mscale)
         svalc = lout[1][3]
         for i=1:refine_iters
-            Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
+            Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],simplemsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
             x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,))
             starCont_Mscale = x_comp_lst[1]
         end
-        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
+        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],simplemsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
         
         # do a component save without the 15273 DIB
         x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
-            (A, V_skyline_bright_r, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_r, V_starlines_r),
-            (A, V_skyline_bright_r, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_c, I),
+            (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_r, V_starlines_r),
+            (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_c, I),
         )
         push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 3
         x_comp_out = [nanify(x_comp_lst[1],simplemsk)./sqrt.(fvarvec), nanify(x_comp_lst[1],simplemsk), 
-                        nanify(x_comp_lst[2][skymsk_bright[simplemsk]],simplemsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[simplemsk]],simplemsk .& skymsk_faint), 
-                        nanify(x_comp_lst[4].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[5],simplemsk),
-                        x_comp_lst[6:end]..., nanify((fvec[simplemsk].-(x_comp_lst[2].+x_comp_lst[3].+x_comp_lst[4].+meanLocSky[simplemsk]))./ x_comp_lst[5],simplemsk)]
+                        # nanify(x_comp_lst[2][skymsk_bright[simplemsk]],simplemsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[simplemsk]],simplemsk .& skymsk_faint), 
+                        nanify(x_comp_lst[2][skymsk_faint[simplemsk]],simplemsk .& skymsk_faint), 
+                        nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk),
+                        x_comp_lst[5:end]..., nanify((fvec[simplemsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[simplemsk]))./ x_comp_lst[4],simplemsk)]
         push!(out,x_comp_out) # 4
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
         push!(out,dflux_starlines) # 5
@@ -245,7 +260,7 @@ end
         starCont_Mscale = x_comp_lst[1]
         starFull_Mscale = x_comp_lst[1].+x_comp_lst[2]
         
-        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_cur.matList[1],simplemsk,starCont_Mscale,Vcomb_cur,V_subpix,V_subpix_refLSF)
+        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],simplemsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
         Ctotinv_cur, Ctotinv_fut = Ctotinv_fut, Ctotinv_cur; Vcomb_cur, Vcomb_fut = Vcomb_fut, Vcomb_cur # swap to updated covariance finally
         
         # currently, this is modeling each DIB seperately... I think we want to change this later, just easier parallel structure
@@ -279,17 +294,18 @@ end
                 opt_tup,Ctotinv_cur.matList[1],simplemsk,starFull_Mscale,Vcomb_cur,V_dib_soft,V_dib_noLSF_soft,scan_offset)
 
             x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
-                (A, V_skyline_bright_r, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_r, V_dibr),
-                (A, V_skyline_bright_r, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_c, V_dibc),
+                (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_r, V_dibr),
+                (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_c, V_dibc),
             )
             push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 8
             # I am not sure that during production we really want to run and output full sets of components per DIB
             # I would like to fill NaNs in chip gaps for the sky/continuum components
             # revisit that when we revisit the interpolations before making other fiber priors
             x_comp_out = [nanify(x_comp_lst[1],simplemsk)./sqrt.(fvarvec), nanify(x_comp_lst[1],simplemsk),
-                        nanify(x_comp_lst[2][skymsk_bright[simplemsk]],simplemsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[simplemsk]],simplemsk .& skymsk_faint), 
-                        nanify(x_comp_lst[4].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[5],simplemsk),
-                        x_comp_lst[6:end]...]
+                        # nanify(x_comp_lst[2][skymsk_bright[simplemsk]],simplemsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[simplemsk]],simplemsk .& skymsk_faint), 
+                        nanify(x_comp_lst[2][skymsk_faint[simplemsk]],simplemsk .& skymsk_faint), 
+                        nanify(x_comp_lst[3].+meanLocSky[simplemsk],simplemsk), nanify(x_comp_lst[4],simplemsk),
+                        x_comp_lst[5:end]...]
 
             push!(out,x_comp_out) # 9
         end
@@ -411,15 +427,15 @@ end
 
                 (x->x[RVcom][1],                        "x_residuals_z_v0"),
                 (x->x[RVcom][2],                        "x_residuals_v0"),
-                (x->x[RVcom][3],                        "x_skyLines_bright_v0"),
-                (x->x[RVcom][4],                        "x_skyLines_faint_v0"),
-                (x->x[RVcom][5],                        "x_skyContinuum_v0"),
-                (x->x[RVcom][6],                        "x_starContinuum_v0"),
+                # (x->x[RVcom][3],                        "x_skyLines_bright_v0"),
+                (x->x[RVcom][3],                        "x_skyLines_faint_v0"),
+                (x->x[RVcom][4],                        "x_skyContinuum_v0"),
+                (x->x[RVcom][5],                        "x_starContinuum_v0"),
                 # (x->x[RVcom][6],                        "x_starLineCor_v0"),
-                (x->x[RVcom][7],                        "x_starLines_v0"),
-                (x->x[RVcom][8],                        "x_starLineCof_v0"),
-                (x->x[RVcom][9],                        "tot_p5chi2_v0"), 
-                (x->x[RVcom][10],                       "apVisit_v0"),       
+                (x->x[RVcom][6],                        "x_starLines_v0"),
+                (x->x[RVcom][7],                        "x_starLineCof_v0"),
+                (x->x[RVcom][8],                        "tot_p5chi2_v0"), 
+                (x->x[RVcom][9],                        "apVisit_v0"),       
                                     
                 (x->x[strpo],                           "x_starLines_err_v0"),    
             ]
@@ -449,14 +465,14 @@ end
 
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][1],                        "x_residuals_z_v1_$(dibind)_$(dib)"),
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][2],                        "x_residuals_v1_$(dibind)_$(dib)"),
-                (x->x[DIBcom+dibsavesz*(dibindx-1)][3],                        "x_skyLines_bright_v1_$(dibind)_$(dib)"),
-                (x->x[DIBcom+dibsavesz*(dibindx-1)][4],                        "x_skyLines_faint_v1_$(dibind)_$(dib)"),
-                (x->x[DIBcom+dibsavesz*(dibindx-1)][5],                        "x_skyContinuum_v1_$(dibind)_$(dib)"),
-                (x->x[DIBcom+dibsavesz*(dibindx-1)][6],                        "x_starContinuum_v1_$(dibind)_$(dib)"),
+                # (x->x[DIBcom+dibsavesz*(dibindx-1)][3],                        "x_skyLines_bright_v1_$(dibind)_$(dib)"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][3],                        "x_skyLines_faint_v1_$(dibind)_$(dib)"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][4],                        "x_skyContinuum_v1_$(dibind)_$(dib)"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][5],                        "x_starContinuum_v1_$(dibind)_$(dib)"),
                 # (x->x[DIBcom+dibsavesz*(dibindx-1)][6],                        "x_starLineCor_v1_$(dibind)_$(dib)"),
-                (x->x[DIBcom+dibsavesz*(dibindx-1)][7],                        "x_starLines_v1_$(dibind)_$(dib)"),
-                (x->x[DIBcom+dibsavesz*(dibindx-1)][8],                        "x_dib_v1_$(dibind)_$(dib)"),
-                (x->x[DIBcom+dibsavesz*(dibindx-1)][9],                        "tot_p5chi2_v1_$(dibind)_$(dib)"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][6],                        "x_starLines_v1_$(dibind)_$(dib)"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][7],                        "x_dib_v1_$(dibind)_$(dib)"),
+                (x->x[DIBcom+dibsavesz*(dibindx-1)][8],                        "tot_p5chi2_v1_$(dibind)_$(dib)"),
                 ])
             end
             extractlst = vcat(RVextract...,DIBextract...)

@@ -72,6 +72,24 @@ function chi2_wrapper_res(sval,intup)
     )
 end
 
+function chi2_wrapper_split(sval,intup)
+    (simplemsk,Ctotinv,Xd_obs,Dscale,V_new,pre_Vslice,AinvV1,XdAinvV1,V1TAinvV1) = intup
+    # transform val to index
+    rval = indInt(sval)
+    tval = indTenth(sval)
+    pre_Vslice .= view(ShiftedArrays.circshift(view(V_new,:,:,tval),(rval,0)),simplemsk,:)
+    pre_Vslice .*= Dscale 
+    return woodbury_update_inv_split_tst(
+        Ctotinv,
+        Xd_obs,
+        pre_Vslice,
+        Cres,
+        AinvV1,
+        XdAinvV1,
+        V1TAinvV1
+    )
+end
+
 function update_Ctotinv_Vstarstarlines(svald,Ainv,simplemsk,Dscale,Vcomb_0,V_starlines)
     rval = indInt(svald)
     tval = indTenth(svald)

@@ -81,6 +81,18 @@ function woodbury_update_inv_tst(Ainv::LowRankMultMatIP,Xd,V)
     return -(XdAinvV*(Minvc\XdAinvV'))[1]/2
 end
 
+function woodbury_update_inv_split_tst(Ainv::LowRankMultMatIP,Xd,V2,AinvV1,XdAinvV1,V1TAinvV1)
+    mul!(Ainv,V2)
+    AinvV2 = Ainv.precompList[end]
+    XdAinvV2 = reshape(Xd,1,:)*AinvV2
+    M = V1TAinvV1 + V2'*(AinvV2 + 2 .*AinvV1) # intel speedup?
+    dind = diagind(M)
+    M[dind] .+= 1
+    Minvc = cholesky!(Symmetric(M))
+    XdAinvV1pXdAinvV2 = XdAinvV1 + XdAinvV2
+    return -(XdAinvV1pXdAinvV2*(Minvc\XdAinvV1pXdAinvV2'))[1]/2
+end
+
 function woodbury_update_inv_tst_res(Ainv::LowRankMultMatIP,Xd,V,Cres::Diagonal)
     mul!(Ainv,V)
     AinvV = Ainv.precompList[end]
