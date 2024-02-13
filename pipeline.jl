@@ -263,6 +263,9 @@ end
         Vcomb_skylines = hcat(V_skyline_tot_r,V_locSky_r,V_starCont_r);
         Ctotinv_skylines = LowRankMultMatIP([Ainv,Vcomb_skylines],wood_precomp_mult_mat([Ainv,Vcomb_skylines],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
 
+        x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,))
+        starCont_Mscale = x_comp_lst[1]
+
         # update the Ctotinv to include the stellar line component (iterate to refine starCont_Mscale)
         svalc = lout[1][3]
         for i=1:refine_iters
