@@ -5,13 +5,13 @@ import Pkg; using Dates; t0 = now(); t_then = t0;
 using InteractiveUtils; versioninfo()
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
-using MKL
+using BLISBLAS
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
 addprocs(SlurmManager(),exeflags=["--project=./"])
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
 
 @everywhere begin
-    using MKL
+    using BLISBLAS
     using LinearAlgebra
     BLAS.set_num_threads(1)
     using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays
