@@ -1,5 +1,5 @@
 # Utils Module
-using ParallelDataTransfer, Distributed
+using ParallelDataTransfer, Distributed, Suppressor
 
 nanmean(x) = mean(filter(!isnan,x))
 nanmean(x,y) = mapslices(nanmean,x,dims=y)
@@ -74,6 +74,7 @@ end
 # Task-Affinity CPU Locking in multinode SlurmContext
 function slurm_cpu_lock()
     getinfo_worker(workerid::Int) = @getfrom workerid myid(), ThreadPinning.sched_getcpu(), gethostname()
+    dfo = DataFrame(workerid=Int[],physcpu=Int[],hostname=String[]);
     activateout = @capture_out begin
         idlst = getinfo_worker.(workers()); df = DataFrame(workerid=Int[],physcpu=Int[],hostname=String[]); push!(df,idlst...)
         gdf = groupby(df,:hostname)
@@ -83,10 +84,10 @@ function slurm_cpu_lock()
             @spawnat sworker ThreadPinning.pinthread(sindx-1)
         end
         rmprocs(2)
+        idlst = getinfo_worker.(workers()); push!(dfo,idlst...)
     end
     # Helpful Worker Info Printing
-    idlst = getinfo_worker.(workers()); df = DataFrame(workerid=Int[],physcpu=Int[],hostname=String[]); push!(df,idlst...)
-    gdf = groupby(df,:hostname); dfc = combine(gdf, nrow, :workerid => minimum, :workerid => maximum, :physcpu => minimum, :physcpu => maximum)
+    gdf = groupby(dfo,:hostname); dfc = combine(gdf, nrow, :workerid => minimum, :workerid => maximum, :physcpu => minimum, :physcpu => maximum)
     println("$(gethostname()) running Main on worker: $(myid()) cpu: $(ThreadPinning.sched_getcpu())")
     for row in Tables.namedtupleiterator(dfc)
         println("$(row.hostname) running $(row.nrow) workers: $(row.workerid_minimum)->$(row.workerid_maximum) cpus: $(row.physcpu_minimum)->$(row.physcpu_maximum)")
