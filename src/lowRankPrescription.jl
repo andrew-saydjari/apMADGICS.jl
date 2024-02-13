@@ -53,7 +53,7 @@ function wood_precomp_mult_mat(matList::Vector{AbstractMatrix{Float64}}, sVnew::
     V = matList[2]
     AinvV = Ainv*V
     prealloc = prealloc_mat_gen(size(Ainv),size(V),sVnew)
-    return [(AinvV)*inv(I+V'*(AinvV)),prealloc[1],prealloc[2],prealloc[3]]
+    return [(AinvV)*inv_nan(I+V'*(AinvV)),prealloc[1],prealloc[2],prealloc[3]]
 end
 
 ## Low Rank Mult Partners Module  
