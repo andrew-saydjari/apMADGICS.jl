@@ -1,7 +1,7 @@
 name = "apMADGICS"
 uuid = "3883ed4c-82a0-4091-a108-0ec9373ee70d"
 authors = ["andrew-saydjari"]
-version = "0.1.4"
+version = "0.1.5"
 
 [deps]
 AstroTime = "c61b5328-d09d-5e37-a9a8-0eb41c39009c"
@@ -18,7 +18,6 @@ Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 LibGit2 = "76f85450-5226-5b5a-8eaa-529ad045b433"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LowRankOps = "0ea32739-31af-43e6-82ee-ebe6dcf00a6f"
-MKL = "33e6dc65-8f57-5167-99aa-e5a354878fb2"
 ParallelDataTransfer = "2dcacdae-9679-587a-88bb-8b444fb7085b"
 PoissonRandom = "e409e4f3-bfea-5376-8464-e040bb5c01ab"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
@@ -52,7 +51,7 @@ SortFilters = "0.1"
 StatsBase = "0.33, 0.34"
 Suppressor = "0.2"
 ThreadPinning = "0.7"
-julia = "1.7"
+julia = "1.6"
 
 [extras]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
