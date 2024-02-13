@@ -225,16 +225,16 @@ end
             V_skyline_tot_r
         )
   
-        pre_Vslice = zeros(count(simplemsk),size(V_subpix,2))
+        pre_Vslice = zeros(count(rvmsk),size(V_subpix,2))
         chi2_wrapper_partial = if rv_chi2res
-            Base.Fix2(chi2_wrapper_res,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice,A))
+            Base.Fix2(chi2_wrapper_res,(rvmsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice,A))
         elseif rv_split
             AinvV1 = Ctotinv_cur*V_skyline_tot_r
             XdAinvV1 = reshape(Xd_obs,1,:)*AinvV1
             V1TAinvV1 = V_skyline_tot_r'*AinvV1
-            Base.Fix2(chi2_wrapper_split,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice,AinvV1,XdAinvV1,V1TAinvV1,chi2skyoffset))
+            Base.Fix2(chi2_wrapper_split,(rvmsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice,AinvV1,XdAinvV1,V1TAinvV1,chi2skyoffset))
         else
-            Base.Fix2(chi2_wrapper,(simplemsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice))
+            Base.Fix2(chi2_wrapper,(rvmsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice))
         end
         lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=1//10,stepx=8)
         push!(out,lout) # 2
