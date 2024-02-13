@@ -116,7 +116,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=true, ddstaronly=false, cache_dir="../local_cache_novarscale", inject_cache_dir=prior_dir*"2024_02_08/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=true, ddstaronly=false, cache_dir="../local_cache", inject_cache_dir=prior_dir*"2024_02_08/inject_local_cache")
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
         out = []
 
