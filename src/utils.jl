@@ -13,6 +13,14 @@ nanmedian(x,y) = mapslices(nanmedian,x,dims=y)
 naniqr(x) = iqr(filter(!isnan,x))/1.34896
 naniqr(x,y) = mapslices(naniqr,x,dims=y)
 
+function inv_nan(A)
+    if any(isnan,A)
+        return NaN*ones(size(A))
+    else
+        return inv(A)
+    end
+end
+
 function gaussian_post(x,x0,s0)
     return 1/sqrt(2π)/s0*exp(-0.5*((x-x0)/s0)^2)
 end
@@ -66,14 +74,16 @@ end
 # Task-Affinity CPU Locking in multinode SlurmContext
 function slurm_cpu_lock()
     getinfo_worker(workerid::Int) = @getfrom workerid myid(), ThreadPinning.sched_getcpu(), gethostname()
-    idlst = getinfo_worker.(workers()); df = DataFrame(workerid=Int[],physcpu=Int[],hostname=String[]); push!(df,idlst...)
-    gdf = groupby(df,:hostname)
-    @spawnat 1 ThreadPinning.pinthread(0)
-    for sgdf in gdf, (sindx, sworker) in enumerate(sgdf.workerid)
-        sendto(sworker, sindx=sindx)
-        @spawnat sworker ThreadPinning.pinthread(sindx-1)
+    activateout = @capture_out begin
+        idlst = getinfo_worker.(workers()); df = DataFrame(workerid=Int[],physcpu=Int[],hostname=String[]); push!(df,idlst...)
+        gdf = groupby(df,:hostname)
+        @spawnat 1 ThreadPinning.pinthread(0)
+        for sgdf in gdf, (sindx, sworker) in enumerate(sgdf.workerid)
+            sendto(sworker, sindx=sindx)
+            @spawnat sworker ThreadPinning.pinthread(sindx-1)
+        end
+        rmprocs(2)
     end
-    rmprocs(2)
     # Helpful Worker Info Printing
     idlst = getinfo_worker.(workers()); df = DataFrame(workerid=Int[],physcpu=Int[],hostname=String[]); push!(df,idlst...)
     gdf = groupby(df,:hostname); dfc = combine(gdf, nrow, :workerid => minimum, :workerid => maximum, :physcpu => minimum, :physcpu => maximum)
