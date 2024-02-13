@@ -4,6 +4,7 @@ import Pkg; using Dates; t0 = now(); t_then = t0;
 using InteractiveUtils; versioninfo()
 Pkg.activate("../../"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
+using MKL
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
 addprocs(SlurmManager())
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
@@ -15,6 +16,9 @@ activateout = @capture_out begin
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker activation took $dt"); t_then = t_now; flush(stdout)
 @everywhere begin
+    using MKL
+    using LinearAlgebra
+    BLAS.set_num_threads(1)
     using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays
     using Interpolations, SparseArrays, ParallelDataTransfer, AstroTime, Suppressor
     using ThreadPinning
@@ -33,10 +37,8 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     include(src_dir*"src/chi2Wrappers.jl")
     include(src_dir*"src/prior_build/prior_utils.jl")
     
-    using StatsBase, LinearAlgebra, ProgressMeter
+    using StatsBase, ProgressMeter
     using SortFilters, BasisFunctions, AstroTime, Random
-    using BLISBLAS
-    BLAS.set_num_threads(1)
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 

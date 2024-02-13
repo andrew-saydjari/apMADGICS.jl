@@ -5,19 +5,15 @@ import Pkg; using Dates; t0 = now(); t_then = t0;
 using InteractiveUtils; versioninfo()
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
+using MKL
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
-addprocs(SlurmManager())
+addprocs(SlurmManager(),exeflags=["--project=./"])
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
-if VERSION < v"1.9-"
-    activateout = @capture_out begin
-        @everywhere begin
-            import Pkg
-            Pkg.activate("./")
-        end
-    end
-end
-t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker activation took $dt"); t_then = t_now; flush(stdout)
+
 @everywhere begin
+    using MKL
+    using LinearAlgebra
+    BLAS.set_num_threads(1)
     using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays
     using Interpolations, SparseArrays, ParallelDataTransfer, AstroTime, Suppressor
     using ThreadPinning
@@ -34,9 +30,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     include(src_dir*"src/spectraInterpolation.jl")
     include(src_dir*"src/chi2Wrappers.jl")
     
-    using StatsBase, LinearAlgebra, ProgressMeter
-    using BLISBLAS
-    BLAS.set_num_threads(1)
+    using StatsBase, ProgressMeter
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
