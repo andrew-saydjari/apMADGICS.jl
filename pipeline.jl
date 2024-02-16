@@ -66,6 +66,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
+    global err_correct_Dict = deserialize("./data/chip_fluxdep_err_correction.jdat")
+
     Xd_stack = zeros(3*2048)
     Xd_std_stack = zeros(3*2048)
     waveobs_stack = zeros(3*2048)
@@ -276,16 +278,18 @@ end
         Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
         
         # do a component save without the 15273 DIB
+        # the extra Vstarlines_r is duplicated work if a pure dd model, but helps compare flux conservation in both cases
         x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
             (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_r, V_starlines_r),
             (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_c, I),
         )
-        push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 3
+        
         x_comp_out = [nanify(x_comp_lst[1]./sqrt.(fvarvec[finalmsk]),finalmsk), nanify(x_comp_lst[1],finalmsk), 
                         # nanify(x_comp_lst[2][skymsk_bright[finalmsk]],finalmsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
                         nanify(x_comp_lst[2][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
                         nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4],finalmsk),
                         x_comp_lst[5:end]..., nanify((fvec[finalmsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[finalmsk]))./ x_comp_lst[4],finalmsk),finalmsk]
+        push!(out,(x_comp_lst[1]'*(Ainv*x_comp_lst[1]))) # 3
         push!(out,x_comp_out) # 4
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
         push!(out,dflux_starlines) # 5
@@ -332,7 +336,6 @@ end
                 (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_r, V_dibr),
                 (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_c, V_dibc),
             )
-            push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 8
             # I am not sure that during production we really want to run and output full sets of components per DIB
             # I would like to fill NaNs in chip gaps for the sky/continuum components
             # revisit that when we revisit the interpolations before making other fiber priors
@@ -341,6 +344,9 @@ end
                         nanify(x_comp_lst[2][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
                         nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4],finalmsk),
                         x_comp_lst[5:end]...]
+
+            dvec = (fvec .-(x_comp_out[2].+x_comp_out[3].+x_comp_out[4].+x_comp_out[5].*(1 .+ x_comp_out[6]).*(1 .+ x_comp_out[7])))./fvec;
+            push!(out,(x_comp_lst[1]'*(Ainv*x_comp_lst[1]),naniqr_NaN(dvec))) # 8
 
             push!(out,x_comp_out) # 9
         end
@@ -444,7 +450,7 @@ end
                 (x->x[metai][7],                        "a_relFlux"),
                 (x->x[metai][8],                        "b_relFlux"),
                 (x->x[metai][9],                        "c_relFlux"),
-                # (x->x[metai][10],                       "cartVisit"), ## FIXME add this back in
+                (x->x[metai][10],                       "cartVisit"), ## FIXME add this back in
                 (x->x[metai][11],                       "flux"),
                 (x->x[metai][12],                       "fluxerr2"),
                 (x->adjfibindx,                         "adjfiberindx"),
@@ -499,6 +505,7 @@ end
                 (x->x[EWind+dibsavesz*(dibindx-1)][2],                         "EW_dib_err_$(dibind)_$(dib)"),
                                     
                 (x->x[DIBchi+dibsavesz*(dibindx-1)][1],                        "DIBchi2_residuals_$(dibind)_$(dib)"),
+                (x->x[DIBchi+dibsavesz*(dibindx-1)][2],                        "avg_flux_conservation_$(dibind)_$(dib)"),
 
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][1],                        "x_residuals_z_v1_$(dibind)_$(dib)"),
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][2],                        "x_residuals_v1_$(dibind)_$(dib)"),

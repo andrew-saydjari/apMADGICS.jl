@@ -13,6 +13,13 @@ nanmedian(x,y) = mapslices(nanmedian,x,dims=y)
 naniqr(x) = iqr(filter(!isnan,x))/1.34896
 naniqr(x,y) = mapslices(naniqr,x,dims=y)
 
+naniqr_NaN(x) = if all(isnan,x)
+    NaN
+else
+    iqr(filter(!isnan,x))/1.34896
+end
+naniqr_NaN(x,y) = mapslices(naniqr_NaN,x,dims=y)
+
 function inv_nan(A)
     if any(isnan,A)
         return NaN*ones(size(A))
@@ -30,6 +37,14 @@ function sqrt_nan(x)
         return NaN
     else
         return sqrt(x)
+    end
+end
+
+function log10s(x)
+    if x<=0
+        return NaN
+    else
+        log10(x)
     end
 end
 

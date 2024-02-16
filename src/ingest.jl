@@ -113,14 +113,14 @@ function sky_decomp(outvec,outvar,simplemsk,V_skyline_bright,V_skyline_faint,V_s
     return x_comp_lst[1]
 end
 
-function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffset=16.6, telluric_div=false, cache_dir="../local_cache")
+function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffset=0.0, telluric_div=false, cache_dir="../local_cache")
 
     # # hardcoded flux-dep variance correction (empitical IPC + LSF correction)
     # power 2 model
     (p, c) = if (tele[1:6] == "apo25m")
-        (2.0, 1.7e-2)    
+        (2.0, 0.0)  #(2.0, 1.7e-2)    
     else
-        (2.0, 3.4e-2)
+        (2.0, 0.0)  #(2.0, 3.4e-2)
     end
 
     plateFile = build_platepath(release_dir,redux_ver,tele,field,plate,mjd,"a")
@@ -158,10 +158,10 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
             hdr = read_header(f[1])
             midtime = modified_julian(TAIEpoch(hdr["DATE-OBS"]))+(hdr["EXPTIME"]/2/3600/24)days #TAI or UTC?
             push!(time_lsts[chipind],AstroTime.value(midtime))
-            Xd = read(f[2],:,fiberindx)./thrptDict[chip];
-            Xd_stack[(1:2048).+(chipind-1)*2048] .= Xd[end:-1:1]
-            Xd_std = read(f[3],:,fiberindx)./thrptDict[chip];
-            Xd_std_stack[(1:2048).+(chipind-1)*2048] .= Xd_std[end:-1:1]
+            Xd = read(f[2],:,fiberindx)
+            Xd_stack[(1:2048).+(chipind-1)*2048] .= Xd[end:-1:1]./thrptDict[chip];
+            Xd_std = read(f[3],:,fiberindx)
+            Xd_std_stack[(1:2048).+(chipind-1)*2048] .= Xd_std[end:-1:1].*err_factor.(Xd[end:-1:1],Ref(err_correct_Dict[join([tele,chip],"_")]))./thrptDict[chip];
             pixmsk = read(f[4],:,fiberindx);
             pixmsk_stack[(1:2048).+(chipind-1)*2048] .= pixmsk[end:-1:1]
             waveobsa = read(f[5],:,fiberindx);
@@ -182,7 +182,7 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
         fullBit[((pixmsk_stack .& 2^0).!=0)] .+= 2^4 # call pixmask bit 0 bad
         fullBit[fullBit.==0] .+= 2^4 # call chip gaps bad for alt space
 
-        goodpix = ((pixmsk_stack .& 2^0).==0) .& ((fullBit .& 2^4).==0)
+        goodpix = ((pixmsk_stack .& 2^0).==0) .& ((fullBit .& 2^4).==0) .& (.!isnan.(Xd_std_stack))
         if telluric_div
             Xd_stack./= telluric_stack
             Xd_std_stack./= telluric_stack
@@ -212,7 +212,7 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
             telvec .+= Rinv*telluric_stack
         end
     end
-    framecnts = maximum(cntvec)
+    framecnts = maximum(cntvec) # a little shocked that I throw it away if it is bad in even one frame
     outvec./=framecnts
     outvar./=(framecnts^2)
     if telluric_div
@@ -239,4 +239,16 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
         return outvec, outvar, cntvec, chipmidtimes, metaexport, telvec
     end
     return outvec, outvar, cntvec, chipmidtimes, metaexport
+end
+
+function err_factor(x,err_correct_tup)
+    lflux,uflux,mflux,sflux = err_correct_tup
+    lx = log10s(x)
+    if lflux <= lx <= mflux
+        return 1
+    elseif mflux < lx <= uflux
+        return sflux*(lx-mflux)+1
+    else
+        return NaN
+    end
 end
