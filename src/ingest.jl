@@ -113,7 +113,7 @@ function sky_decomp(outvec,outvar,simplemsk,V_skyline_bright,V_skyline_faint,V_s
     return x_comp_lst[1]
 end
 
-function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffset=16.6, telluric_div=false, cache_dir="../local_cache")
+function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffset=0.0, telluric_div=false, cache_dir="../local_cache")
 
     # # hardcoded flux-dep variance correction (empitical IPC + LSF correction)
     # power 2 model
