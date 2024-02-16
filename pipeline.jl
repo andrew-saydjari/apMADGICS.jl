@@ -290,7 +290,7 @@ end
                         nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4],finalmsk),
                         x_comp_lst[6:end]..., nanify((fvec[finalmsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[finalmsk]))./ x_comp_lst[4],finalmsk),finalmsk]
         dvec = (fvec .-(x_comp_out[2].+x_comp_out[3].+x_comp_out[4].+x_comp_out[5].*(1 .+nanify(x_comp_lst[5],finalmsk))))./fvec;
-        push!(out,(x_comp_lst[1]'*(Ainv*x_comp_lst[1]),naniqr(dvec))) # 3
+        push!(out,(x_comp_lst[1]'*(Ainv*x_comp_lst[1]),naniqr_NaN(dvec))) # 3
         push!(out,x_comp_out) # 4
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
         push!(out,dflux_starlines) # 5
