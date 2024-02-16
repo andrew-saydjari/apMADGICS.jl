@@ -33,6 +33,14 @@ function sqrt_nan(x)
     end
 end
 
+function log10s(x)
+    if x<=0
+        return NaN
+    else
+        log10(x)
+    end
+end
+
 function issquare(X)
     sz = size(X)
     return sz[1] == sz[2]

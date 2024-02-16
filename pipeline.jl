@@ -278,16 +278,19 @@ end
         Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
         
         # do a component save without the 15273 DIB
+        # the extra Vstarlines_r is duplicated work if a pure dd model, but helps compare flux conservation in both cases
         x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
-            (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_r, V_starlines_r),
-            (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_c, I),
+            (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_r, V_starlines_r, V_starlines_r),
+            (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_r, V_starlines_c, I),
         )
-        push!(out,x_comp_lst[1]'*(Ainv*x_comp_lst[1])) # 3
+        
         x_comp_out = [nanify(x_comp_lst[1]./sqrt.(fvarvec[finalmsk]),finalmsk), nanify(x_comp_lst[1],finalmsk), 
                         # nanify(x_comp_lst[2][skymsk_bright[finalmsk]],finalmsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
                         nanify(x_comp_lst[2][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
                         nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4],finalmsk),
-                        x_comp_lst[5:end]..., nanify((fvec[finalmsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[finalmsk]))./ x_comp_lst[4],finalmsk),finalmsk]
+                        x_comp_lst[6:end]..., nanify((fvec[finalmsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[finalmsk]))./ x_comp_lst[4],finalmsk),finalmsk]
+        dvec = (fvec .-(x_comp_out[2].+x_comp_out[3].+x_comp_out[4].+x_comp_out[5].*(1 .+nanify(x_comp_lst[5],finalmsk))))./fvec;
+        push!(out,(x_comp_lst[1]'*(Ainv*x_comp_lst[1]),naniqr(dvec))) # 3
         push!(out,x_comp_out) # 4
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
         push!(out,dflux_starlines) # 5
@@ -446,7 +449,7 @@ end
                 (x->x[metai][7],                        "a_relFlux"),
                 (x->x[metai][8],                        "b_relFlux"),
                 (x->x[metai][9],                        "c_relFlux"),
-                # (x->x[metai][10],                       "cartVisit"), ## FIXME add this back in
+                (x->x[metai][10],                       "cartVisit"), ## FIXME add this back in
                 (x->x[metai][11],                       "flux"),
                 (x->x[metai][12],                       "fluxerr2"),
                 (x->adjfibindx,                         "adjfiberindx"),
@@ -458,6 +461,7 @@ end
                 (x->x[RVind][1][7],                     "RV_pix_var"),
                                     
                 (x->x[RVchi][1],                        "RVchi2_residuals"),
+                (x->x[RVchi][2],                        "avg_flux_conservation"),
                                     
                 (x->x[RVind][2][1][3],                  "RV_p5delchi2_lvl1"),
                 (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
