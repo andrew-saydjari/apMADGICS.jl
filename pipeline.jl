@@ -346,7 +346,7 @@ end
                         x_comp_lst[5:end]...]
 
             dvec = (fvec .-(x_comp_out[2].+x_comp_out[3].+x_comp_out[4].+x_comp_out[5].*(1 .+ x_comp_out[6]).*(1 .+ x_comp_out[7])))./fvec;
-            push!(out,(x_comp_lst[1]'*(Ainv*x_comp_lst[1]),nan_IQR(dvec))) # 8
+            push!(out,(x_comp_lst[1]'*(Ainv*x_comp_lst[1]),naniqr_NaN(dvec))) # 8
 
             push!(out,x_comp_out) # 9
         end
