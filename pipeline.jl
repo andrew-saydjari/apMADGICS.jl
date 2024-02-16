@@ -66,6 +66,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
+    global err_correct_Dict = deserialize("./data/chip_fluxdep_err_correction.jdat")
+
     Xd_stack = zeros(3*2048)
     Xd_std_stack = zeros(3*2048)
     waveobs_stack = zeros(3*2048)
