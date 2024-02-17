@@ -61,6 +61,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     outvar = zeros(length(wavetarg))
     cntvec = zeros(Int,length(wavetarg));
     telvec = zeros(length(wavetarg));
+
+    global err_correct_Dict = deserialize("../../data/chip_fluxdep_err_correction.jdat")
 end
 
 @everywhere begin
