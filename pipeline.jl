@@ -66,6 +66,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
+    # I should revisit the error bars in the context of chi2 versus frame number trends
     global err_correct_Dict = deserialize("./data/chip_fluxdep_err_correction.jdat")
 
     Xd_stack = zeros(3*2048)
@@ -151,12 +152,12 @@ end
         starcache = cache_starname(tele,field,plate,mjd,fiberindx,cache_dir=cache_dir,inject_cache_dir=inject_cache_dir)
         if (isfile(starcache) & caching)
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(starcache)
-            starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
+            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
         elseif tele[end]=='i'
             @warn "Injections not found at injection cache dir!"
         else
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
-            starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
+            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
             if caching
                 dirName = splitdir(starcache)[1]
                 if !ispath(dirName)
@@ -167,7 +168,7 @@ end
         end
         simplemsk = (cntvec.==framecnts) .& skymsk;
         
-        push!(out,(count(simplemsk), starscale, framecnts, chipmidtimes, varoffset, varflux, a_relFlux, b_relFlux, c_relFlux, cartVisit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
+        push!(out,(count(simplemsk), starscale, framecnts, chipmidtimes, a_relFlux, b_relFlux, c_relFlux, cartVisit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
 
         if skyCont_off
             meanLocSky.=0
@@ -446,14 +447,12 @@ end
                 (x->x[metai][2],                        "starscale"),
                 (x->x[metai][3],                        "frame_counts"),
                 (x->x[metai][4],                        "chip_midtimes"),
-                (x->x[metai][5],                        "varoffset"),
-                (x->x[metai][6],                        "varflux"),
-                (x->x[metai][7],                        "a_relFlux"),
-                (x->x[metai][8],                        "b_relFlux"),
-                (x->x[metai][9],                        "c_relFlux"),
-                (x->x[metai][10],                       "cartVisit"),
-                (x->x[metai][11],                       "flux"),
-                (x->x[metai][12],                       "fluxerr2"),
+                (x->x[metai][5],                        "a_relFlux"),
+                (x->x[metai][6],                        "b_relFlux"),
+                (x->x[metai][7],                        "c_relFlux"),
+                (x->x[metai][8],                       "cartVisit"),
+                (x->x[metai][9],                       "flux"),
+                (x->x[metai][10],                       "fluxerr2"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),

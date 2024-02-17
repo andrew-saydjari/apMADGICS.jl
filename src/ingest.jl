@@ -113,15 +113,7 @@ function sky_decomp(outvec,outvar,simplemsk,V_skyline_bright,V_skyline_faint,V_s
     return x_comp_lst[1]
 end
 
-function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffset=0.0, telluric_div=false, cache_dir="../local_cache")
-
-    # # hardcoded flux-dep variance correction (empitical IPC + LSF correction)
-    # power 2 model
-    (p, c) = if (tele[1:6] == "apo25m")
-        (2.0, 0.0)  #(2.0, 1.7e-2)    
-    else
-        (2.0, 0.0)  #(2.0, 3.4e-2)
-    end
+function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; telluric_div=false, cache_dir="../local_cache")
 
     plateFile = build_platepath(release_dir,redux_ver,tele,field,plate,mjd,"a")
     frame_lst = getFramesFromPlate(plateFile)
@@ -225,16 +217,12 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
     else
         abs(nanmedian(outvec[simplemsk]))
     end
-    # this is a systematic correction to the variance (~ 4ADU to the uncertainties) to prevent chi2 versus frame number trends
-    outvar .+= varoffset
-    # this is an empirical LSF and IPC correction to the variance
-    outvar .+= (c^2*starscale^p)
 
     goodframeIndx = length.(time_lsts).!=0
     chipmidtimes = zeros(3)
     chipmidtimes[goodframeIndx] .= mean.(time_lsts[goodframeIndx]) #consider making this flux weighted (need to worry about skyline variance driving it)
     chipmidtimes[.!goodframeIndx] .= NaN
-    metaexport = (starscale,framecnts,varoffset,(c^2*starscale^p),thrptDict["a"],thrptDict["b"],thrptDict["c"],cartVisit)
+    metaexport = (starscale,framecnts,thrptDict["a"],thrptDict["b"],thrptDict["c"],cartVisit)
     if telluric_div
         return outvec, outvar, cntvec, chipmidtimes, metaexport, telvec
     end
