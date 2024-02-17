@@ -450,8 +450,8 @@ end
                 (x->x[metai][5],                        "a_relFlux"),
                 (x->x[metai][6],                        "b_relFlux"),
                 (x->x[metai][7],                        "c_relFlux"),
-                (x->x[metai][8],                       "cartVisit"),
-                (x->x[metai][9],                       "flux"),
+                (x->x[metai][8],                        "cartVisit"),
+                (x->x[metai][9],                        "flux"),
                 (x->x[metai][10],                       "fluxerr2"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
