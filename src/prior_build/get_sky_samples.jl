@@ -8,13 +8,7 @@ using BLISBLAS
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
 addprocs(SlurmManager())
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
-activateout = @capture_out begin
-    @everywhere begin
-        import Pkg
-        Pkg.activate("../../")
-    end
-end
-t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker activation took $dt"); t_then = t_now; flush(stdout)
+
 @everywhere begin
     using BLISBLAS
     using LinearAlgebra
@@ -322,7 +316,7 @@ end
     end
 end
 
-get_sky_samples(295,loc_parallel=true)
+get_sky_samples(335,loc_parallel=true)
 # @showprogress pmap(get_sky_samples,1:600) # 13ish hours on 4 np nodes (this included the svd... which I have moved out now)
 # can come back to the question of doing the svd and prior building here while the sky samples are in memory
 
