@@ -271,25 +271,27 @@ end
         # update the Ctotinv to include the stellar line component (iterate to refine starCont_Mscale)
         svalc = lout[1][3]
         for i=1:refine_iters
-            Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
+            Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
             x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,))
             starCont_Mscale = x_comp_lst[1]
         end
-        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
+        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
         
         # do a component save without the 15273 DIB
         # the extra Vstarlines_r is duplicated work if a pure dd model, but helps compare flux conservation in both cases
         x_comp_lst = deblend_components_all_asym_tot(Ctotinv_fut, Xd_obs, 
-            (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_r, V_starlines_r),
-            (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_c, I),
+            (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_r, V_starlines_r, V_starlines_r),
+            (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_ru, V_starlines_c, I),
         )
         
         x_comp_out = [nanify(x_comp_lst[1]./sqrt.(fvarvec[finalmsk]),finalmsk), nanify(x_comp_lst[1],finalmsk), 
                         # nanify(x_comp_lst[2][skymsk_bright[finalmsk]],finalmsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
                         nanify(x_comp_lst[2][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
                         nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4],finalmsk),
-                        x_comp_lst[5:end]..., nanify((fvec[finalmsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[finalmsk]))./ x_comp_lst[4],finalmsk),finalmsk]
-        push!(out,(x_comp_lst[1]'*(Ainv*x_comp_lst[1]))) # 3
+                        x_comp_lst[6:end]..., nanify((fvec[finalmsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[finalmsk]))./ x_comp_lst[4],finalmsk),finalmsk]
+        
+        dvec = (fvec .-(x_comp_out[2].+x_comp_out[3].+x_comp_out[4].+x_comp_out[5].*(1 .+ nanify(x_comp_lst[5],finalmsk))))./fvec;
+        push!(out,(x_comp_lst[1]'*(Ainv*x_comp_lst[1]),naniqr_NaN(dvec),count(finalmsk))) # 3
         push!(out,x_comp_out) # 4
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
         push!(out,dflux_starlines) # 5
@@ -299,7 +301,7 @@ end
         starCont_Mscale = x_comp_lst[1]
         starFull_Mscale = x_comp_lst[1].+x_comp_lst[2]
         
-        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
+        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
         Ctotinv_cur, Ctotinv_fut = Ctotinv_fut, Ctotinv_cur; Vcomb_cur, Vcomb_fut = Vcomb_fut, Vcomb_cur # swap to updated covariance finally
         
         # currently, this is modeling each DIB seperately... I think we want to change this later, just easier parallel structure
@@ -345,8 +347,7 @@ end
                         nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4],finalmsk),
                         x_comp_lst[5:end]...]
 
-            dvec = (fvec .-(x_comp_out[2].+x_comp_out[3].+x_comp_out[4].+x_comp_out[5].*(1 .+ x_comp_out[6]).*(1 .+ x_comp_out[7])))./fvec;
-            push!(out,(x_comp_lst[1]'*(Ainv*x_comp_lst[1]),naniqr_NaN(dvec))) # 8
+            push!(out,(x_comp_lst[1]'*(Ainv*x_comp_lst[1]))) # 8
 
             push!(out,x_comp_out) # 9
         end
@@ -450,7 +451,7 @@ end
                 (x->x[metai][7],                        "a_relFlux"),
                 (x->x[metai][8],                        "b_relFlux"),
                 (x->x[metai][9],                        "c_relFlux"),
-                (x->x[metai][10],                       "cartVisit"), ## FIXME add this back in
+                (x->x[metai][10],                       "cartVisit"),
                 (x->x[metai][11],                       "flux"),
                 (x->x[metai][12],                       "fluxerr2"),
                 (x->adjfibindx,                         "adjfiberindx"),
@@ -462,6 +463,8 @@ end
                 (x->x[RVind][1][7],                     "RV_pix_var"),
                                     
                 (x->x[RVchi][1],                        "RVchi2_residuals"),
+                (x->x[RVchi][2],                        "avg_flux_conservation"),
+                (x->x[RVchi][3],                        "final_pix_cnt"),
                                     
                 (x->x[RVind][2][1][3],                  "RV_p5delchi2_lvl1"),
                 (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
@@ -505,7 +508,6 @@ end
                 (x->x[EWind+dibsavesz*(dibindx-1)][2],                         "EW_dib_err_$(dibind)_$(dib)"),
                                     
                 (x->x[DIBchi+dibsavesz*(dibindx-1)][1],                        "DIBchi2_residuals_$(dibind)_$(dib)"),
-                (x->x[DIBchi+dibsavesz*(dibindx-1)][2],                        "avg_flux_conservation_$(dibind)_$(dib)"),
 
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][1],                        "x_residuals_z_v1_$(dibind)_$(dib)"),
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][2],                        "x_residuals_v1_$(dibind)_$(dib)"),
@@ -551,7 +553,7 @@ batchsize = 10 #40
 iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
 
-for adjfibindx = 295:295 #1:600 #295, 245
+for adjfibindx = 335:335 #1:600 #295, 245, 335
     subiter = deserialize(prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
