@@ -553,7 +553,7 @@ batchsize = 10 #40
 iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
 
-for adjfibindx = 635:635 #1:600 #295, 245, 635
+for adjfibindx = 335:335 #1:600 #295, 245, 335
     subiter = deserialize(prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
