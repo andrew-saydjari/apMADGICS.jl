@@ -318,7 +318,7 @@ end
     end
 end
 
-get_sky_samples(335,loc_parallel=true) #295, 335, 450
+get_sky_samples(101,loc_parallel=true) #295, 335, 450, 101
 # @showprogress pmap(get_sky_samples,1:600) # 13ish hours on 4 np nodes (this included the svd... which I have moved out now)
 # can come back to the question of doing the svd and prior building here while the sky samples are in memory
 
