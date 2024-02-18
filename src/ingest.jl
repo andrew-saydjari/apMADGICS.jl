@@ -58,10 +58,10 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
             skycacheSpec = cache_skynameSpec(tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
             if (isfile(skycacheSpec) & caching)
                 fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
-                starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux = metaexport
+                starscale,framecnts,a_relFlux,b_relFlux,c_relFlux = metaexport
             else
                 fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
-                starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux = metaexport
+                starscale,framecnts,a_relFlux,b_relFlux,c_relFlux = metaexport
                 if caching
                     dirName = splitdir(skycacheSpec)[1]
                     if !ispath(dirName)
