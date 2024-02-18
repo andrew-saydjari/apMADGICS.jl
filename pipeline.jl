@@ -62,7 +62,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     close(f)
 
     alpha = 1;
-    f = h5open(prior_dir*"2023_08_22/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
+    f = h5open(prior_dir*"2024_02_17/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
@@ -415,7 +415,7 @@ end
                 close(f)
 
                 # can consider changing dimension at the full reduction stage
-                f = h5open(prior_dir*"2023_08_22/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir*"2024_02_17/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 if ddstaronly
                     global V_subpix_refLSF = V_subpix
