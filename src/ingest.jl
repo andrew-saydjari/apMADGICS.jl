@@ -174,7 +174,8 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; telluri
         fullBit[((pixmsk_stack .& 2^0).!=0)] .+= 2^4 # call pixmask bit 0 bad
         fullBit[fullBit.==0] .+= 2^4 # call chip gaps bad for alt space
 
-        goodpix = ((pixmsk_stack .& 2^0).==0) .& ((fullBit .& 2^4).==0) .& (.!isnan.(Xd_std_stack))
+        # but are the outlier variances coming in from later? In the Rinv?
+        goodpix = ((pixmsk_stack .& 2^0).==0) .& ((fullBit .& 2^4).==0) .& (.!isnan.(Xd_std_stack)) .& (Xd_std_stack.< (10^10))
         if telluric_div
             Xd_stack./= telluric_stack
             Xd_std_stack./= telluric_stack
