@@ -241,6 +241,7 @@ end
             Base.Fix2(chi2_wrapper,(rvmsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice))
         end
         lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=1//10,stepx=8)
+        svalc = lout[1][3]
         push!(out,lout) # 2
 
         # re-estiamte starScale before re-creating the priors with the new finalRV msk
@@ -267,8 +268,8 @@ end
         V_skyline_faint_r = V_skyline_faint_c[finalmsk,:]
         V_skyline_tot_r = V_skyline_faint_r
         V_locSky_r = V_locSky_c[finalmsk,:]
-        V_starCont_c = starscale1*finalmsk
-        V_starCont_r = V_starCont_c[rvmsk,:]
+        V_starCont_c = starscale1*V_starcont
+        V_starCont_r = V_starCont_c[finalmsk,:]
 
         Vcomb_skylines = hcat(V_skyline_tot_r,V_locSky_r,V_starCont_r);
         Ctotinv_skylines = LowRankMultMatIP([Ainv,Vcomb_skylines],wood_precomp_mult_mat([Ainv,Vcomb_skylines],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
@@ -277,7 +278,6 @@ end
         starCont_Mscale = x_comp_lst[1]
 
         # update the Ctotinv to include the stellar line component (iterate to refine starCont_Mscale)
-        svalc = lout[1][3]
         for i=1:refine_iters
             Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
             x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r, ))
