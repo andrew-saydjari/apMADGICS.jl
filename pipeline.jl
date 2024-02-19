@@ -369,7 +369,7 @@ end
 end
 
 @everywhere begin
-    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=true)
+    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=false)
         ### Set up
         out = []
         startind = indsubset[1][1]
@@ -421,7 +421,7 @@ end
                 close(f)
 
                 # can consider changing dimension at the full reduction stage
-                f = h5open(prior_dir*"2023_09_26/star_priors/APOGEE_starCor_svd_50_subpix_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir*"2023_08_22/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 if ddstaronly
                     global V_subpix_refLSF = V_subpix
