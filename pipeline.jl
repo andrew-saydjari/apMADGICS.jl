@@ -246,7 +246,7 @@ end
         # re-estiamte starScale before re-creating the priors with the new finalRV msk
         Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],rvmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
         x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r, ))
-        starscale1 = NaNmedian(x_comp_lst[1])
+        starscale1 = abs(NaNmedian(x_comp_lst[1]))
 
         # Change data mask based on final inferred RV
         finalmsk = copy(simplemsk)
@@ -301,7 +301,7 @@ end
         dvec = (fvec .-(x_comp_out[2].+x_comp_out[3].+x_comp_out[4].+x_comp_out[5].*(1 .+ nanify(x_comp_lst[5],finalmsk))))./fvec;
         chi2res = x_comp_lst[1]'*(Ainv*x_comp_lst[1])
         chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale, fc=red_chi2_dict[tele])
-        push!(out,(chi2res,chi2r_fc,naniqr_NaN(dvec),count(finalmsk))) # 3
+        push!(out,(chi2res,chi2r_fc,naniqr_NaN(dvec),count(finalmsk),starscale1)) # 3
         push!(out,x_comp_out) # 4
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
         push!(out,dflux_starlines) # 5
@@ -476,6 +476,7 @@ end
                 (x->x[RVchi][2],                        "RVchi2_residuals_flux_scaled"),
                 (x->x[RVchi][3],                        "avg_flux_conservation"),
                 (x->x[RVchi][4],                        "final_pix_cnt"),
+                (x->x[RVchi][5],                        "starscale1"),
                                     
                 (x->x[RVind][2][1][3],                  "RV_p5delchi2_lvl1"),
                 (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
