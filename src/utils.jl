@@ -156,3 +156,7 @@ function prop_p2z(p; delLog=6e-6)
     end
     return msknew
 end
+
+function chi2red_fluxscale(chi2r, flux; fc=0.0)
+    return chi2r/(1 + (fc*flux)^2)
+end

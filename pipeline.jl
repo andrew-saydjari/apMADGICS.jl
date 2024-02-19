@@ -66,7 +66,9 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     global V_subpix_refLSF = alpha*read(f["Vmat"])
     close(f)
 
+    # I should revisit the error bars in the context of chi2 versus frame number trends
     global err_correct_Dict = deserialize("./data/chip_fluxdep_err_correction.jdat")
+    global red_chi2_dict = deserialize("./data/red_chi2_dict.jdat")
 
     Xd_stack = zeros(3*2048)
     Xd_std_stack = zeros(3*2048)
@@ -151,12 +153,12 @@ end
         starcache = cache_starname(tele,field,plate,mjd,fiberindx,cache_dir=cache_dir,inject_cache_dir=inject_cache_dir)
         if (isfile(starcache) & caching)
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(starcache)
-            starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
+            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
         elseif tele[end]=='i'
             @warn "Injections not found at injection cache dir!"
         else
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
-            starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
+            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
             if caching
                 dirName = splitdir(starcache)[1]
                 if !ispath(dirName)
@@ -167,7 +169,7 @@ end
         end
         simplemsk = (cntvec.==framecnts) .& skymsk;
         
-        push!(out,(count(simplemsk), starscale, framecnts, chipmidtimes, varoffset, varflux, a_relFlux, b_relFlux, c_relFlux, cartVisit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
+        push!(out,(count(simplemsk), starscale, framecnts, chipmidtimes, a_relFlux, b_relFlux, c_relFlux, cartVisit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
 
         if skyCont_off
             meanLocSky.=0
@@ -291,7 +293,9 @@ end
                         x_comp_lst[6:end]..., nanify((fvec[finalmsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[finalmsk]))./ x_comp_lst[4],finalmsk),finalmsk]
         
         dvec = (fvec .-(x_comp_out[2].+x_comp_out[3].+x_comp_out[4].+x_comp_out[5].*(1 .+ nanify(x_comp_lst[5],finalmsk))))./fvec;
-        push!(out,(x_comp_lst[1]'*(Ainv*x_comp_lst[1]),naniqr_NaN(dvec),count(finalmsk))) # 3
+        chi2res = x_comp_lst[1]'*(Ainv*x_comp_lst[1])
+        chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale, fc=red_chi2_dict[tele])
+        push!(out,(chi2res,chi2r_fc,naniqr_NaN(dvec),count(finalmsk))) # 3
         push!(out,x_comp_out) # 4
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
         push!(out,dflux_starlines) # 5
@@ -347,7 +351,9 @@ end
                         nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4],finalmsk),
                         x_comp_lst[5:end]...]
 
-            push!(out,(x_comp_lst[1]'*(Ainv*x_comp_lst[1]))) # 8
+            chi2res = x_comp_lst[1]'*(Ainv*x_comp_lst[1])
+            chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale, fc=red_chi2_dict[tele])
+            push!(out,(chi2res,chi2r_fc)) # 8
 
             push!(out,x_comp_out) # 9
         end
@@ -446,14 +452,12 @@ end
                 (x->x[metai][2],                        "starscale"),
                 (x->x[metai][3],                        "frame_counts"),
                 (x->x[metai][4],                        "chip_midtimes"),
-                (x->x[metai][5],                        "varoffset"),
-                (x->x[metai][6],                        "varflux"),
-                (x->x[metai][7],                        "a_relFlux"),
-                (x->x[metai][8],                        "b_relFlux"),
-                (x->x[metai][9],                        "c_relFlux"),
-                (x->x[metai][10],                       "cartVisit"),
-                (x->x[metai][11],                       "flux"),
-                (x->x[metai][12],                       "fluxerr2"),
+                (x->x[metai][5],                        "a_relFlux"),
+                (x->x[metai][6],                        "b_relFlux"),
+                (x->x[metai][7],                        "c_relFlux"),
+                (x->x[metai][8],                        "cartVisit"),
+                (x->x[metai][9],                        "flux"),
+                (x->x[metai][10],                       "fluxerr2"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
@@ -463,8 +467,9 @@ end
                 (x->x[RVind][1][7],                     "RV_pix_var"),
                                     
                 (x->x[RVchi][1],                        "RVchi2_residuals"),
-                (x->x[RVchi][2],                        "avg_flux_conservation"),
-                (x->x[RVchi][3],                        "final_pix_cnt"),
+                (x->x[RVchi][2],                        "RVchi2_residuals_flux_scaled"),
+                (x->x[RVchi][3],                        "avg_flux_conservation"),
+                (x->x[RVchi][4],                        "final_pix_cnt"),
                                     
                 (x->x[RVind][2][1][3],                  "RV_p5delchi2_lvl1"),
                 (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
@@ -508,6 +513,7 @@ end
                 (x->x[EWind+dibsavesz*(dibindx-1)][2],                         "EW_dib_err_$(dibind)_$(dib)"),
                                     
                 (x->x[DIBchi+dibsavesz*(dibindx-1)][1],                        "DIBchi2_residuals_$(dibind)_$(dib)"),
+                (x->x[DIBchi+dibsavesz*(dibindx-1)][2],                        "DIBchi2_residuals_flux_scaled_$(dibind)_$(dib)"),
 
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][1],                        "x_residuals_z_v1_$(dibind)_$(dib)"),
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][2],                        "x_residuals_v1_$(dibind)_$(dib)"),
@@ -553,7 +559,7 @@ batchsize = 10 #40
 iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
 
-for adjfibindx = 335:335 #1:600 #295, 245, 335
+for adjfibindx = 295:295 #1:600 #295, 245, 335
     subiter = deserialize(prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)

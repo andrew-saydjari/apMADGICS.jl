@@ -6,15 +6,9 @@ Pkg.activate("../../"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 using BLISBLAS
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
-addprocs(SlurmManager())
+addprocs(SlurmManager(),exeflags=["--project=../../"])
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
-activateout = @capture_out begin
-    @everywhere begin
-        import Pkg
-        Pkg.activate("../../")
-    end
-end
-t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker activation took $dt"); t_then = t_now; flush(stdout)
+
 @everywhere begin
     using BLISBLAS
     using LinearAlgebra
@@ -67,6 +61,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     outvar = zeros(length(wavetarg))
     cntvec = zeros(Int,length(wavetarg));
     telvec = zeros(length(wavetarg));
+
+    global err_correct_Dict = deserialize("../../data/chip_fluxdep_err_correction.jdat")
 end
 
 @everywhere begin
@@ -322,7 +318,7 @@ end
     end
 end
 
-get_sky_samples(295,loc_parallel=true)
+get_sky_samples(101,loc_parallel=true) #295, 335, 450, 101
 # @showprogress pmap(get_sky_samples,1:600) # 13ish hours on 4 np nodes (this included the svd... which I have moved out now)
 # can come back to the question of doing the svd and prior building here while the sky samples are in memory
 

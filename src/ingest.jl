@@ -58,10 +58,10 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
             skycacheSpec = cache_skynameSpec(tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
             if (isfile(skycacheSpec) & caching)
                 fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
-                starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux = metaexport
+                starscale,framecnts,a_relFlux,b_relFlux,c_relFlux = metaexport
             else
                 fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
-                starscale,framecnts,varoffset,varflux,a_relFlux,b_relFlux,c_relFlux = metaexport
+                starscale,framecnts,a_relFlux,b_relFlux,c_relFlux = metaexport
                 if caching
                     dirName = splitdir(skycacheSpec)[1]
                     if !ispath(dirName)
@@ -113,15 +113,7 @@ function sky_decomp(outvec,outvar,simplemsk,V_skyline_bright,V_skyline_faint,V_s
     return x_comp_lst[1]
 end
 
-function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffset=0.0, telluric_div=false, cache_dir="../local_cache")
-
-    # # hardcoded flux-dep variance correction (empitical IPC + LSF correction)
-    # power 2 model
-    (p, c) = if (tele[1:6] == "apo25m")
-        (2.0, 0.0)  #(2.0, 1.7e-2)    
-    else
-        (2.0, 0.0)  #(2.0, 3.4e-2)
-    end
+function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; telluric_div=false, cache_dir="../local_cache")
 
     plateFile = build_platepath(release_dir,redux_ver,tele,field,plate,mjd,"a")
     frame_lst = getFramesFromPlate(plateFile)
@@ -161,7 +153,7 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
             Xd = read(f[2],:,fiberindx)
             Xd_stack[(1:2048).+(chipind-1)*2048] .= Xd[end:-1:1]./thrptDict[chip];
             Xd_std = read(f[3],:,fiberindx)
-            Xd_std_stack[(1:2048).+(chipind-1)*2048] .= Xd_std[end:-1:1].*err_factor.(Xd[end:-1:1],Ref(err_correct_Dict[join([tele,chip],"_")]))./thrptDict[chip];
+            Xd_std_stack[(1:2048).+(chipind-1)*2048] .= Xd_std[end:-1:1]./thrptDict[chip].*err_factor.(Xd[end:-1:1],Ref(err_correct_Dict[join([tele,chip],"_")]));
             pixmsk = read(f[4],:,fiberindx);
             pixmsk_stack[(1:2048).+(chipind-1)*2048] .= pixmsk[end:-1:1]
             waveobsa = read(f[5],:,fiberindx);
@@ -182,7 +174,8 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
         fullBit[((pixmsk_stack .& 2^0).!=0)] .+= 2^4 # call pixmask bit 0 bad
         fullBit[fullBit.==0] .+= 2^4 # call chip gaps bad for alt space
 
-        goodpix = ((pixmsk_stack .& 2^0).==0) .& ((fullBit .& 2^4).==0) .& (.!isnan.(Xd_std_stack))
+        # but are the outlier variances coming in from later? In the Rinv?
+        goodpix = ((pixmsk_stack .& 2^0).==0) .& ((fullBit .& 2^4).==0) .& (.!isnan.(Xd_std_stack)) .& (Xd_std_stack.< (10^10))
         if telluric_div
             Xd_stack./= telluric_stack
             Xd_std_stack./= telluric_stack
@@ -225,16 +218,12 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
     else
         abs(nanmedian(outvec[simplemsk]))
     end
-    # this is a systematic correction to the variance (~ 4ADU to the uncertainties) to prevent chi2 versus frame number trends
-    outvar .+= varoffset
-    # this is an empirical LSF and IPC correction to the variance
-    outvar .+= (c^2*starscale^p)
 
     goodframeIndx = length.(time_lsts).!=0
     chipmidtimes = zeros(3)
     chipmidtimes[goodframeIndx] .= mean.(time_lsts[goodframeIndx]) #consider making this flux weighted (need to worry about skyline variance driving it)
     chipmidtimes[.!goodframeIndx] .= NaN
-    metaexport = (starscale,framecnts,varoffset,(c^2*starscale^p),thrptDict["a"],thrptDict["b"],thrptDict["c"],cartVisit)
+    metaexport = (starscale,framecnts,thrptDict["a"],thrptDict["b"],thrptDict["c"],cartVisit)
     if telluric_div
         return outvec, outvar, cntvec, chipmidtimes, metaexport, telvec
     end
@@ -242,13 +231,15 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; varoffs
 end
 
 function err_factor(x,err_correct_tup)
-    lflux,uflux,mflux,sflux = err_correct_tup
+    uflux,mflux,sflux = err_correct_tup
     lx = log10s(x)
-    if lflux <= lx <= mflux
+    if lx <= mflux
         return 1
     elseif mflux < lx <= uflux
         return sflux*(lx-mflux)+1
-    else
+    elseif isnan(x)
         return NaN
+    else
+        return 1 # I don't love this, but seems needed for LCO
     end
 end
