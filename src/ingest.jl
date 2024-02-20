@@ -3,7 +3,7 @@
 
 using AstroTime
 
-function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_dir="../local_cache",nattempts=5)
+function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_dir="../local_cache",nattempts=5,force_ones=true)
     flux_paths, domeflat_expid, cartVisit = build_apFluxPaths(release_dir,redux_ver,tele,field,plate,mjd)
     fluxingcache = cache_fluxname(tele,field,plate,mjd; cache_dir=cache_dir)
 
@@ -18,6 +18,9 @@ function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_d
         f = FITS(flux_path)
         thrpt = read(f[3])
         close(f)
+        if force_ones
+            thrpt .= 1
+        end
         write(h,thrpt,name=chip)
     end
     close(h)
