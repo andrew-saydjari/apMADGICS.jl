@@ -67,8 +67,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     close(f)
 
     # I should revisit the error bars in the context of chi2 versus frame number trends
-    global err_correct_Dict = deserialize("./data/chip_fluxdep_err_correction.jdat")
-    global red_chi2_dict = deserialize("./data/red_chi2_dict.jdat")
+    global err_correct_Dict = deserialize(src_dir*"data/chip_fluxdep_err_correction.jdat")
+    global red_chi2_dict = deserialize(src_dir*"data/red_chi2_dict.jdat")
 
     Xd_stack = zeros(3*2048)
     Xd_std_stack = zeros(3*2048)
@@ -241,7 +241,13 @@ end
             Base.Fix2(chi2_wrapper,(rvmsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice))
         end
         lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=1//10,stepx=8)
+        svalc = lout[1][3]
         push!(out,lout) # 2
+
+        # re-estiamte starScale before re-creating the priors with the new finalRV msk
+        Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],rvmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
+        x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r, ))
+        starscale1 = abs(NaNmedian(x_comp_lst[1]))
 
         # Change data mask based on final inferred RV
         finalmsk = copy(simplemsk)
@@ -262,6 +268,7 @@ end
         V_skyline_faint_r = V_skyline_faint_c[finalmsk,:]
         V_skyline_tot_r = V_skyline_faint_r
         V_locSky_r = V_locSky_c[finalmsk,:]
+        V_starCont_c = starscale1*V_starcont
         V_starCont_r = V_starCont_c[finalmsk,:]
 
         Vcomb_skylines = hcat(V_skyline_tot_r,V_locSky_r,V_starCont_r);
@@ -271,10 +278,9 @@ end
         starCont_Mscale = x_comp_lst[1]
 
         # update the Ctotinv to include the stellar line component (iterate to refine starCont_Mscale)
-        svalc = lout[1][3]
         for i=1:refine_iters
             Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
-            x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,))
+            x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r, ))
             starCont_Mscale = x_comp_lst[1]
         end
         Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
@@ -295,7 +301,7 @@ end
         dvec = (fvec .-(x_comp_out[2].+x_comp_out[3].+x_comp_out[4].+x_comp_out[5].*(1 .+ nanify(x_comp_lst[5],finalmsk))))./fvec;
         chi2res = x_comp_lst[1]'*(Ainv*x_comp_lst[1])
         chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale, fc=red_chi2_dict[tele])
-        push!(out,(chi2res,chi2r_fc,naniqr_NaN(dvec),count(finalmsk))) # 3
+        push!(out,(chi2res,chi2r_fc,naniqr_NaN(dvec),count(finalmsk),starscale1)) # 3
         push!(out,x_comp_out) # 4
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
         push!(out,dflux_starlines) # 5
@@ -363,7 +369,7 @@ end
 end
 
 @everywhere begin
-    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=true)
+    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=false)
         ### Set up
         out = []
         startind = indsubset[1][1]
@@ -415,7 +421,7 @@ end
                 close(f)
 
                 # can consider changing dimension at the full reduction stage
-                f = h5open(prior_dir*"2023_09_26/star_priors/APOGEE_starCor_svd_50_subpix_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dir*"2023_08_22/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 if ddstaronly
                     global V_subpix_refLSF = V_subpix
@@ -470,6 +476,7 @@ end
                 (x->x[RVchi][2],                        "RVchi2_residuals_flux_scaled"),
                 (x->x[RVchi][3],                        "avg_flux_conservation"),
                 (x->x[RVchi][4],                        "final_pix_cnt"),
+                (x->x[RVchi][5],                        "starscale1"),
                                     
                 (x->x[RVind][2][1][3],                  "RV_p5delchi2_lvl1"),
                 (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
@@ -559,7 +566,7 @@ batchsize = 10 #40
 iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
 
-for adjfibindx = 295:295 #1:600 #295, 245, 335
+for adjfibindx = 295:295 #1:600 #295, 245, 335, 101
     subiter = deserialize(prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)

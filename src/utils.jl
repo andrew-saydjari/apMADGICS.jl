@@ -10,6 +10,13 @@ nansum(x,y) = mapslices(nansum,x,dims=y)
 nanmedian(x) = median(filter(!isnan,x))
 nanmedian(x,y) = mapslices(nanmedian,x,dims=y)
 
+NaNmedian(x) = if all(isnan,x)
+    NaN
+else
+    median(filter(!isnan,x))
+end
+NaNmedian(x,y) = mapslices(NaNmedian,x,dims=y)
+
 naniqr(x) = iqr(filter(!isnan,x))/1.34896
 naniqr(x,y) = mapslices(naniqr,x,dims=y)
 
