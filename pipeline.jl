@@ -67,8 +67,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     close(f)
 
     # I should revisit the error bars in the context of chi2 versus frame number trends
-    global err_correct_Dict = deserialize("./data/chip_fluxdep_err_correction.jdat")
-    global red_chi2_dict = deserialize("./data/red_chi2_dict.jdat")
+    global err_correct_Dict = deserialize(src_dir*"data/chip_fluxdep_err_correction.jdat")
+    global red_chi2_dict = deserialize(src_dir*"data/red_chi2_dict.jdat")
 
     Xd_stack = zeros(3*2048)
     Xd_std_stack = zeros(3*2048)
