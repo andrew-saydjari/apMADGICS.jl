@@ -154,9 +154,9 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; telluri
             midtime = modified_julian(TAIEpoch(hdr["DATE-OBS"]))+(hdr["EXPTIME"]/2/3600/24)days #TAI or UTC?
             push!(time_lsts[chipind],AstroTime.value(midtime))
             Xd = read(f[2],:,fiberindx)
-            Xd_stack[(1:2048).+(chipind-1)*2048] .= Xd[end:-1:1].*thrptDict[chip];
+            Xd_stack[(1:2048).+(chipind-1)*2048] .= Xd[end:-1:1]./thrptDict[chip];
             Xd_std = read(f[3],:,fiberindx)
-            Xd_std_stack[(1:2048).+(chipind-1)*2048] .= Xd_std[end:-1:1].*thrptDict[chip].*err_factor.(Xd[end:-1:1],Ref(err_correct_Dict[join([tele,chip],"_")]));
+            Xd_std_stack[(1:2048).+(chipind-1)*2048] .= Xd_std[end:-1:1]./thrptDict[chip].*err_factor.(Xd[end:-1:1],Ref(err_correct_Dict[join([tele,chip],"_")]));
             pixmsk = read(f[4],:,fiberindx);
             pixmsk_stack[(1:2048).+(chipind-1)*2048] .= pixmsk[end:-1:1]
             waveobsa = read(f[5],:,fiberindx);
