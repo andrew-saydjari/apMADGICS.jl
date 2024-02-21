@@ -27,7 +27,7 @@
     @test build_platepath(itest[2:7]...,"a") == "/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/redux/dr17/visit/apo25m/180+60/9667/58126/apPlate-a-9667-58126.fits"
     @test build_platepath(dtest[2:7]...,"a") == "/uufs/chpc.utah.edu/common/home/sdss/sdsswork/mwm/apogee/spectro/redux/daily/visit/apo25m/101689/6455/59817/apPlate-a-6455-59817.fits"
 
-    tstfname = download(sdss_public_tst*"asPlate-a-10155-58656.fits")
+    tstfname = Downloads.download(sdss_public_tst*"asPlate-a-10155-58656.fits")
     @test getFramesFromPlate(tstfname) == ["30940037", "30940038", "30940039", "30940040", "30940041", "30940042", "30940043", "30940044"]
 
     @test build_framepath(rtest[2:4]...,rtest[7],"30940037","a") == "/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/redux/dr17/exposures/apogee-s/58656/as1D-a-30940037.fits"
