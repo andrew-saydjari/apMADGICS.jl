@@ -27,6 +27,24 @@ else
 end
 naniqr_NaN(x,y) = mapslices(naniqr_NaN,x,dims=y)
 
+function isnanorzero(x)
+    return isnan(x) | iszero(x)
+end
+
+nanzeromedian(x) = if all(isnanorzero,x)
+    NaN
+else
+    median(filter(!isnanorzero,x))
+end
+nanzeromedian(x,y) = mapslices(nanzeromedian,x,dims=y)
+
+nanzeroiqr(x) = if all(isnanorzero,x)
+    NaN
+else
+    iqr(filter(!isnanorzero,x))/1.34896
+end
+nanzeroiqr(x,y) = mapslices(nanzeroiqr,x,dims=y)
+
 function inv_nan(A)
     if any(isnan,A)
         return NaN*ones(size(A))

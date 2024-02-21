@@ -43,32 +43,71 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
 # These global allocations for the injest are messy... but we plan on changing the ingest
 # relatively soon... so don't worry for now.
-# SHOULD probably make a flag for using DD correction or not (do once we settle on the formalism)
 @everywhere begin
+    refine_iters = 5
+    ddstaronly = true
+    runlist_range = 335:335 #1:600 #295, 245, 335, 101
+    batchsize = 10 #40
+
+    cache_dir = "../local_cache_335"
+    inject_cache_dir = prior_dir*"2024_02_08/inject_local_cache"
+
+    # Prior Dictionary
+    prior_dict = Dict{String,String}()
+
+    # Input List (not really a prior, but an input file we search for stars conditioned on)
+    prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
+
+    # Sky Priors
+    prior_dict["skycont"] = prior_dir*"2024_02_16/sky_priors/APOGEE_skycont_svd_30_f"
+    prior_dict["skyLines_bright"] = prior_dir*"2024_02_16/sky_priors/APOGEE_skyline_bright_svd_120_20_8_6_1en3_f"
+    prior_dict["skyLines_faint"] = prior_dir*"2024_02_16/sky_priors/APOGEE_skyline_faint_svd_120_20_8_6_1en3_f"
+    # prior_dict["skycont"] = prior_dir*"2024_01_31/sky_priors/APOGEE_skycont_svd_30_f"
+    # prior_dict["skyLines_bright"] = prior_dir*"2024_02_04/sky_priors/APOGEE_skyline_bright_svd_120_20_8_6_1en3_f"
+    # prior_dict["skyLines_faint"] = prior_dir*"2024_02_04/sky_priors/APOGEE_skyline_faint_svd_120_20_8_6_1en3_f"
+
+    # Star Priors
+    prior_dict["starCont"] = prior_dir*"2023_07_22/star_priors/APOGEE_starcont_svd_60_f"
+    prior_dict["starLines_refLSF"] = prior_dir*"2023_08_22/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5"
+    prior_dict["starLines_LSF"] = prior_dir*"2023_09_26/star_priors/APOGEE_starCor_svd_50_subpix_f"
+
+    # DIB Priors
+    prior_dict["DIB_noLSF"] = prior_dir*"2023_07_22/dib_priors/precomp_dust_1_analyticDeriv_stiff.h5"
+    prior_dict["DIB_noLSF_soft"] = prior_dir*"2023_07_22/dib_priors/precomp_dust_3_analyticDeriv_soft.h5"
+    prior_dict["DIB_LSF"] = prior_dir*"2023_07_22/dib_priors/precomp_dust_1_analyticDerivLSF_stiff_"
+    prior_dict["DIB_LSF_soft"] = prior_dir*"2023_07_22/dib_priors/precomp_dust_3_analyticDerivLSF_soft_"
+
+    # Data for Detector Cals (not really a prior, but an input the results depend on in detail)
+    prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jdat"
+    prior_dict["red_chi2_dict"] = src_dir*"data/red_chi2_dict.jdat"
+end
+
+@everywhere begin
+    # Load the Global Priors
+    # nothing to do on size here, if anything expand
+    f = h5open(prior_dict["DIB_noLSF"])
+    global V_dib_noLSF = read(f["Vmat"])
+    close(f)
+
+    f = h5open(prior_dict["DIB_noLSF_soft"])
+    global V_dib_noLSF_soft = read(f["Vmat"])
+    close(f)
+
+    alpha = 1;
+    f = h5open(prior_dict["starLines_refLSF"])
+    global V_subpix_refLSF = alpha*read(f["Vmat"])
+    close(f)
+
+    # I should revisit the error bars in the context of chi2 versus frame number trends
+    global err_correct_Dict = deserialize(prior_dict["chip_fluxdep_err_correction"])
+    global red_chi2_dict = deserialize(prior_dict["red_chi2_dict"])
+
     wavetarg = 10 .^range((4.179-125*6.0e-6),step=6.0e-6,length=8575+125) #first argument is start, revert fix to enable 1.6 compat
     minw, maxw = extrema(wavetarg)
     
     c = 299792.458; # in km/s
     delLog = 6e-6; 
-    # pixscale = (10^(delLog)-1)*c;
-
-    # nothing to do on size here, if anything expand
-    f = h5open(prior_dir*"2023_07_22/dib_priors/precomp_dust_1_analyticDeriv_stiff.h5")
-    global V_dib_noLSF = read(f["Vmat"])
-    close(f)
-
-    f = h5open(prior_dir*"2023_07_22/dib_priors/precomp_dust_3_analyticDeriv_soft.h5")
-    global V_dib_noLSF_soft = read(f["Vmat"])
-    close(f)
-
-    alpha = 1;
-    f = h5open(prior_dir*"2023_08_22/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5")
-    global V_subpix_refLSF = alpha*read(f["Vmat"])
-    close(f)
-
-    # I should revisit the error bars in the context of chi2 versus frame number trends
-    global err_correct_Dict = deserialize(src_dir*"data/chip_fluxdep_err_correction.jdat")
-    global red_chi2_dict = deserialize(src_dir*"data/red_chi2_dict.jdat")
+    # pixscale = (10^(delLog)-1)*c; # only a linear approx, use more accurate formula
 
     Xd_stack = zeros(3*2048)
     Xd_std_stack = zeros(3*2048)
@@ -83,13 +122,6 @@ end
 
 # it would be great to move this into a parameter file that is read for each run
 @everywhere begin
-    refine_iters = 1
-
-    # Moon Wave
-    mlvl1 = -2:1//10:2
-    mlvl_tuple = (mlvl1,)
-    # tuple1dprint(mlvl_tuple)
-
     # Star Wave
     lvl1 = -70:1//2:70
     lvl2 = -8:2//10:8
@@ -120,7 +152,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=true, ddstaronly=false, cache_dir="../local_cache", inject_cache_dir=prior_dir*"2024_02_08/inject_local_cache")
+    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=true, ddstaronly=false, cache_dir=cache_dir, inject_cache_dir=inject_cache_dir)
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
         out = []
 
@@ -369,7 +401,7 @@ end
 end
 
 @everywhere begin
-    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=false)
+    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=ddstaronly)
         ### Set up
         out = []
         startind = indsubset[1][1]
@@ -396,32 +428,32 @@ end
             end
             if prior_load_needed
                 ### Need to load the priors here
-                f = h5open(prior_dir*"2024_01_31/sky_priors/APOGEE_skycont_svd_30_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dict["skycont"]*lpad(adjfibindx,3,"0")*".h5")
                 global V_skycont = read(f["Vmat"])
                 chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
                 close(f)
 
-                f = h5open(prior_dir*"2024_02_04/sky_priors/APOGEE_skyline_bright_svd_120_20_8_6_1en3_f"*lpad(adjfibindx,3,"0")*".h5") #revert temp
+                f = h5open(prior_dict["skyLines_bright"]*lpad(adjfibindx,3,"0")*".h5")
                 global V_skyline_bright = read(f["Vmat"])
                 submsk_bright = convert.(Bool,read(f["submsk"]))
                 close(f)
 
-                f = h5open(prior_dir*"2024_02_04/sky_priors/APOGEE_skyline_faint_svd_120_20_8_6_1en3_f"*lpad(adjfibindx,3,"0")*".h5") #revert temp
+                f = h5open(prior_dict["skyLines_faint"]*lpad(adjfibindx,3,"0")*".h5")
                 global V_skyline_faint = read(f["Vmat"])
                 submsk_faint = convert.(Bool,read(f["submsk"]))
                 close(f)
 
-                global skymsk_bright = chebmsk_exp .& submsk_bright #.& msk_starCor;
-                global skymsk_faint = chebmsk_exp .& submsk_faint #.& msk_starCor;
-                # global skymsk = chebmsk_exp .& (submsk_bright .| submsk_faint) #.& msk_starCor;
-                global skymsk = chebmsk_exp .& submsk_faint # completely masking all bright lines;
+                global skymsk_bright = chebmsk_exp .& submsk_bright
+                global skymsk_faint = chebmsk_exp .& submsk_faint
+                # global skymsk = chebmsk_exp .& (submsk_bright .| submsk_faint) #
+                global skymsk = chebmsk_exp .& submsk_faint # completely masking all bright lines b/c detector response is nonlinear;
 
-                f = h5open(prior_dir*"2023_07_22/star_priors/APOGEE_starcont_svd_60_f"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dict["starCont"]*lpad(adjfibindx,3,"0")*".h5")
                 global V_starcont = read(f["Vmat"])
                 close(f)
 
                 # can consider changing dimension at the full reduction stage
-                f = h5open(prior_dir*"2023_08_22/starLine_priors/APOGEE_stellar_kry_50_subpix_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dict["starLines_LSF"]*lpad(adjfibindx,3,"0")*".h5")
                 global V_subpix = alpha*read(f["Vmat"])
                 if ddstaronly
                     global V_subpix_refLSF = V_subpix
@@ -429,11 +461,11 @@ end
                 end
                 close(f)
 
-                f = h5open(prior_dir*"2023_07_22/dib_priors/precomp_dust_1_analyticDerivLSF_stiff_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dict["DIB_LSF"]*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib = read(f["Vmat"])
                 close(f)
 
-                f = h5open(prior_dir*"2023_07_22/dib_priors/precomp_dust_3_analyticDerivLSF_soft_"*lpad(adjfibindx,3,"0")*".h5")
+                f = h5open(prior_dict["DIB_LSF_soft"]*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib_soft = read(f["Vmat"])
                 close(f)
                 GC.gc()
@@ -562,12 +594,11 @@ end
     end
 end
 
-batchsize = 10 #40
 iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
 
-for adjfibindx = 295:295 #1:600 #295, 245, 335, 101
-    subiter = deserialize(prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"*lpad(adjfibindx,3,"0")*".jdat")
+for adjfibindx in runlist_range
+    subiter = deserialize(prior_dict["runlists"]*lpad(adjfibindx,3,"0")*".jdat")
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end

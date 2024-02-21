@@ -3,24 +3,32 @@
 
 using AstroTime
 
-function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_dir="../local_cache",nattempts=5)
+function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_dir="../local_cache",nattempts=5,thrpt_cut=0.35)
     flux_paths, domeflat_expid, cartVisit = build_apFluxPaths(release_dir,redux_ver,tele,field,plate,mjd)
     fluxingcache = cache_fluxname(tele,field,plate,mjd; cache_dir=cache_dir)
 
     hdr = FITSHeader(["pipeline","git_branch","git_commit","domeflat_expid","CARTID"],["apMADGICS.jl",git_branch,git_commit,string(domeflat_expid),string(cartVisit)],["","","","",""])
 
     #should implement this everywhere to avoid race conditions
+    thrpt_mat = zeros(3,300)
     tmpfname = tempname()*"fits"
     h = FITS(tmpfname,"w")
     write(h,[0],header=hdr,name="header_only")
     for (chipind,chip) in enumerate(["a","b","c"])
         flux_path = flux_paths[chipind]
         f = FITS(flux_path)
-        thrpt = read(f[3])
+        thrpt_mat[chipind,:] .= read(f[3])
         close(f)
-        write(h,thrpt,name=chip)
+    end
+
+    msk_bad_thrpt = (thrpt_mat[1,:] .< thrpt_cut) .| (thrpt_mat[2,:] .< thrpt_cut) .| (thrpt_mat[3,:] .< thrpt_cut)
+    thrpt_mat[:,msk_bad_thrpt] .= NaN
+    
+    for (chipind,chip) in enumerate(["a","b","c"])
+        write(h,thrpt_mat[chipind,:],name=chip)
     end
     close(h)
+
     try
         for i=1:nattempts
             if !isfile(fluxingcache)
@@ -35,8 +43,7 @@ function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_d
     end
 end
 
-function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skymsk,V_skyline_bright,V_skyline_faint,V_skycont; caching=false,cache_dir="../local_cache")
-    
+function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skymsk,V_skyline_bright,V_skyline_faint,V_skycont;skyZcut=10,caching=false,cache_dir="../local_cache")
     ### Find all of the Sky Fibers
     vname = build_visitpath(release_dir,redux_ver,tele,field,plate,mjd,fiberindx)
     # do we want to move away from relying on the apPlateFile? 
@@ -54,37 +61,35 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
     ### Decompose all of the Sky Fibers
     outcont = zeros(length(wavetarg),length(skyinds));
     for (findx,fiberind) in enumerate(skyinds)
-        # try
-            skycacheSpec = cache_skynameSpec(tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
-            if (isfile(skycacheSpec) & caching)
-                fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
-                starscale,framecnts,a_relFlux,b_relFlux,c_relFlux = metaexport
-            else
-                fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
-                starscale,framecnts,a_relFlux,b_relFlux,c_relFlux = metaexport
-                if caching
-                    dirName = splitdir(skycacheSpec)[1]
-                    if !ispath(dirName)
-                        mkpath(dirName)
-                    end
-                    serialize(skycacheSpec,[fvec, fvarvec, cntvec, chipmidtimes, metaexport])
+        skycacheSpec = cache_skynameSpec(tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
+        if (isfile(skycacheSpec) & caching)
+            fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
+            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux = metaexport
+        else
+            fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
+            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux = metaexport
+            if caching
+                dirName = splitdir(skycacheSpec)[1]
+                if !ispath(dirName)
+                    mkpath(dirName)
                 end
+                serialize(skycacheSpec,[fvec, fvarvec, cntvec, chipmidtimes, metaexport])
             end
+        end
 
-            simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
-            contvec = sky_decomp(fvec, fvarvec, simplemsk, V_skyline_bright, V_skyline_faint, V_skycont)
-            # do we want to save the other components to disk? I am not sure we do.
-            outcont[:,findx] .= contvec
-        # catch
-            # # we should figure out how often this happens and why
-            # @warn "Bad Sky: ($tele,$field,$plate,$mjd,$fiberind)"
-            # outcont[:,findx] .= 0
-        # end
+        simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
+        contvec = sky_decomp(fvec, fvarvec, simplemsk, V_skyline_bright, V_skyline_faint, V_skycont)
+        # do we want to save the other components to disk? I am not sure we do.
+        outcont[:,findx] .= contvec
     end
 
-    msk = (dropdims(nansum(outcont,1),dims=1)) .> 0
-    meanLocSky = dropdims(nanmean(outcont[:,msk],2),dims=2);
+    skyScale = dropdims(nanzeromedian(outcont,1),dims=1);
+    skyMed = nanzeromedian(skyScale)
+    skyIQR = nanzeroiqr(skyScale)
+    skyZ = (skyScale.-skyMed)./skyIQR;
+    msk = (abs.(skyZ).<skyZcut)
 
+    meanLocSky = dropdims(nanmean(outcont[:,msk],2),dims=2);
     VLocSky = (outcont[:,msk].-meanLocSky)./sqrt(count(msk));
     return meanLocSky, VLocSky
 end
@@ -151,9 +156,9 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; telluri
             midtime = modified_julian(TAIEpoch(hdr["DATE-OBS"]))+(hdr["EXPTIME"]/2/3600/24)days #TAI or UTC?
             push!(time_lsts[chipind],AstroTime.value(midtime))
             Xd = read(f[2],:,fiberindx)
-            Xd_stack[(1:2048).+(chipind-1)*2048] .= Xd[end:-1:1]./thrptDict[chip];
+            Xd_stack[(1:2048).+(chipind-1)*2048] .= Xd[end:-1:1]; # ./thrptDict[chip] has already been done at the 2D -> 1D level
             Xd_std = read(f[3],:,fiberindx)
-            Xd_std_stack[(1:2048).+(chipind-1)*2048] .= Xd_std[end:-1:1]./thrptDict[chip].*err_factor.(Xd[end:-1:1],Ref(err_correct_Dict[join([tele,chip],"_")]));
+            Xd_std_stack[(1:2048).+(chipind-1)*2048] .= Xd_std[end:-1:1].*err_factor.(Xd[end:-1:1],Ref(err_correct_Dict[join([tele,chip],"_")])); # ./thrptDict[chip] has already been done at the 2D -> 1D level
             pixmsk = read(f[4],:,fiberindx);
             pixmsk_stack[(1:2048).+(chipind-1)*2048] .= pixmsk[end:-1:1]
             waveobsa = read(f[5],:,fiberindx);
@@ -174,7 +179,6 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; telluri
         fullBit[((pixmsk_stack .& 2^0).!=0)] .+= 2^4 # call pixmask bit 0 bad
         fullBit[fullBit.==0] .+= 2^4 # call chip gaps bad for alt space
 
-        # but are the outlier variances coming in from later? In the Rinv?
         goodpix = ((pixmsk_stack .& 2^0).==0) .& ((fullBit .& 2^4).==0) .& (.!isnan.(Xd_std_stack)) .& (Xd_std_stack.< (10^10))
         if telluric_div
             Xd_stack./= telluric_stack
