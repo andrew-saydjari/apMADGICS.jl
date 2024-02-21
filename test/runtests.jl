@@ -4,6 +4,8 @@ using Test, Random
 using FITSIO, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, Interpolations, SparseArrays, ParallelDataTransfer
 using StatsBase, LinearAlgebra, ProgressMeter, Serialization
 
+sdss_public_tst = "https://data.sdss5.org/resources/pipelines/apogee_drp/unit_test/apogee_drp/"
+
 src_dir = "../"
 include(src_dir*"src/utils.jl")
 include(src_dir*"src/gridSearch.jl")
