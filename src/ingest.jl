@@ -21,11 +21,11 @@ function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_d
         close(f)
     end
 
-    msk_bad_thrpt = (thrpt[1,:] .< thrpt_cut) .| (thrpt[2,:] .< thrpt_cut) .| (thrpt[3,:] .< thrpt_cut)
+    msk_bad_thrpt = (thrpt_mat[1,:] .< thrpt_cut) .| (thrpt_mat[2,:] .< thrpt_cut) .| (thrpt_mat[3,:] .< thrpt_cut)
     thrpt_mat[:,msk_bad_thrpt] .= NaN
     
     for (chipind,chip) in enumerate(["a","b","c"])
-        write(h,thrpt,name=chip)
+        write(h,thrpt_mat[chipind,:],name=chip)
     end
     close(h)
 
