@@ -1,35 +1,26 @@
 # Utils Module
 using ParallelDataTransfer, Distributed, Suppressor
 
-nanmean(x) = mean(filter(!isnan,x))
-nanmean(x,y) = mapslices(nanmean,x,dims=y)
+function isnanorzero(x)
+    return isnan(x) | iszero(x)
+end
+
+nanzeromean(x) = if all(isnanorzero,x)
+    NaN
+else
+    mean(filter(!isnanorzero,x))
+end
+nanzeromean(x,y) = mapslices(nanzeromean,x,dims=y)
 
 nansum(x) = sum(filter(!isnan,x))
 nansum(x,y) = mapslices(nansum,x,dims=y)
 
-nanmedian(x) = median(filter(!isnan,x))
-nanmedian(x,y) = mapslices(nanmedian,x,dims=y)
-
-NaNmedian(x) = if all(isnan,x)
+nanzerosum(x) = if all(isnanorzero,x)
     NaN
 else
-    median(filter(!isnan,x))
+    sum(filter(!isnanorzero,x))
 end
-NaNmedian(x,y) = mapslices(NaNmedian,x,dims=y)
-
-naniqr(x) = iqr(filter(!isnan,x))/1.34896
-naniqr(x,y) = mapslices(naniqr,x,dims=y)
-
-naniqr_NaN(x) = if all(isnan,x)
-    NaN
-else
-    iqr(filter(!isnan,x))/1.34896
-end
-naniqr_NaN(x,y) = mapslices(naniqr_NaN,x,dims=y)
-
-function isnanorzero(x)
-    return isnan(x) | iszero(x)
-end
+nanzerosum(x,y) = mapslices(nanzerosum,x,dims=y)
 
 nanzeromedian(x) = if all(isnanorzero,x)
     NaN

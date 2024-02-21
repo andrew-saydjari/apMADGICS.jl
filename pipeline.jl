@@ -180,6 +180,7 @@ end
                 serialize(skycache,[meanLocSky, VLocSky])
             end
         end
+        skyscale0 = nanzeromedian(meanLocSky)
 
         # Get the Star
         starcache = cache_starname(tele,field,plate,mjd,fiberindx,cache_dir=cache_dir,inject_cache_dir=inject_cache_dir)
@@ -201,7 +202,7 @@ end
         end
         simplemsk = (cntvec.==framecnts) .& skymsk;
         
-        push!(out,(count(simplemsk), starscale, framecnts, chipmidtimes, a_relFlux, b_relFlux, c_relFlux, cartVisit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
+        push!(out,(count(simplemsk), starscale, skyscale0, framecnts, chipmidtimes, a_relFlux, b_relFlux, c_relFlux, cartVisit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
 
         if skyCont_off
             meanLocSky.=0
@@ -240,7 +241,7 @@ end
         V_skyline_tot_r = V_skyline_faint_r
         V_locSky_c = VLocSky
         V_locSky_r = V_locSky_c[rvmsk,:]
-        V_starCont_c = starscale*V_starcont
+        V_starCont_c = abs(starscale)*V_starcont
         V_starCont_r = V_starCont_c[rvmsk,:]
 
         ## Solve RV of Star
@@ -279,7 +280,7 @@ end
         # re-estiamte starScale before re-creating the priors with the new finalRV msk
         Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],rvmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
         x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r, ))
-        starscale1 = abs(NaNmedian(x_comp_lst[1]))
+        starscale1 = nanzeromedian(x_comp_lst[1])
 
         # Change data mask based on final inferred RV
         finalmsk = copy(simplemsk)
@@ -300,7 +301,7 @@ end
         V_skyline_faint_r = V_skyline_faint_c[finalmsk,:]
         V_skyline_tot_r = V_skyline_faint_r
         V_locSky_r = V_locSky_c[finalmsk,:]
-        V_starCont_c = starscale1*V_starcont
+        V_starCont_c = abs(starscale1)*V_starcont
         V_starCont_r = V_starCont_c[finalmsk,:]
 
         Vcomb_skylines = hcat(V_skyline_tot_r,V_locSky_r,V_starCont_r);
@@ -325,15 +326,17 @@ end
         )
         
         x_comp_out = [nanify(x_comp_lst[1]./sqrt.(fvarvec[finalmsk]),finalmsk), nanify(x_comp_lst[1],finalmsk), 
-                        # nanify(x_comp_lst[2][skymsk_bright[finalmsk]],finalmsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
-                        nanify(x_comp_lst[2][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
-                        nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4],finalmsk),
-                        x_comp_lst[6:end]..., nanify((fvec[finalmsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[finalmsk]))./ x_comp_lst[4],finalmsk),finalmsk]
-        
+            # nanify(x_comp_lst[2][skymsk_bright[finalmsk]],finalmsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
+            nanify(x_comp_lst[2][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
+            nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4],finalmsk),
+            x_comp_lst[6:end]..., nanify((fvec[finalmsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[finalmsk]))./ x_comp_lst[4],finalmsk),finalmsk
+        ]
+
+        skyscale1 = nanzeromedian(x_comp_out[4])
         dvec = (fvec .-(x_comp_out[2].+x_comp_out[3].+x_comp_out[4].+x_comp_out[5].*(1 .+ nanify(x_comp_lst[5],finalmsk))))./fvec;
         chi2res = x_comp_lst[1]'*(Ainv*x_comp_lst[1])
-        chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale, fc=red_chi2_dict[tele])
-        push!(out,(chi2res,chi2r_fc,naniqr_NaN(dvec),count(finalmsk),starscale1)) # 3
+        chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale1, fc=red_chi2_dict[tele])
+        push!(out,(chi2res,chi2r_fc,nanzeroiqr(dvec),count(finalmsk),starscale1,skyscale1)) # 3
         push!(out,x_comp_out) # 4
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
         push!(out,dflux_starlines) # 5
@@ -390,7 +393,7 @@ end
                         x_comp_lst[5:end]...]
 
             chi2res = x_comp_lst[1]'*(Ainv*x_comp_lst[1])
-            chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale, fc=red_chi2_dict[tele])
+            chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale1, fc=red_chi2_dict[tele])
             push!(out,(chi2res,chi2r_fc)) # 8
 
             push!(out,x_comp_out) # 9
@@ -488,14 +491,15 @@ end
                 # meta info
                 (x->x[metai][1],                        "data_pix_cnt"),
                 (x->x[metai][2],                        "starscale"),
-                (x->x[metai][3],                        "frame_counts"),
-                (x->x[metai][4],                        "chip_midtimes"),
-                (x->x[metai][5],                        "a_relFlux"),
-                (x->x[metai][6],                        "b_relFlux"),
-                (x->x[metai][7],                        "c_relFlux"),
-                (x->x[metai][8],                        "cartVisit"),
-                (x->x[metai][9],                        "flux"),
-                (x->x[metai][10],                       "fluxerr2"),
+                (x->x[metai][3],                        "skyscale0"),
+                (x->x[metai][4],                        "frame_counts"),
+                (x->x[metai][5],                        "chip_midtimes"),
+                (x->x[metai][6],                        "a_relFlux"),
+                (x->x[metai][7],                        "b_relFlux"),
+                (x->x[metai][8],                        "c_relFlux"),
+                (x->x[metai][9],                        "cartVisit"),
+                (x->x[metai][10],                       "flux"),
+                (x->x[metai][11],                       "fluxerr2"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
@@ -509,6 +513,7 @@ end
                 (x->x[RVchi][3],                        "avg_flux_conservation"),
                 (x->x[RVchi][4],                        "final_pix_cnt"),
                 (x->x[RVchi][5],                        "starscale1"),
+                (x->x[RVchi][6],                        "skyscale1"),
                                     
                 (x->x[RVind][2][1][3],                  "RV_p5delchi2_lvl1"),
                 (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
