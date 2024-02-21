@@ -3,7 +3,7 @@
 
 using AstroTime
 
-function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_dir="../local_cache",nattempts=5,force_ones=false)
+function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_dir="../local_cache",nattempts=5)
     flux_paths, domeflat_expid, cartVisit = build_apFluxPaths(release_dir,redux_ver,tele,field,plate,mjd)
     fluxingcache = cache_fluxname(tele,field,plate,mjd; cache_dir=cache_dir)
 
@@ -18,9 +18,6 @@ function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_d
         f = FITS(flux_path)
         thrpt = read(f[3])
         close(f)
-        if force_ones
-            thrpt .= 1
-        end
         write(h,thrpt,name=chip)
     end
     close(h)
@@ -86,7 +83,7 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
     end
 
     msk = (dropdims(nansum(outcont,1),dims=1)) .> 0
-    meanLocSky = dropdims(nanmean(outcont[:,msk],2),dims=2);
+    meanLocSky = dropdims(nanmean(outcont[:,msk],2),dims=2); # should we switch to nanmedian?
 
     VLocSky = (outcont[:,msk].-meanLocSky)./sqrt(count(msk));
     return meanLocSky, VLocSky
@@ -154,9 +151,9 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; telluri
             midtime = modified_julian(TAIEpoch(hdr["DATE-OBS"]))+(hdr["EXPTIME"]/2/3600/24)days #TAI or UTC?
             push!(time_lsts[chipind],AstroTime.value(midtime))
             Xd = read(f[2],:,fiberindx)
-            Xd_stack[(1:2048).+(chipind-1)*2048] .= Xd[end:-1:1]./thrptDict[chip];
+            Xd_stack[(1:2048).+(chipind-1)*2048] .= Xd[end:-1:1]; # ./thrptDict[chip] has already been done at the 2D -> 1D level
             Xd_std = read(f[3],:,fiberindx)
-            Xd_std_stack[(1:2048).+(chipind-1)*2048] .= Xd_std[end:-1:1]./thrptDict[chip].*err_factor.(Xd[end:-1:1],Ref(err_correct_Dict[join([tele,chip],"_")]));
+            Xd_std_stack[(1:2048).+(chipind-1)*2048] .= Xd_std[end:-1:1].*err_factor.(Xd[end:-1:1],Ref(err_correct_Dict[join([tele,chip],"_")])); # ./thrptDict[chip] has already been done at the 2D -> 1D level
             pixmsk = read(f[4],:,fiberindx);
             pixmsk_stack[(1:2048).+(chipind-1)*2048] .= pixmsk[end:-1:1]
             waveobsa = read(f[5],:,fiberindx);
