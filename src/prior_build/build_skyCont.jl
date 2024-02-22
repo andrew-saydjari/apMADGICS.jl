@@ -102,6 +102,10 @@ end
             EVEC = zeros(length(wavetarg),size(SF.U,2))
             EVEC[chebmsk_exp,:].=SF.U;
 
+            dirName = splitdir(fname)[1]
+            if !ispath(dirName)
+                mkpath(dirName)
+            end
             h5write(fname,"Vmat",EVEC[:,1:nsub]*Diagonal(sqrt.(SF.S[1:nsub])))
             h5write(fname,"λv",SF.S[1:nsub])
             h5write(fname,"chebmsk_exp",chebmsk_exp)
