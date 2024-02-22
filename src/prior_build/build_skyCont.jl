@@ -3,7 +3,7 @@
 
 import Pkg; using Dates; t0 = now(); t_then = t0;
 using InteractiveUtils; versioninfo()
-Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
+Pkg.activate("../../"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 using BLISBLAS
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
@@ -19,7 +19,8 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     using ThreadPinning
 
     prior_dir = "/uufs/chpc.utah.edu/common/home/u6039752/scratch1/working/"
-    src_dir = "./"
+    prior_dir0 = "/uufs/chpc.utah.edu/common/home/u6039752/scratch/working/"
+    src_dir = "../../"
     include(src_dir*"src/utils.jl")
     include(src_dir*"src/gridSearch.jl")
     include(src_dir*"src/componentAndPosteriors.jl")
@@ -29,6 +30,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     include(src_dir*"src/marginalizeEW.jl")
     include(src_dir*"src/spectraInterpolation.jl")
     include(src_dir*"src/chi2Wrappers.jl")
+    include(src_dir*"src/prior_build/prior_utils.jl")
     
     using StatsBase, ProgressMeter
 end
