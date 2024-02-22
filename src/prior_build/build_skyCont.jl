@@ -7,7 +7,7 @@ Pkg.activate("../../"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 using BLISBLAS
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
-addprocs(SlurmManager(),exeflags=["--project=../../"])
+addprocs(SlurmManager(),exeflags=["--project=../../","-t 2"])
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
 
 @everywhere begin
@@ -44,14 +44,14 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 workers() git_branch; @passobj 1 workers() git_commit
 
 @everywhere begin
-    runlist_range = 295 #1:600 #295, 245, 335, 101
+    runlist_range = 335 #1:600 #295, 245, 335, 101
 
     nsub = 30; # my star cont is 60... do we need to up it?
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
-    sky_base = prior_dir*"2024_02_17/apMADGICS.jl/src/prior_build/"
+    sky_base = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/"
 
     # Location of the samples
     prior_dict["skycont"] = sky_base*"sky_prior_disk/skycont_"
