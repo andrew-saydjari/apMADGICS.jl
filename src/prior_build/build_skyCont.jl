@@ -72,19 +72,39 @@ end
 end
 
 @everywhere begin
-    function build_skyCont(adjfibindx)
-        fname = "sky_priors/APOGEE_skylines_svd_"*string(nsub)*"_f"*lpad(adjfibindx,3,"0")*".h5"
+    function build_skyCont(adjfibindx; tellDiv=false)
+        fname = if tellDiv
+            "sky_priors/APOGEE_skycont_tellDiv_svd_"*string(nsub)*"_f"*lpad(adjfibindx,3,"0")*".h5"
+        else
+            "sky_priors/APOGEE_skycont_svd_"*string(nsub)*"_f"*lpad(adjfibindx,3,"0")*".h5"
+        end
         if !isfile(fname)
-            savename = prior_dict["skycont"]*lpad(adjfibindx,3,"0")*".jdat"
+            savename = if tellDiv
+                prior_dict["skycont_tellDiv"]*lpad(adjfibindx,3,"0")*".jdat"
+            else
+                prior_dict["skycont"]*lpad(adjfibindx,3,"0")*".jdat"
+            end
             skycont = deserialize(savename)
 
-            savename = prior_dict["skyline"]*lpad(adjfibindx,3,"0")*".jdat"
+            savename = if tellDiv
+                prior_dict["skyline_tellDiv"]*lpad(adjfibindx,3,"0")*".jdat"
+            else
+                prior_dict["skyline"]*lpad(adjfibindx,3,"0")*".jdat"
+            end
             skyline = deserialize(savename)
 
-            savename = prior_dict["skymsk"]*lpad(adjfibindx,3,"0")*".jdat"
+            savename = if tellDiv
+                prior_dict["skymsk_tellDiv"]*lpad(adjfibindx,3,"0")*".jdat"
+            else
+                prior_dict["skymsk"]*lpad(adjfibindx,3,"0")*".jdat"
+            end
             skymsk = deserialize(savename);
 
-            savename = prior_dict["skyvar"]*lpad(adjfibindx,3,"0")*".jdat"
+            savename = if tellDiv 
+                prior_dict["skyvar_tellDiv"]*lpad(adjfibindx,3,"0")*".jdat"
+            else
+                prior_dict["skyvar"]*lpad(adjfibindx,3,"0")*".jdat"
+            end
             skyvar = deserialize(savename);
 
             savename = prior_dict["chebmsk_exp"]*lpad(adjfibindx,3,"0")*".jdat"
@@ -112,46 +132,16 @@ end
             h5write(fname,"λv",SF.S[1:nsub])
             h5write(fname,"chebmsk_exp",chebmsk_exp)
         end
+    end
 
+    function build_skyCont_wrapper(adjfibindx)
+        # Usual version for building sky prior
+        build_skyCont(adjfibindx)
         # Tell-free sky version for building Tfun/starCont prior
-        fname = "sky_priors/APOGEE_skycont_tellDiv_svd_"*string(nsub)*"_f"*lpad(adjfibindx,3,"0")*".h5"
-        if !isfile(fname)
-            savename = prior_dict["skycont_tellDiv"]*lpad(adjfibindx,3,"0")*".jdat"
-            skycont = deserialize(savename)
-
-            savename = prior_dict["skyline_tellDiv"]*lpad(adjfibindx,3,"0")*".jdat"
-            skyline = deserialize(savename)
-
-            savename = prior_dict["skymsk_tellDiv"]*lpad(adjfibindx,3,"0")*".jdat"
-            skymsk = deserialize(savename);
-
-            savename = prior_dict["skyvar_tellDiv"]*lpad(adjfibindx,3,"0")*".jdat"
-            skyvar = deserialize(savename);
-
-            savename = prior_dict["chebmsk_exp"]*lpad(adjfibindx,3,"0")*".jdat"
-            chebmsk_exp = deserialize(savename);
-
-            specsum = dropdims(sum(skycont,dims=1),dims=1)
-            Vred = skycont[chebmsk_exp,specsum.>0];
-            # weights = ones(size(Vred,2));
-            # Vred .*= reshape(weights,1,:);
-            nsamp = size(Vred,2)
-            # norm_weights = weights'*weights
-            Csky = Vred*Vred'
-            # Csky./=norm_weights
-            Csky./=nsamp
-
-            SF = svd(Csky);
-            EVEC = zeros(length(wavetarg),size(SF.U,2))
-            EVEC[chebmsk_exp,:].=SF.U;
-
-            h5write(fname,"Vmat",EVEC[:,1:nsub]*Diagonal(sqrt.(SF.S[1:nsub])))
-            h5write(fname,"λv",SF.S[1:nsub])
-            h5write(fname,"chebmsk_exp",chebmsk_exp)
-        end
+        build_skyCont(adjfibindx,tellDiv=true)
     end
 end
 
 # observing, it spent a most of the time before entering the multithreaded SVD. Why?
-BLAS.set_num_threads(64); build_skyCont(runlist_range)
-# @showprogress pmap(build_skyCont,1:600) # 13ish hours on 4 np nodes
+BLAS.set_num_threads(64); build_skyCont_wrapper(runlist_range)
+# @showprogress pmap(build_skyCont_wrapper,1:600) # 13ish hours on 4 np nodes

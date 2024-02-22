@@ -7,7 +7,7 @@ Pkg.activate("../../"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 using BLISBLAS
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
-addprocs(SlurmManager(),exeflags=["--project=../../","-t 2"])
+# addprocs(SlurmManager(),exeflags=["--project=../../","-t 2"])
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
 
 @everywhere begin
@@ -46,7 +46,16 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     runlist_range = 335 #1:600 #295, 245, 335, 101
 
-    nsub = 30; # my star cont is 60... do we need to up it?
+    nsub_bright = 120;
+    nsub_faint = 120;
+
+    function thresh_bright_faint(adjfibindx)
+        if adjfibindx <= 300
+            return 2000
+        else
+            return 645
+        end
+    end
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
@@ -74,7 +83,10 @@ end
 @everywhere begin
     function build_skyLines(adjfibindx)
         fname = "sky_priors/APOGEE_skycont_svd_"*string(nsub)*"_f"*lpad(adjfibindx,3,"0")*".h5"
-        if !isfile(fname)
+
+        fnameBright = "sky_priors/APOGEE_skyline_bright_svd_"*string(nsub)*"_f"*lpad(adjfibindx,3,"0")*".h5"
+        fnameFaint = "sky_priors/APOGEE_skyline_faint_svd_"*string(nsub)*"_f"*lpad(adjfibindx,3,"0")*".h5"
+        if !(isfile(fnameBright) & isfile(fnameFaint))
             savename = prior_dict["skycont"]*lpad(adjfibindx,3,"0")*".jdat"
             skycont = deserialize(savename)
 
@@ -91,75 +103,84 @@ end
             chebmsk_exp = deserialize(savename);
 
             # Sep Bright/Faint
+            specsum = dropdims(sum(skyline,dims=1),dims=1)
+            obscnt = dropdims(sum(skymsk,dims=2),dims=2);
+            submsk = (obscnt.>=10) .& chebmsk_exp;
+            Vred = skyline[submsk,specsum.>0];
+            skymsked = skymsk[submsk,specsum.>0]
+            Vred .*= skymsked;
+
+            median_sky = dropdims(nanzeromedian(Vred,2),dims=2);
+
+            submsk_bright = copy(submsk)
+            submsk_faint = copy(submsk)
+            mskflux = .!expand_msk(median_sky .< thresh_bright_faint(adjfibindx),rad=4)
+            mskflux_big = zeros(Bool,length(submsk))
+            mskflux_big[submsk].=mskflux
+            
+            submsk_bright[mskflux_big].&= true
+            submsk_bright[.!mskflux_big].&= false
+            
+            submsk_faint[mskflux_big].&= false
+            submsk_faint[.!mskflux_big].&= true;
 
             # Bright
+            if !isfile(fnameBright)
+                specsum = dropdims(sum(skyline,dims=1),dims=1)
+                obscnt = dropdims(sum(skymsk,dims=2),dims=2);
+                submsk = (obscnt.>=10) .& chebmsk_exp .& submsk_bright;
+                Vred = skyline[submsk,specsum.>0];
+                skymsked = skymsk[submsk,specsum.>0];
+                Vred .*= skymsked
+                norm_weights = skymsked*skymsked';
+                Csky = Vred*Vred'
+                Csky./=(norm_weights .+ (norm_weights.==0));
+
+                SF = svd(Csky);
+                EVEC = zeros(length(wavetarg),size(SF.U,2))
+                EVEC[submsk,:].=SF.U;
+
+                h5write(fnameBright,"Vmat",EVEC[:,1:nsub_bright]*Diagonal(sqrt.(SF.S[1:nsub_bright])))
+                h5write(fnameBright,"λv",SF.S[1:nsub_bright])
+                h5write(fnameBright,"submsk",convert.(Int,submsk)) # different for bright/faint skylines
+            end
+
+            # Bright GSPICE
 
             # Faint
+            if !isfile(fnameFaint)
+                specsum = dropdims(sum(skyline,dims=1),dims=1)
+                obscnt = dropdims(sum(skymsk,dims=2),dims=2);
+                submsk = (obscnt.>=10) .& chebmsk_exp .& submsk_faint;
+                Vred = skyline[submsk,specsum.>0];
+                skymsked = skymsk[submsk,specsum.>0];
+                Vred .*= skymsked
+                norm_weights = skymsked*skymsked';
+                Csky = Vred*Vred'
+                Csky./=(norm_weights .+ (norm_weights.==0));
 
-            # GSPICE Faint
+                SF = svd(Csky);
+                EVEC = zeros(length(wavetarg),size(SF.U,2))
+                EVEC[submsk,:].=SF.U;
 
-            specsum = dropdims(sum(skycont,dims=1),dims=1)
-            Vred = skycont[chebmsk_exp,specsum.>0];
-            # weights = ones(size(Vred,2));
-            # Vred .*= reshape(weights,1,:);
-            nsamp = size(Vred,2)
-            # norm_weights = weights'*weights
-            Csky = Vred*Vred'
-            # Csky./=norm_weights
-            Csky./=nsamp
-
-            SF = svd(Csky);
-            EVEC = zeros(length(wavetarg),size(SF.U,2))
-            EVEC[chebmsk_exp,:].=SF.U;
-
-            dirName = splitdir(fname)[1]
-            if !ispath(dirName)
-                mkpath(dirName)
+                h5write(fnameFaint,"Vmat",EVEC[:,1:nsub_bright]*Diagonal(sqrt.(SF.S[1:nsub_bright])))
+                h5write(fnameFaint,"λv",SF.S[1:nsub_bright])
+                h5write(fnameFaint,"submsk",convert.(Int,submsk)) # different for bright/faint skylines
             end
-            h5write(fname,"Vmat",EVEC[:,1:nsub]*Diagonal(sqrt.(SF.S[1:nsub])))
-            h5write(fname,"λv",SF.S[1:nsub])
-            h5write(fname,"chebmsk_exp",chebmsk_exp)
-        end
 
+            # Faint GSPICE
+
+        end
+    end
+
+    function build_skyLines_wrapper(adjfibindx)
+        # Usual version for building sky prior
+        build_skyLines(adjfibindx)
         # Tell-free sky version for building Tfun/starCont prior
-        fname = "sky_priors/APOGEE_skycont_tellDiv_svd_"*string(nsub)*"_f"*lpad(adjfibindx,3,"0")*".h5"
-        if !isfile(fname)
-            savename = prior_dict["skycont_tellDiv"]*lpad(adjfibindx,3,"0")*".jdat"
-            skycont = deserialize(savename)
-
-            savename = prior_dict["skyline_tellDiv"]*lpad(adjfibindx,3,"0")*".jdat"
-            skyline = deserialize(savename)
-
-            savename = prior_dict["skymsk_tellDiv"]*lpad(adjfibindx,3,"0")*".jdat"
-            skymsk = deserialize(savename);
-
-            savename = prior_dict["skyvar_tellDiv"]*lpad(adjfibindx,3,"0")*".jdat"
-            skyvar = deserialize(savename);
-
-            savename = prior_dict["chebmsk_exp"]*lpad(adjfibindx,3,"0")*".jdat"
-            chebmsk_exp = deserialize(savename);
-
-            specsum = dropdims(sum(skycont,dims=1),dims=1)
-            Vred = skycont[chebmsk_exp,specsum.>0];
-            # weights = ones(size(Vred,2));
-            # Vred .*= reshape(weights,1,:);
-            nsamp = size(Vred,2)
-            # norm_weights = weights'*weights
-            Csky = Vred*Vred'
-            # Csky./=norm_weights
-            Csky./=nsamp
-
-            SF = svd(Csky);
-            EVEC = zeros(length(wavetarg),size(SF.U,2))
-            EVEC[chebmsk_exp,:].=SF.U;
-
-            h5write(fname,"Vmat",EVEC[:,1:nsub]*Diagonal(sqrt.(SF.S[1:nsub])))
-            h5write(fname,"λv",SF.S[1:nsub])
-            h5write(fname,"chebmsk_exp",chebmsk_exp)
-        end
+        build_skyLines(adjfibindx, tellDiv=true)
     end
 end
 
 # observing, it spent a most of the time before entering the multithreaded SVD. Why?
-BLAS.set_num_threads(64); build_skyLines(runlist_range)
-# @showprogress pmap(build_skyLines,1:600) # 13ish hours on 4 np nodes
+BLAS.set_num_threads(64); build_skyLines_wrapper(runlist_range)
+# @showprogress pmap(build_skyLines_wrapper,1:600) # 13ish hours on 4 np nodes
