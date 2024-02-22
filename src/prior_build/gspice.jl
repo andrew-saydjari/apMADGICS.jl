@@ -507,7 +507,7 @@ Perform GSPICE prediction of each pixel, conditional on others
  \\
 2021-Oct-21 - Written by Douglas Finkbeiner, CfA \\
 """
-function gspice_gp_interp(Dvec, covmat; irange=nothing, nguard=20, bruteforce=false, reg_eps=0)
+function gspice_gp_interp(Dvec, covmat; irange=nothing, nguard=20, bruteforce=false, reg_eps=0, silent=false)
 
     @assert ~isnothing(covmat)
 
@@ -552,8 +552,9 @@ function gspice_gp_interp(Dvec, covmat; irange=nothing, nguard=20, bruteforce=fa
         predvar[:, kstar.-(i1-1)] .= diag(predcovar)
 
         if mod(i,500)==0
-            println(i, "  ",(now()-t0).value/1000.0, " sec")
-            flush(stdout)
+            if !silent
+                println(i, "  ",(now()-t0).value/1000.0, " sec"); flush(stdout)
+            end
         end
     end
 
@@ -589,7 +590,7 @@ Compute mask of outliers with respect to GSPICE posterior variance
  \\
 2021-Oct-21 - Written by Douglas Finkbeiner, CfA \\
 """
-function gspice_chimask(flux, ivar, mask, nsigma; reg_eps=0)
+function gspice_chimask(flux, ivar, mask, nsigma; reg_eps=0, silent=false)
 
     # -------- interpolate masked pixels in the spectral direction, scale
     Dvec, refscale, refmean = gspice_standard_scale(flux, ivar, mask)
@@ -598,7 +599,7 @@ function gspice_chimask(flux, ivar, mask, nsigma; reg_eps=0)
     covmat, __ = gspice_covar(Dvec)
 
     # -------- compute GSPICE predicted mean and variance
-    pred, predvar = gspice_gp_interp(Dvec, covmat, nguard=20,reg_eps=reg_eps)
+    pred, predvar = gspice_gp_interp(Dvec, covmat, nguard=20,reg_eps=reg_eps, silent=silent)
 
     # -------- compute "chi" (really the Z-score)
     chi = (Dvec-pred)./sqrt.(predvar)
@@ -634,7 +635,7 @@ Compute spectral covariance with iterative masking using GSPICE
 
 2021-Oct-21 - Written by Douglas Finkbeiner, CfA \\
 """
-function gspice_covar_iter_mask(flux, ivar, mask; nsigma=[20, 8, 6], maxbadpix=64, usamp_factor=1, reg_eps=0)
+function gspice_covar_iter_mask(flux, ivar, mask; nsigma=[20, 8, 6], maxbadpix=64, usamp_factor=1, reg_eps=0, silent=false)
 
     t0 = now()                     # start time
     nspec,npix = size(flux)
@@ -649,13 +650,15 @@ function gspice_covar_iter_mask(flux, ivar, mask; nsigma=[20, 8, 6], maxbadpix=6
     chimask = false
     thismask = false
     for iter = 1:length(nsigma)
-        println("=========================  Pass ", iter, ",   cut at Nsigma = ", nsigma[iter])
-        flush(stdout)
+        if !silent
+            println("=========================  Pass ", iter, ",   cut at Nsigma = ", nsigma[iter]); flush(stdout)
+        end
         thismask = chimask .| (mask[wmask,:] .!= 0)
-        chimask = gspice_chimask(flux[wmask,:], ivar[wmask,:], thismask, nsigma[iter], reg_eps=reg_eps)
-        println("mean chimask: ", mean(chimask))
-        println("Time: ", (now()-t0).value/1000, " sec")
-        flush(stdout)
+        chimask = gspice_chimask(flux[wmask,:], ivar[wmask,:], thismask, nsigma[iter], reg_eps=reg_eps, silent=silent)
+        if !silent
+            println("mean chimask: ", mean(chimask))
+            println("Time: ", (now()-t0).value/1000, " sec"); flush(stdout)
+        end
     end
 
   finalmask = trues(nspec, npix)    # start from original mask, overwrite mask for good spectra
