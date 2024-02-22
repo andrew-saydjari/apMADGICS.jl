@@ -31,6 +31,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     include(src_dir*"src/spectraInterpolation.jl")
     include(src_dir*"src/chi2Wrappers.jl")
     include(src_dir*"src/prior_build/prior_utils.jl")
+    include(src_dir*"src/prior_build/gspice.jl")
     
     using StatsBase, ProgressMeter
 end
@@ -48,6 +49,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
     nsub_bright = 120;
     nsub_faint = 120;
+
+    nsigma_schedule = [20, 8, 6];
 
     function thresh_bright_faint(adjfibindx)
         if adjfibindx <= 300
@@ -88,13 +91,25 @@ end
             "sky_priors/APOGEE_skyline_bright_svd_"*string(nsub_bright)*"_f"*lpad(adjfibindx,3,"0")*".h5"
         end
 
+        fnameBrightGSPICE = if tellDiv
+            "sky_priors/APOGEE_skyline_bright_tellDiv_GSPICE_svd_"*string(nsub_bright)*"_f"*lpad(adjfibindx,3,"0")*".h5"
+        else
+            "sky_priors/APOGEE_skyline_bright_GSPICE_svd_"*string(nsub_bright)*"_f"*lpad(adjfibindx,3,"0")*".h5"
+        end
+
         fnameFaint = if tellDiv
             "sky_priors/APOGEE_skyline_faint_tellDiv_svd_"*string(nsub_faint)*"_f"*lpad(adjfibindx,3,"0")*".h5"
         else
             "sky_priors/APOGEE_skyline_faint_svd_"*string(nsub_faint)*"_f"*lpad(adjfibindx,3,"0")*".h5"
         end
 
-        if !(isfile(fnameBright) & isfile(fnameFaint))
+        fnameFaintGSPICE = if tellDiv
+            "sky_priors/APOGEE_skyline_faint_tellDiv_GSPICE_svd_"*string(nsub_bright)*"_f"*lpad(adjfibindx,3,"0")*".h5"
+        else
+            "sky_priors/APOGEE_skyline_faint_GSPICE_svd_"*string(nsub_bright)*"_f"*lpad(adjfibindx,3,"0")*".h5"
+        end
+
+        if !(isfile(fnameBright) & isfile(fnameBrightGSPICE) & isfile(fnameFaint) & isfile(fnameFaintGSPICE))
             savename = if tellDiv
                 prior_dict["skyline_tellDiv"]*lpad(adjfibindx,3,"0")*".jdat"
             else
@@ -142,51 +157,101 @@ end
             submsk_faint[.!mskflux_big].&= true;
 
             # Bright
-            if !isfile(fnameBright)
+            if !(isfile(fnameBright) & isfile(fnameBrightGSPICE))
                 specsum = dropdims(sum(skyline,dims=1),dims=1)
                 obscnt = dropdims(sum(skymsk,dims=2),dims=2);
                 submsk = (obscnt.>=10) .& chebmsk_exp .& submsk_bright;
                 Vred = skyline[submsk,specsum.>0];
                 skymsked = skymsk[submsk,specsum.>0];
                 Vred .*= skymsked
-                norm_weights = skymsked*skymsked';
-                Csky = Vred*Vred'
-                Csky./=(norm_weights .+ (norm_weights.==0));
 
-                SF = svd(Csky);
-                EVEC = zeros(length(wavetarg),size(SF.U,2))
-                EVEC[submsk,:].=SF.U;
+                if !isfile(fnameBright)
+                    norm_weights = skymsked*skymsked';
+                    Csky = Vred*Vred'
+                    Csky./=(norm_weights .+ (norm_weights.==0));
 
-                h5write(fnameBright,"Vmat",EVEC[:,1:nsub_bright]*Diagonal(sqrt.(SF.S[1:nsub_bright])))
-                h5write(fnameBright,"λv",SF.S[1:nsub_bright])
-                h5write(fnameBright,"submsk",convert.(Int,submsk)) # different for bright/faint skylines
+                    SF = svd(Csky);
+                    EVEC = zeros(length(wavetarg),size(SF.U,2))
+                    EVEC[submsk,:].=SF.U;
+
+                    h5write(fnameBright,"Vmat",EVEC[:,1:nsub_bright]*Diagonal(sqrt.(SF.S[1:nsub_bright])))
+                    h5write(fnameBright,"λv",SF.S[1:nsub_bright])
+                    h5write(fnameBright,"submsk",convert.(Int,submsk)) # different for bright/faint skylines
+                end
+                
+                # Bright GSPICE
+                if !isfile(fnameBrightGSPICE)
+                    flux = collect(Vred');
+                    fluxvar = collect(skyvar[submsk,specsum.>0]');
+                    ivar = 1 ./(fluxvar);
+                    mask = collect((skymsked.==0)'); #invert to 0/1 encoding of GSPICE
+
+                    out = gspice.gspice_covar_iter_mask(flux, ivar, mask; nsigma=nsigma_schedule, maxbadpix=650, usamp_factor=2, reg_eps = 1e-3);
+
+                    Vred_1 = copy(Vred)
+                    skymsked_1 = convert.(Float64,.!out[2]')
+                    Vred_1 .*= skymsked_1;
+                    norm_weights_1 = skymsked_1*skymsked_1';
+                    Csky = Vred_1*Vred_1'
+                    Csky./=(norm_weights_1 .+ (norm_weights_1.==0));
+
+                    SF = svd(Csky);
+                    EVEC = zeros(length(wavetarg),size(SF.U,2))
+                    EVEC[submsk,:].=SF.U;
+
+                    h5write(fnameBrightGSPICE,"Vmat",EVEC[:,1:nsub_bright]*Diagonal(sqrt.(SF.S[1:nsub_bright])))
+                    h5write(fnameBrightGSPICE,"λv",SF.S[1:nsub_bright])
+                    h5write(fnameBrightGSPICE,"submsk",convert.(Int,submsk)) # different for bright/faint skylines
+                end
             end
 
-            # Bright GSPICE
-
             # Faint
-            if !isfile(fnameFaint)
+            if !(isfile(fnameFaint) & isfile(fnameFaintGSPICE))
                 specsum = dropdims(sum(skyline,dims=1),dims=1)
                 obscnt = dropdims(sum(skymsk,dims=2),dims=2);
                 submsk = (obscnt.>=10) .& chebmsk_exp .& submsk_faint;
                 Vred = skyline[submsk,specsum.>0];
                 skymsked = skymsk[submsk,specsum.>0];
                 Vred .*= skymsked
-                norm_weights = skymsked*skymsked';
-                Csky = Vred*Vred'
-                Csky./=(norm_weights .+ (norm_weights.==0));
+                if !isfile(fnameFaint)
+                    norm_weights = skymsked*skymsked';
+                    Csky = Vred*Vred'
+                    Csky./=(norm_weights .+ (norm_weights.==0));
 
-                SF = svd(Csky);
-                EVEC = zeros(length(wavetarg),size(SF.U,2))
-                EVEC[submsk,:].=SF.U;
+                    SF = svd(Csky);
+                    EVEC = zeros(length(wavetarg),size(SF.U,2))
+                    EVEC[submsk,:].=SF.U;
 
-                h5write(fnameFaint,"Vmat",EVEC[:,1:nsub_faint]*Diagonal(sqrt.(SF.S[1:nsub_faint])))
-                h5write(fnameFaint,"λv",SF.S[1:nsub_faint])
-                h5write(fnameFaint,"submsk",convert.(Int,submsk)) # different for bright/faint skylines
+                    h5write(fnameFaint,"Vmat",EVEC[:,1:nsub_faint]*Diagonal(sqrt.(SF.S[1:nsub_faint])))
+                    h5write(fnameFaint,"λv",SF.S[1:nsub_faint])
+                    h5write(fnameFaint,"submsk",convert.(Int,submsk)) # different for bright/faint skylines
+                end
+
+                # Faint GSPICE
+                if !isfile(fnameFaintGSPICE)
+                    flux = collect(Vred');
+                    fluxvar = collect(skyvar[submsk,specsum.>0]');
+                    ivar = 1 ./(fluxvar);
+                    mask = collect((skymsked.==0)'); #invert to 0/1 encoding of GSPICE
+
+                    out = gspice.gspice_covar_iter_mask(flux, ivar, mask; nsigma=nsigma_schedule, maxbadpix=650, usamp_factor=2, reg_eps = 1e-3);
+
+                    Vred_1 = copy(Vred)
+                    skymsked_1 = convert.(Float64,.!out[2]')
+                    Vred_1 .*= skymsked_1;
+                    norm_weights_1 = skymsked_1*skymsked_1';
+                    Csky = Vred_1*Vred_1'
+                    Csky./=(norm_weights_1 .+ (norm_weights_1.==0));
+
+                    SF = svd(Csky);
+                    EVEC = zeros(length(wavetarg),size(SF.U,2))
+                    EVEC[submsk,:].=SF.U;
+
+                    h5write(fnameFaintGSPICE,"Vmat",EVEC[:,1:nsub_bright]*Diagonal(sqrt.(SF.S[1:nsub_bright])))
+                    h5write(fnameFaintGSPICE,"λv",SF.S[1:nsub_bright])
+                    h5write(fnameFaintGSPICE,"submsk",convert.(Int,submsk)) # different for bright/faint skylines
+                end
             end
-
-            # Faint GSPICE
-
         end
     end
 
