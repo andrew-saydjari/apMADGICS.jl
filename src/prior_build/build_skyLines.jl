@@ -45,7 +45,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 workers() git_branch; @passobj 1 workers() git_commit
 
 @everywhere begin
-    runlist_range = 295 #1:600 #295, 245, 335, 101
+    runlist_range = 335 #1:600 #295, 245, 335, 101
 
     nsub_bright = 120;
     nsub_faint = 120;
