@@ -7,7 +7,7 @@ Pkg.activate("../../"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 using BLISBLAS
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
-# addprocs(SlurmManager(),exeflags=["--project=../../","-t 2"])
+addprocs(SlurmManager(),exeflags=["--project=../../"])
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
 
 @everywhere begin
@@ -35,6 +35,8 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     using StatsBase, ProgressMeter
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
+
+sleep(1000)
 
 # Task-Affinity CPU Locking in multinode SlurmContext
 slurm_cpu_lock()
@@ -81,26 +83,43 @@ end
 end
 
 @everywhere begin
-    function build_skyLines(adjfibindx)
-        fnameBright = "sky_priors/APOGEE_skyline_bright_svd_"*string(nsub_bright)*"_f"*lpad(adjfibindx,3,"0")*".h5"
-        fnameFaint = "sky_priors/APOGEE_skyline_faint_svd_"*string(nsub_faint)*"_f"*lpad(adjfibindx,3,"0")*".h5"
-        if !(isfile(fnameBright) & isfile(fnameFaint))
-            t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Time to start $dt"); t_then = t_now; flush(stdout)
-            savename = prior_dict["skycont"]*lpad(adjfibindx,3,"0")*".jdat"
-            skycont = deserialize(savename)
+    function build_skyLines(adjfibindx; tellDiv=false)
+        fnameBright = if tellDiv
+            "sky_priors/APOGEE_skyline_bright_tellDiv_svd_"*string(nsub_bright)*"_f"*lpad(adjfibindx,3,"0")*".h5"
+        else
+            "sky_priors/APOGEE_skyline_bright_svd_"*string(nsub_bright)*"_f"*lpad(adjfibindx,3,"0")*".h5"
+        end
 
-            savename = prior_dict["skyline"]*lpad(adjfibindx,3,"0")*".jdat"
+        fnameFaint = if tellDiv
+            "sky_priors/APOGEE_skyline_faint_tellDiv_svd_"*string(nsub_faint)*"_f"*lpad(adjfibindx,3,"0")*".h5"
+        else
+            "sky_priors/APOGEE_skyline_faint_svd_"*string(nsub_faint)*"_f"*lpad(adjfibindx,3,"0")*".h5"
+        end
+
+        if !(isfile(fnameBright) & isfile(fnameFaint))
+            savename = if tellDiv
+                prior_dict["skyline_tellDiv"]*lpad(adjfibindx,3,"0")*".jdat"
+            else
+                prior_dict["skyline"]*lpad(adjfibindx,3,"0")*".jdat"
+            end
             skyline = deserialize(savename)
 
-            savename = prior_dict["skymsk"]*lpad(adjfibindx,3,"0")*".jdat"
+            savename = if tellDiv
+                prior_dict["skymsk_tellDiv"]*lpad(adjfibindx,3,"0")*".jdat"
+            else
+                prior_dict["skymsk"]*lpad(adjfibindx,3,"0")*".jdat"
+            end
             skymsk = deserialize(savename);
 
-            savename = prior_dict["skyvar"]*lpad(adjfibindx,3,"0")*".jdat"
+            savename = if tellDiv 
+                prior_dict["skyvar_tellDiv"]*lpad(adjfibindx,3,"0")*".jdat"
+            else
+                prior_dict["skyvar"]*lpad(adjfibindx,3,"0")*".jdat"
+            end
             skyvar = deserialize(savename);
 
             savename = prior_dict["chebmsk_exp"]*lpad(adjfibindx,3,"0")*".jdat"
             chebmsk_exp = deserialize(savename);
-            t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Time to load $dt"); t_then = t_now; flush(stdout)
 
             # Sep Bright/Faint
             specsum = dropdims(sum(skyline,dims=1),dims=1)
@@ -109,7 +128,6 @@ end
             Vred = skyline[submsk,specsum.>0];
             skymsked = skymsk[submsk,specsum.>0]
             Vred .*= skymsked;
-            t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Mask Mult $dt"); t_then = t_now; flush(stdout)
 
             median_sky = dropdims(nanzeromedian(Vred,2),dims=2);
 
@@ -124,11 +142,9 @@ end
             
             submsk_faint[mskflux_big].&= false
             submsk_faint[.!mskflux_big].&= true;
-            t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Time to make mask $dt"); t_then = t_now; flush(stdout)
 
             # Bright
             if !isfile(fnameBright)
-                t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Start Bright $dt"); t_then = t_now; flush(stdout)
                 specsum = dropdims(sum(skyline,dims=1),dims=1)
                 obscnt = dropdims(sum(skymsk,dims=2),dims=2);
                 submsk = (obscnt.>=10) .& chebmsk_exp .& submsk_bright;
@@ -136,15 +152,12 @@ end
                 skymsked = skymsk[submsk,specsum.>0];
                 Vred .*= skymsked
                 norm_weights = skymsked*skymsked';
-                t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Time to weights $dt"); t_then = t_now; flush(stdout)
                 Csky = Vred*Vred'
                 Csky./=(norm_weights .+ (norm_weights.==0));
 
-                t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Time to enter SVD $dt"); t_then = t_now; flush(stdout)
                 SF = svd(Csky);
                 EVEC = zeros(length(wavetarg),size(SF.U,2))
                 EVEC[submsk,:].=SF.U;
-                t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Time in SVD $dt"); t_then = t_now; flush(stdout)
 
                 h5write(fnameBright,"Vmat",EVEC[:,1:nsub_bright]*Diagonal(sqrt.(SF.S[1:nsub_bright])))
                 h5write(fnameBright,"λv",SF.S[1:nsub_bright])
@@ -187,6 +200,6 @@ end
     end
 end
 
-# observing, it spent a most of the time before entering the multithreaded SVD. Why?
-BLAS.set_num_threads(32); build_skyLines_wrapper(runlist_range)
-# @showprogress pmap(build_skyLines_wrapper,1:600) # 13ish hours on 4 np nodes
+# it spends most of its time on a simple matmul ????
+build_skyLines_wrapper(runlist_range)
+# # @showprogress pmap(build_skyLines_wrapper,1:600) # 13ish hours on 4 np nodes
