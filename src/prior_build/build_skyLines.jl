@@ -36,8 +36,6 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
-sleep(1000)
-
 # Task-Affinity CPU Locking in multinode SlurmContext
 slurm_cpu_lock()
 println(BLAS.get_config()); flush(stdout)
