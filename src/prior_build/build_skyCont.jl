@@ -92,12 +92,13 @@ end
 
             specsum = dropdims(sum(skycont,dims=1),dims=1)
             Vred = skycont[chebmsk_exp,specsum.>0];
-            weights = ones(size(Vred,2));
-            Vred .*= reshape(weights,1,:);
+            # weights = ones(size(Vred,2));
+            # Vred .*= reshape(weights,1,:);
             nsamp = size(Vred,2)
-            norm_weights = weights'*weights
+            # norm_weights = weights'*weights
             Csky = Vred*Vred'
-            Csky./=norm_weights
+            # Csky./=norm_weights
+            Csky./=nsamp
 
             SF = svd(Csky);
             EVEC = zeros(length(wavetarg),size(SF.U,2))
@@ -132,12 +133,13 @@ end
 
             specsum = dropdims(sum(skycont,dims=1),dims=1)
             Vred = skycont[chebmsk_exp,specsum.>0];
-            weights = ones(size(Vred,2));
-            Vred .*= reshape(weights,1,:);
+            # weights = ones(size(Vred,2));
+            # Vred .*= reshape(weights,1,:);
             nsamp = size(Vred,2)
-            norm_weights = weights'*weights
+            # norm_weights = weights'*weights
             Csky = Vred*Vred'
-            Csky./=norm_weights
+            # Csky./=norm_weights
+            Csky./=nsamp
 
             SF = svd(Csky);
             EVEC = zeros(length(wavetarg),size(SF.U,2))
@@ -150,5 +152,6 @@ end
     end
 end
 
+# observing, it spent a most of the time before entering the multithreaded SVD. Why?
 BLAS.set_num_threads(64); build_skyCont(runlist_range)
 # @showprogress pmap(solve_sky_prior_fiber,1:600) # 13ish hours on 4 np nodes
