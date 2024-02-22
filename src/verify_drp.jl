@@ -25,12 +25,6 @@ for outsub in outdirsubs
     end
 end
 
-# release_dir = "ipl-3"
-# redux_ver = "1.2"
-
-# release_dir = "dr17"
-# redux_ver = "dr17"
-
 release_dir = ARGS[1]
 redux_ver = ARGS[2]
 
@@ -135,13 +129,6 @@ end
 
 ### Boot Up Workers
 addprocs(32)
-activateout = @capture_out begin 
-    @everywhere begin
-        import Pkg
-        Pkg.activate("../"); Pkg.instantiate(); #comment out instantiate next time
-    end
-end
-
 @everywhere begin
     using FITSIO, StatsBase, ProgressMeter, Distributed, Serialization, Glob, DelimitedFiles, ParallelDataTransfer, DataFrames
 
@@ -999,5 +986,5 @@ end
 
 rmprocs(workers())
 
-# julia +1.8.2 verify_drp.jl "sdsswork/mwm" "1.2" | tee -a ../../outlists/sdsswork_1p2.log
-# julia +1.8.2 verify_drp.jl "dr17" "dr17" | tee -a ../../outlists/dr17_dr17.log
+# julia +1.10.0 verify_drp.jl "sdsswork/mwm" "1.2" | tee -a ../../outlists/sdsswork_1p2.log
+# julia +1.10.0 verify_drp.jl "dr17" "dr17" | tee -a ../../outlists/dr17_dr17.log

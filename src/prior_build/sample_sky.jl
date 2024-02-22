@@ -1,5 +1,6 @@
 ## This is script grabs a bunch of sky fiber spectra and decomposes them into continuum and line components, to serve as samples for building the sky prior
 # Author - Andrew Saydjari, CfA
+
 import Pkg; using Dates; t0 = now(); t_then = t0;
 using InteractiveUtils; versioninfo()
 Pkg.activate("../../"); Pkg.instantiate(); Pkg.precompile()
@@ -44,11 +45,28 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 workers() git_branch; @passobj 1 workers() git_commit
 
 @everywhere begin
+    runlist_range = 335 #1:600 #295, 245, 335, 101
+
+    # Prior Dictionary
+    prior_dict = Dict{String,String}()
+
+    # Input List (not really a prior, but an input file we search for stars conditioned on)
+    prior_dict["sky_runlist"] = prior_dir*"2024_02_21/outlists/sky/dr17_dr17_sky_input_lst_plate_msked_"
+
+    # Data for Detector Cals (not really a prior, but an input the results depend on in detail)
+    prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jdat"
+end
+
+@everywhere begin
+    # I should revisit the error bars in the context of chi2 versus frame number trends
+    global err_correct_Dict = deserialize(prior_dict["chip_fluxdep_err_correction"])
+
     wavetarg = 10 .^range((4.179-125*6.0e-6),step=6.0e-6,length=8575+125) #first argument is start, revert fix to enable 1.6 compat
     minw, maxw = extrema(wavetarg)
     
     c = 299792.458; # in km/s
     delLog = 6e-6; 
+    # pixscale = (10^(delLog)-1)*c; # only a linear approx, use more accurate formula
 
     Xd_stack = zeros(3*2048)
     Xd_std_stack = zeros(3*2048)
@@ -61,8 +79,6 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     outvar = zeros(length(wavetarg))
     cntvec = zeros(Int,length(wavetarg));
     telvec = zeros(length(wavetarg));
-
-    global err_correct_Dict = deserialize("../../data/chip_fluxdep_err_correction.jdat")
 end
 
 @everywhere begin
@@ -166,12 +182,7 @@ end
     # contScale is a tuning parameter we might want to investigate
     function get_sky_samples(adjfibindx;contscale=5e2,loc_parallel=false,seed=2023)
         
-        # there is a race condition if loc_parallel is true... so added a shuffle... not a great solution, but fine for testing?
-        ntuplst = deserialize(prior_dir*"2024_01_22/outlists/sky/dr17_dr17_sky_input_lst_plate_msked_"*lpad(adjfibindx,3,"0")*".jdat")
-        # if loc_parallel
-        #     rng = MersenneTwister(seed)
-        #     shuffle!(rng,ntuplst)
-        # end
+        ntuplst = deserialize(prior_dict["sky_runlist"]*lpad(adjfibindx,3,"0")*".jdat")
 
         if adjfibindx>300
             global medframes = deserialize(prior_dir0*"2023_04_07/medframes_lco.jdat");
@@ -318,7 +329,7 @@ end
     end
 end
 
-get_sky_samples(101,loc_parallel=true) #295, 335, 450, 101
+get_sky_samples(runlist_range,loc_parallel=true) #295, 335, 450, 101
 # @showprogress pmap(get_sky_samples,1:600) # 13ish hours on 4 np nodes (this included the svd... which I have moved out now)
 # can come back to the question of doing the svd and prior building here while the sky samples are in memory
 
