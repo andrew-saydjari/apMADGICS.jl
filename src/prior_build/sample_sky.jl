@@ -33,7 +33,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     include(src_dir*"src/prior_build/prior_utils.jl")
     
     using StatsBase, ProgressMeter
-    using SortFilters, BasisFunctions, AstroTime, Random
+    using SortFilters, BasisFunctions, Random
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
@@ -45,7 +45,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 workers() git_branch; @passobj 1 workers() git_commit
 
 @everywhere begin
-    runlist_range = 335 #1:600 #295, 245, 335, 101
+    runlist_range = 295 #1:600 #295, 245, 335, 101
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
@@ -331,5 +331,3 @@ end
 
 get_sky_samples(runlist_range,loc_parallel=true) #295, 335, 450, 101
 # @showprogress pmap(get_sky_samples,1:600) # 13ish hours on 4 np nodes (this included the svd... which I have moved out now)
-# can come back to the question of doing the svd and prior building here while the sky samples are in memory
-
