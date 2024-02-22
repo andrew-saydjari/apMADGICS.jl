@@ -18,7 +18,7 @@
 export JULIA_NUM_THREADS=2
 # julia +1.10.0 sample_sky.jl
 # julia +1.10.0 build_skyCont.jl
-julia +1.10.0 build_skyLines.jl
+julia +1.10.0 --threads 2 build_skyLines.jl
 
 
 # Clean up logs and Report Timing
