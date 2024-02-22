@@ -72,8 +72,8 @@ end
 end
 
 @everywhere begin
-    function build_skyCont(adjfibindx)
-        fname = "sky_priors/APOGEE_skylines_svd_"*string(nsub)*"_f"*lpad(adjfibindx,3,"0")*".h5"
+    function build_skyLines(adjfibindx)
+        fname = "sky_priors/APOGEE_skycont_svd_"*string(nsub)*"_f"*lpad(adjfibindx,3,"0")*".h5"
         if !isfile(fname)
             savename = prior_dict["skycont"]*lpad(adjfibindx,3,"0")*".jdat"
             skycont = deserialize(savename)
@@ -89,6 +89,14 @@ end
 
             savename = prior_dict["chebmsk_exp"]*lpad(adjfibindx,3,"0")*".jdat"
             chebmsk_exp = deserialize(savename);
+
+            # Sep Bright/Faint
+
+            # Bright
+
+            # Faint
+
+            # GSPICE Faint
 
             specsum = dropdims(sum(skycont,dims=1),dims=1)
             Vred = skycont[chebmsk_exp,specsum.>0];
@@ -153,5 +161,5 @@ end
 end
 
 # observing, it spent a most of the time before entering the multithreaded SVD. Why?
-BLAS.set_num_threads(64); build_skyCont(runlist_range)
-# @showprogress pmap(build_skyCont,1:600) # 13ish hours on 4 np nodes
+BLAS.set_num_threads(64); build_skyLines(runlist_range)
+# @showprogress pmap(build_skyLines,1:600) # 13ish hours on 4 np nodes
