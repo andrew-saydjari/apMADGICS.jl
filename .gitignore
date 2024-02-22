@@ -11,3 +11,4 @@
 *.out
 *.err
 /src/prior_build/sky_prior_disk/*
+/src/prior_build/sky_priors/*

@@ -60,6 +60,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict["skyvar"] = sky_base*"sky_prior_disk/skyvar_"
     prior_dict["chebmsk_exp"] = sky_base*"sky_prior_disk/chebmsk_exp_"
 
+    prior_dict["skycont_tellDiv"] = sky_base*"sky_prior_disk/skycont_tellDiv_"
     prior_dict["skyline_tellDiv"] = sky_base*"sky_prior_disk/skyline_tellDiv_"
     prior_dict["skymsk_tellDiv"] = sky_base*"sky_prior_disk/skymsk_tellDiv_"
     prior_dict["skyvar_tellDiv"] = sky_base*"sky_prior_disk/skyvar_tellDiv_"

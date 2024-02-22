@@ -329,7 +329,7 @@ end
             # nanify(x_comp_lst[2][skymsk_bright[finalmsk]],finalmsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
             nanify(x_comp_lst[2][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
             nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4],finalmsk),
-            x_comp_lst[6:end]..., nanify((fvec[finalmsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[finalmsk]))./ x_comp_lst[4],finalmsk),finalmsk
+            x_comp_lst[6:end]..., nanify((fvec[finalmsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[finalmsk]))./ x_comp_lst[4],finalmsk),finalmsk,V_subpix_refLSF[:,:,6]*x_comp_lst[7]
         ]
 
         skyscale1 = nanzeromedian(x_comp_out[4])
@@ -530,7 +530,8 @@ end
                 (x->x[RVcom][7],                        "x_starLineCof_v0"),
                 (x->x[RVcom][8],                        "tot_p5chi2_v0"), 
                 (x->x[RVcom][9],                        "apVisit_v0"),       
-                (x->Int.(x[RVcom][10]),                 "finalmsk"),     
+                (x->Int.(x[RVcom][10]),                 "finalmsk"),
+                (x->x[RVcom][11],                       "x_starLines_restFrame_v0"),      
                                     
                 (x->x[strpo],                           "x_starLines_err_v0"),    
             ]
