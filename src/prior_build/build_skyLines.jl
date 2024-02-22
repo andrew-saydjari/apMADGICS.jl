@@ -186,7 +186,7 @@ end
                     ivar = 1 ./(fluxvar);
                     mask = collect((skymsked.==0)'); #invert to 0/1 encoding of GSPICE
 
-                    out = gspice.gspice_covar_iter_mask(flux, ivar, mask; nsigma=nsigma_schedule, maxbadpix=650, usamp_factor=2, reg_eps = 1e-3);
+                    out = gspice.gspice_covar_iter_mask(flux, ivar, mask; nsigma=nsigma_schedule, maxbadpix=650, usamp_factor=2, reg_eps = 1e-3, silent=true);
 
                     Vred_1 = copy(Vred)
                     skymsked_1 = convert.(Float64,.!out[2]')
@@ -234,7 +234,7 @@ end
                     ivar = 1 ./(fluxvar);
                     mask = collect((skymsked.==0)'); #invert to 0/1 encoding of GSPICE
 
-                    out = gspice.gspice_covar_iter_mask(flux, ivar, mask; nsigma=nsigma_schedule, maxbadpix=650, usamp_factor=2, reg_eps = 1e-3);
+                    out = gspice.gspice_covar_iter_mask(flux, ivar, mask; nsigma=nsigma_schedule, maxbadpix=650, usamp_factor=2, reg_eps = 1e-3, silent=true);
 
                     Vred_1 = copy(Vred)
                     skymsked_1 = convert.(Float64,.!out[2]')
