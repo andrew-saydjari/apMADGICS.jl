@@ -44,7 +44,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 workers() git_branch; @passobj 1 workers() git_commit
 
 @everywhere begin
-    runlist_range = 335 #1:600 #295, 245, 335, 101
+    # runlist_range = 335 #1:600 #295, 245, 335, 101
 
     nsub = 30; # my star cont is 60... do we need to up it?
 
@@ -129,5 +129,5 @@ end
 end
 
 # observing, it spent a most of the time before entering the multithreaded SVD. Why?
-BLAS.set_num_threads(64); build_skyCont_wrapper(runlist_range)
-# @showprogress pmap(build_skyCont_wrapper,1:600) # 13ish hours on 4 np nodes
+# BLAS.set_num_threads(64); build_skyCont_wrapper(runlist_range)
+@showprogress pmap(build_skyCont_wrapper,1:600) # 13ish hours on 4 np nodes

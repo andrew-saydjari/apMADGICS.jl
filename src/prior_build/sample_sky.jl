@@ -45,7 +45,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 workers() git_branch; @passobj 1 workers() git_commit
 
 @everywhere begin
-    runlist_range = 295 #1:600 #295, 245, 335, 101
+    # runlist_range = 295 #1:600 #295, 245, 335, 101
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
@@ -55,6 +55,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
     # Data for Detector Cals (not really a prior, but an input the results depend on in detail)
     prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jdat"
+    prior_dict["medframes_APO"] = src_dir*"data/medframes_apo.jdat" # last made 2023_04_01 by AKS
+    prior_dict["medframes_LCO"] = src_dir*"data/medframes_lco.jdat" # last made 2023_04_07 by AKS
 end
 
 @everywhere begin
@@ -184,13 +186,13 @@ end
         
         ntuplst = deserialize(prior_dict["sky_runlist"]*lpad(adjfibindx,3,"0")*".jdat")
 
-        if adjfibindx>300
-            global medframes = deserialize(prior_dir0*"2023_04_07/medframes_lco.jdat");
+        medframes = if adjfibindx>300
+            deserialize(prior_dict["medframes_LCO"]);
         else
-            global medframes = deserialize(prior_dir0*"2023_04_01/medframes.jdat");
+            deserialize(prior_dict["medframes_APO"]);
         end
 
-        Vpoly, msknall = generate_poly_prior(adjfibindx)
+        Vpoly, msknall = generate_poly_prior(adjfibindx,medframes)
         Vpoly_scaled = contscale*Vpoly
         chebmsk = .!msknall
         chebmsk_exp = expand_msk(chebmsk;rad=12);
@@ -211,7 +213,7 @@ end
             else
                 map(sky_smooth_wrapper_bound,ntuplst);
             end
-            global skycont = zeros(8700,size(pout,1));
+            skycont = zeros(8700,size(pout,1));
             for i=1:size(pout,1)
                 skycont[:,i].=pout[i]
             end
@@ -233,13 +235,11 @@ end
             else
                 map(sky_line_wrapper_bound,ntuplst);
             end
-            global skyline = zeros(8700,size(pout,1));
+            skyline = zeros(8700,size(pout,1));
             for i=1:size(pout,1)
                 skyline[:,i].=pout[i]
             end
             serialize(savename,skyline)
-        else
-            global skyline = deserialize(savename)
         end
 
         savename = "sky_prior_disk/skymsk_"*lpad(adjfibindx,3,"0")*".jdat"
@@ -250,17 +250,14 @@ end
             else
                 map(sky_msk_wrapper,ntuplst);
             end
-            global skymsk = zeros(8700,size(pout,1));
-            global skyvar = zeros(8700,size(pout,1));
+            skymsk = zeros(8700,size(pout,1));
+            skyvar = zeros(8700,size(pout,1));
             for i=1:size(pout,1)
                 skymsk[:,i].=pout[i][1]
                 skyvar[:,i].=pout[i][2]
             end
             serialize(savename,skymsk)
             serialize(savename1,skyvar)
-        else
-            global skymsk = deserialize(savename)
-            global skyvar = deserialize(savename1)
         end
 
         ### Save samples of tell-free sky decomposition for building Tfun/starCont prior
@@ -274,7 +271,7 @@ end
             else
                 map(sky_smooth_wrapper_tell,ntuplst);
             end
-            global skycont = zeros(8700,size(pout,1));
+            skycont = zeros(8700,size(pout,1));
             for i=1:size(pout,1)
                 skycont[:,i].=pout[i]
             end
@@ -284,8 +281,6 @@ end
                 mkpath(dirName)
             end
             serialize(savename,skycont)
-        else
-            global skycont = deserialize(savename)
         end
 
         savename = "sky_prior_disk/skyline_tellDiv_"*lpad(adjfibindx,3,"0")*".jdat"
@@ -295,13 +290,11 @@ end
             else
                 map(sky_line_wrapper_tell,ntuplst);
             end
-            global skyline = zeros(8700,size(pout,1));
+            skyline = zeros(8700,size(pout,1));
             for i=1:size(pout,1)
                 skyline[:,i].=pout[i]
             end
             serialize(savename,skyline)
-        else
-            global skyline = deserialize(savename)
         end
 
         # this is identical... just saving under a new name, but it is cheap
@@ -313,21 +306,18 @@ end
             else
                 map(sky_msk_wrapper,ntuplst);
             end
-            global skymsk = zeros(8700,size(pout,1));
-            global skyvar = zeros(8700,size(pout,1));
+            skymsk = zeros(8700,size(pout,1));
+            skyvar = zeros(8700,size(pout,1));
             for i=1:size(pout,1)
                 skymsk[:,i].=pout[i][1]
                 skyvar[:,i].=pout[i][2]
             end
             serialize(savename,skymsk)
             serialize(savename1,skyvar)
-        else
-            global skymsk = deserialize(savename)
-            global skyvar = deserialize(savename1)
         end
         serialize("sky_prior_disk/chebmsk_exp_"*lpad(adjfibindx,3,"0")*".jdat",chebmsk_exp)
     end
 end
 
-get_sky_samples(runlist_range,loc_parallel=true) #295, 335, 450, 101
-# @showprogress pmap(get_sky_samples,1:600) # 13ish hours on 4 np nodes (this included the svd... which I have moved out now)
+# get_sky_samples(runlist_range,loc_parallel=true) #295, 335, 450, 101
+@showprogress pmap(get_sky_samples,1:600) # 13ish hours on 4 np nodes (this included the svd... which I have moved out now)

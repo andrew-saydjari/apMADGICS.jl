@@ -1,6 +1,7 @@
 ### utility functions for prior building 
 
-function generate_poly_prior(adjfibindx)
+# requires medframes in global scope, that is kinda gross AKS (by AKS)
+function generate_poly_prior(adjfibindx,medframes)
     fiber = if adjfibindx>300
         adjfibindx-300
     else
@@ -186,4 +187,21 @@ function expand_msk(msk;rad=1)
         end
     end
     return msknew
+end
+
+function lorentzian(x,amp,x0,Γ)
+    Γr = Γ/2
+    return amp*(Γr/π)/((x-x0)^2 + Γr^2)
+end
+
+function redden_mult(wave,Av,Rv)
+    return 10 .^(-0.4 .*Av*CCM89(Rv=Rv).(wave))
+end
+
+function blackbody(T, λ; hplanck_cgs = 6.62607015e-27, c_cgs = 2.99792458e10, kboltz_cgs = 1.380649e-16 )
+    h = hplanck_cgs # erg*s
+    c = c_cgs #cm/s
+    k = kboltz_cgs # erg/K
+
+    2*h*c^2/λ^5 * 1/(exp(h*c/λ/k/T) - 1)
 end

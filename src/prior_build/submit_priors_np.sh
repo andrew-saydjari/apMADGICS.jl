@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=sdss-np
 #SBATCH --partition=sdss-shared-np
-#SBATCH --nodes=1
+#SBATCH --nodes=4
 #SBATCH --ntasks-per-node=64
 
 #SBATCH --mem=0 #requesting all of the memory on the node
@@ -20,8 +20,8 @@
 # export JULIA_CPU_THREADS=1
 # julia +1.10.0 sample_sky.jl
 # julia +1.10.0 build_skyCont.jl
-julia +1.10.0 build_skyLines.jl
-
+# julia +1.10.0 build_skyLines.jl
+julia +1.10.0 sample_Tfun.jl
 
 # Clean up logs and Report Timing
 formatted_time=$(printf '%dd %dh:%dm:%ds\n' $(($SECONDS/86400)) $(($SECONDS%86400/3600)) $(($SECONDS%3600/60)) $(($SECONDS%60)))

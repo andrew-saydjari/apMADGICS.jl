@@ -45,12 +45,13 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 workers() git_branch; @passobj 1 workers() git_commit
 
 @everywhere begin
-    runlist_range = 335 #1:600 #295, 245, 335, 101
+    # runlist_range = 335 #1:600 #295, 245, 335, 101
 
     nsub_bright = 120;
     nsub_faint = 120;
 
     nsigma_schedule = [20, 8, 6];
+    usamp_factor = 3
 
     function thresh_bright_faint(adjfibindx)
         if adjfibindx <= 300
@@ -186,7 +187,7 @@ end
                     ivar = 1 ./(fluxvar);
                     mask = collect((skymsked.==0)'); #invert to 0/1 encoding of GSPICE
 
-                    out = gspice.gspice_covar_iter_mask(flux, ivar, mask; nsigma=nsigma_schedule, maxbadpix=650, usamp_factor=2, reg_eps = 1e-3, silent=true);
+                    out = gspice.gspice_covar_iter_mask(flux, ivar, mask; nsigma=nsigma_schedule, maxbadpix=650, usamp_factor=usamp_factor, reg_eps = 1e-3, silent=true);
 
                     Vred_1 = copy(Vred)
                     skymsked_1 = convert.(Float64,.!out[2]')
@@ -234,7 +235,7 @@ end
                     ivar = 1 ./(fluxvar);
                     mask = collect((skymsked.==0)'); #invert to 0/1 encoding of GSPICE
 
-                    out = gspice.gspice_covar_iter_mask(flux, ivar, mask; nsigma=nsigma_schedule, maxbadpix=650, usamp_factor=2, reg_eps = 1e-3, silent=true);
+                    out = gspice.gspice_covar_iter_mask(flux, ivar, mask; nsigma=nsigma_schedule, maxbadpix=650, usamp_factor=usamp_factor, reg_eps = 1e-3, silent=true);
 
                     Vred_1 = copy(Vred)
                     skymsked_1 = convert.(Float64,.!out[2]')
@@ -264,5 +265,5 @@ end
 end
 
 # it spends most of its time on a simple matmul ????
-build_skyLines_wrapper(runlist_range)
-# # @showprogress pmap(build_skyLines_wrapper,1:600) # 13ish hours on 4 np nodes
+# build_skyLines_wrapper(runlist_range)
+@showprogress pmap(build_skyLines_wrapper,1:600) # 13ish hours on 4 np nodes
