@@ -22,8 +22,8 @@
 # julia +1.10.0 build_skyCont.jl
 # julia +1.10.0 build_skyLines.jl
 # julia +1.10.0 sample_Tfun.jl
-julia +1.10.0 sample_starCont.jl
-# julia +1.10.0 build_starCont.jl
+# julia +1.10.0 sample_starCont.jl
+julia +1.10.0 build_starCont.jl
 
 # Clean up logs and Report Timing
 formatted_time=$(printf '%dd %dh:%dm:%ds\n' $(($SECONDS/86400)) $(($SECONDS%86400/3600)) $(($SECONDS%3600/60)) $(($SECONDS%60)))

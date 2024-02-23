@@ -54,7 +54,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
     # StarCont Samples
     star_base = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/"
-    prior_dict["starCont"] = star_base*"tell_prior_disk/starCont_"
+    prior_dict["starcont"] = star_base*"tell_prior_disk/starCont_"
 
     sky_base = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/"
     prior_dict["chebmsk_exp"] = sky_base*"sky_prior_disk/chebmsk_exp_"

@@ -46,10 +46,10 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     refine_iters = 5
     ddstaronly = true
-    runlist_range = 295:295 #1:600 #295, 245, 335, 101
+    runlist_range = 335:335 #1:600 #295, 245, 335, 101
     batchsize = 10 #40
 
-    cache_dir = "../local_cache_335"
+    cache_dir = "../local_cache_335_redo"
     inject_cache_dir = prior_dir*"2024_02_08/inject_local_cache"
 
     # Prior Dictionary
@@ -62,12 +62,17 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # prior_dict["skycont"] = prior_dir*"2024_02_16/sky_priors/APOGEE_skycont_svd_30_f"
     # prior_dict["skyLines_bright"] = prior_dir*"2024_02_16/sky_priors/APOGEE_skyline_bright_svd_120_20_8_6_1en3_f"
     # prior_dict["skyLines_faint"] = prior_dir*"2024_02_16/sky_priors/APOGEE_skyline_faint_svd_120_20_8_6_1en3_f"
-    prior_dict["skycont"] = prior_dir*"2024_01_31/sky_priors/APOGEE_skycont_svd_30_f"
-    prior_dict["skyLines_bright"] = prior_dir*"2024_02_04/sky_priors/APOGEE_skyline_bright_svd_120_20_8_6_1en3_f"
-    prior_dict["skyLines_faint"] = prior_dir*"2024_02_04/sky_priors/APOGEE_skyline_faint_svd_120_20_8_6_1en3_f"
+    # prior_dict["skycont"] = prior_dir*"2024_01_31/sky_priors/APOGEE_skycont_svd_30_f"
+    # prior_dict["skyLines_bright"] = prior_dir*"2024_02_04/sky_priors/APOGEE_skyline_bright_svd_120_20_8_6_1en3_f"
+    # prior_dict["skyLines_faint"] = prior_dir*"2024_02_04/sky_priors/APOGEE_skyline_faint_svd_120_20_8_6_1en3_f"
+    prior_dict["skycont"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_priors/APOGEE_skycont_svd_30_f"
+    prior_dict["skyLines_bright"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_priors/APOGEE_skyline_bright_GSPICE_svd_120_f"
+    prior_dict["skyLines_faint"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_priors/APOGEE_skyline_faint_GSPICE_svd_120_f"
+
 
     # Star Priors
-    prior_dict["starCont"] = prior_dir*"2023_07_22/star_priors/APOGEE_starcont_svd_60_f"
+    # prior_dict["starCont"] = prior_dir*"2023_07_22/star_priors/APOGEE_starcont_svd_60_f"
+    prior_dict["starCont"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/star_priors/APOGEE_starcont_svd_60_f"
     prior_dict["starLines_refLSF"] = prior_dir*"2023_08_22/starLine_priors/APOGEE_stellar_kry_50_subpix_th22500.h5"
     prior_dict["starLines_LSF"] = prior_dir*"2023_09_26/star_priors/APOGEE_starCor_svd_50_subpix_f"
 

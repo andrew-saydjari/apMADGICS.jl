@@ -33,7 +33,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     include(src_dir*"src/prior_build/prior_utils.jl")
     
     using StatsBase, ProgressMeter
-    using SortFilters, BasisFunctions, Random, DustExtinction
+    using SortFilters, BasisFunctions, Random, DustExtinction, DelimitedFiles
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
@@ -72,6 +72,7 @@ end
 @everywhere begin
     wavetarg = 10 .^range((4.179-125*6.0e-6),step=6.0e-6,length=8575+125) #first argument is start, revert fix to enable 1.6 compat
     minw, maxw = extrema(wavetarg);
+    x_model = 15000:0.01:17000
 
     tellsamplesTxt = readdlm(prior_dict["tellSamples2read"],',')
     tellsample_lst = map(x->x[x.!=""],eachrow(tellsamplesTxt))
@@ -91,8 +92,6 @@ end
 
         savename = "tell_prior_disk/starCont_"*lpad(adjfibindx,3,"0")*".jdat"
         if !isfile(savename)
-            ntuplst = deserialize(prior_dict["tell_runlist"]*lpad(adjfibindx,3,"0")*".jdat")
-
             Ksp = if adjfibindx>300
                 deserialize(prior_dict["LSF_mat_LCO"]*lpad(adjfibindx-300,3,"0")*".jdat");
             else
@@ -125,11 +124,11 @@ end
             Tfracindx_lst = rand(rng,1:size(tellFracSamples,2),nsamp);
             itobj = Iterators.zip(Teff_lst,Av_lst,Rv_lst,Tfunindx_lst,Tfracindx_lst)
 
-            genModSamp(itobj) = genModSamp(itobj,tellFracSamples,TfunSamples,Ksp,nvecLSF)
+            genModSamp_bound(itobj) = genModSamp(itobj,tellFracSamples,TfunSamples,Ksp,nvecLSF)
             pout = if loc_parallel
-                @showprogress pmap(genModSamp,itobj);
+                @showprogress pmap(genModSamp_bound,itobj); #not very fast because of passing
             else
-                map(genModSamp,itobj);
+                map(genModSamp_bound,itobj);
             end
             outsamp = zeros(length(wavetarg),size(pout,1));
             for i=1:size(pout,1)
