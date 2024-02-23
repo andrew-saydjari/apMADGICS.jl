@@ -283,7 +283,7 @@ end
         res_r, skycont_c = sky_res_extract(fvec,fvarvec,simplemsk,V_skyline_faint,V_skycont)
 
         datvec = nanify(res_r,simplemsk) .+ skycont_c
-        BBscaled = (nanmean(datvec)/mean(kout)).*kout;
+        BBscaled = (nanzeromean(datvec)/mean(kout)).*kout;
         testvec = datvec./BBscaled;
         testvar = fvarvec./(BBscaled.^2)
 
