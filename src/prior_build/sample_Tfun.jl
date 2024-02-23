@@ -52,7 +52,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
     prior_dict["tellStdGood"] = prior_dir*"2024_02_21/outlists/summary/dr17_dr17_good_tell_list.txt"
-    prior_dict["tell_runlist"] = prior_dir*"2024_02_21/outlists/tell/dr17_dr17_tell_input_lst_plate_masked_"
+    prior_dict["tell_runlist"] = prior_dir*"2024_02_21/outlists/tell/dr17_dr17_tell_input_lst_plate_msked_"
 
     # Data for Detector Cals (not really a prior, but an input the results depend on in detail)
     prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jdat"
@@ -74,7 +74,7 @@ end
     wavetarg = 10 .^range((4.179-125*6.0e-6),step=6.0e-6,length=8575+125) #first argument is start, revert fix to enable 1.6 compat
     minw, maxw = extrema(wavetarg)
     x_model = 15000:0.01:17000
-    
+
     c = 299792.458; # in km/s
     delLog = 6e-6; 
 
