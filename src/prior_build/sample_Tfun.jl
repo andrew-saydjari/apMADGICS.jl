@@ -248,7 +248,7 @@ end
         return x_comp_lst[2]
     end
 
-    function ingest_tellVisit_stack(argtup;cache_dir="./local_cache_sky")
+    function ingest_tellVisit_stack(argtup;cache_dir="./local_cache_Tfun")
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
 
         # Get Throughput Fluxing 
