@@ -34,7 +34,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     include(src_dir*"src/prior_build/prior_utils.jl")
     
     using StatsBase, ProgressMeter
-    using SortFilters, BasisFunctions, Random, KrylovKit, KryburyCompress, Glob
+    using SortFilters, BasisFunctions, Random, KrylovKit, KryburyCompress, Glob, DelimitedFiles
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
@@ -76,7 +76,7 @@ end
 
 @everywhere begin
     function grab_spectrum(fname;normPercent=nothing)
-        if !isnoting(normPercent)
+        if !isnothing(normPercent)
             dat = readdlm(fname)[:,2]
             return dat./percentile(dat,normPercent).-1
         else
