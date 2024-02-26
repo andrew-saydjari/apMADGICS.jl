@@ -121,13 +121,13 @@ end
 # Get all High Res Samples
 rng = MersenneTwister(rnd_seed);
 flist = shuffle(rng,sort(glob("*/*.dat",prior_dict["korg_run_path"])));
-println("Number of Synthetic Spectra Samples: ", length(flist)
+println("Number of Synthetic Spectra Samples: ", length(flist))
 
 # Round 1 of Decomposition
 iterpart = Iterators.partition(flist,rnd1size)
 println("Number of $rnd1size Spectra Partitions in Round 1: ", length(iterpart))
 
-prelim_decomp_bind(subsamples) = prelim_decomp(subsamples;nsub=nsub,normPercent=normPercent)
+@everywhere prelim_decomp_bind(subsamples) = prelim_decomp(subsamples;nsub=nsub,normPercent=normPercent)
 pout = @showprogress pmap(prelim_decomp_bind,iterpart);
 
 bind = 1
