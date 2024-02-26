@@ -34,7 +34,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     include(src_dir*"src/prior_build/prior_utils.jl")
     
     using StatsBase, ProgressMeter
-    using SortFilters, BasisFunctions, Random, KrylovKit, KryburyCompress
+    using SortFilters, Random, KrylovKit, KryburyCompress, Glob, DelimitedFiles
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
@@ -47,12 +47,11 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
 @everywhere begin
     nsub_out = 50
-    normPercent = nothing #94 #nothing turns it off
+    normPercent = 94 #94 #nothing turns it off
 
     nsub_rnd1 = 60
     rnd1size = 800
 
-    kryburytol = 1e-15
     rnd_seed = 103
     th_LSF_R = 22_500
 
@@ -61,6 +60,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_base = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/"
     # StarCont Samples
     prior_dict["korg_run_path"] = prior_base*"starLine_disk_KnackedKorg/"
+    prior_dict["out_dir"] = prior_base*"starLine_priors_norm94/"
+
 
     prior_dict["LSF_mat_APO"] = prior_dir0*"2023_04_01/mat_lsf_out/sp_combolsfmat_norm_" # last made 2023_04_01 by AKS
     prior_dict["LSF_mat_LCO"] = prior_dir0*"2023_04_07/mat_lsf_out/sp_combolsfmat_norm_" # last made 2023_04_07 by AKS
@@ -74,7 +75,7 @@ end
 
 @everywhere begin
     function grab_spectrum(fname;normPercent=nothing)
-        if !isnoting(normPercent)
+        if !isnothing(normPercent)
             dat = readdlm(fname)[:,2]
             return dat./percentile(dat,normPercent).-1
         else
@@ -87,7 +88,7 @@ end
         return Vi*(Vi'*x)
     end
 
-    function kryburyCompress_noDiag(M::LowRankMultMat,nfeat::Int;nsub=2,eigtol=1e-12,kryburytol=1e-15)
+    function kryburyCompress_noDiag(M::LowRankMultMat,nfeat::Int;nsub=2,tol=1e-15)
         λ, V, info = eigsolve(M,
             nfeat,
             nsub,
@@ -95,20 +96,20 @@ end
             ishermitian=true,
             issymmetric=true,
             :LM,
-            tol=eigtol
+            tol=tol
         );
         return hcat(V[1:nsub]...)*Diagonal(sqrt.(λ[1:nsub]))
     end
 
-    function prelim_decomp(subsamples;nsub=60)
+    function prelim_decomp(subsamples;nsub=60,normPercent=nothing)
         outsamp = zeros(length(x_model),length(subsamples))
         for (i, fval) in enumerate(subsamples)
-            outsamp[:,i].=grab_spectrum(fval)
+            outsamp[:,i].=grab_spectrum(fval,normPercent=normPercent)
         end
         outsamp./=sqrt(length(subsamples));
         subMat = LowRankMultMat([outsamp],[],samp_fxn_mult);
         try
-            return kryburyCompress_noDiag(subMat,length(x_model);nsub=nsub,tol=kryburytol);
+            return kryburyCompress_noDiag(subMat,length(x_model);nsub=nsub);
         catch
             return NaN
         end
@@ -119,32 +120,32 @@ end
 # Get all High Res Samples
 rng = MersenneTwister(rnd_seed);
 flist = shuffle(rng,sort(glob("*/*.dat",prior_dict["korg_run_path"])));
-println("Number of Synthetic Spectra Samples: ", length(flist)
+println("Number of Synthetic Spectra Samples: ", length(flist))
 
 # Round 1 of Decomposition
 iterpart = Iterators.partition(flist,rnd1size)
 println("Number of $rnd1size Spectra Partitions in Round 1: ", length(iterpart))
 
-prelim_decomp_bind(subsamples) = prelim_decomp(subsamples;nsub=nsub,normPercent=normPercent)
+@everywhere prelim_decomp_bind(subsamples) = prelim_decomp(subsamples;nsub=nsub_rnd1,normPercent=normPercent)
 pout = @showprogress pmap(prelim_decomp_bind,iterpart);
 
-bind = 1
-outsamp = zeros(length(x_model),length(iterpart)*nsub);
+global bind = 1
+outsamp = zeros(length(x_model),length(iterpart)*nsub_rnd1);
 for i=1:size(pout,1)
-    outsamp[.. ,bind:(bind+nsub-1)] .= pout[i]
-    bind += nsub
+    outsamp[.. ,bind:(bind+nsub_rnd1-1)] .= pout[i]
+    global bind += nsub_rnd1
 end
 
-serialize(prior_dict["korg_run_path"]*"korg_rnd1_kry_"*string(nsub)*".jdat",outsamp)
+serialize(prior_dict["korg_run_path"]*"korg_rnd1_kry_"*string(nsub_rnd1)*".jdat",outsamp)
 
 # Final Krylov Decomposition
-normfac = size(outsamp,2)/nsub
+normfac = size(outsamp,2)/nsub_rnd1
 outsamp./=sqrt(normfac);
 subMat = LowRankMultMat([outsamp],[],samp_fxn_mult);
 
-Vout = kryburyCompress_noDiag(subMat,length(x_model);nsub=nsub_out,tol=kryburytol);
+Vout = kryburyCompress_noDiag(subMat,length(x_model);nsub=nsub_out);
 
-fname = "starLine_priors/APOGEE_stellar_kry_$(nsub_out)_fullres.h5"
+fname = prior_dict["out_dir"]*"APOGEE_stellar_kry_$(nsub_out)_fullres.h5"
 dirName = splitdir(fname)[1]
 if !ispath(dirName)
     mkpath(dirName)
@@ -153,7 +154,7 @@ h5write(fname,"Vmat",Vout)
 
 # Read in FullRes StarLine Prior on Each Worker (prep for convolution)
 @everywhere begin
-    fname = "./starLine_priors/APOGEE_stellar_kry_$(nsub_out)_fullres.h5"
+    fname =  prior_dict["out_dir"]*"APOGEE_stellar_kry_$(nsub_out)_fullres.h5"
     Vout = h5read(fname,"Vmat")
 end
 
@@ -172,7 +173,7 @@ end
             nvecLSF = dropdims(sum(Ksp,dims=2),dims=2);
             Vsubpix[:,:,findx] .= (Ksp*Vout)./nvecLSF;
         end
-        fname = "starLine_priors/APOGEE_stellar_kry_$(nsub_out)_subpix_f"*lpad(fibernum,3,"0")*".h5"
+        fname =  prior_dict["out_dir"]*"APOGEE_stellar_kry_$(nsub_out)_subpix_f"*lpad(fibernum,3,"0")*".h5"
         h5write(fname,"Vmat",Vsubpix)
         return
     end
@@ -184,14 +185,17 @@ pout = @showprogress pmap(convolve_highRes_starModel,1:600);
 fsteprng = (5//10):(-1//10):(-4//10) #that should be left to right (for LSFs only)
 sstep = 6.0e-6
 @showprogress for (findx, fstep) in enumerate(fsteprng)
-    wavetarg_new = 10 .^range(start=(4.179-125*sstep+fstep*sstep),step=sstep,length=8575+125);
-    sp_lsf = instrument_lsf_sparse_matrix(x_model,wavetarg_new,th_LSF_R);
     fname = "ref_lsfs/sp_reflsf_norm_$findx.jdat"
-    dirName = splitdir(fname)[1]
-    if !ispath(dirName)
-        mkpath(dirName)
+    if !isfile(fname)
+        wavetarg_new = 10 .^range(start=(4.179-125*sstep+fstep*sstep),step=sstep,length=8575+125);
+        sp_lsf = instrument_lsf_sparse_matrix(x_model,wavetarg_new,th_LSF_R);
+        
+        dirName = splitdir(fname)[1]
+        if !ispath(dirName)
+            mkpath(dirName)
+        end
+        serialize(fname,sp_lsf)
     end
-    serialize(fname,sp_lsf)
 end
 
 # Write out subpixel convolved starLine prior with theoretical LSF
@@ -201,5 +205,5 @@ for (findx, fstep) in enumerate(fsteprng)
     nvecLSF = dropdims(sum(Ksp,dims=2),dims=2); # this was missing from this step until 2024_02_26
     Vsubpix[:,:,findx] .= (Ksp*Vout)./nvecLSF; 
 end
-fname = "starLine_priors/APOGEE_stellar_kry_$(nsub_out)_subpix_th_$(th_LSF_R).h5"
+fname =  prior_dict["out_dir"]*"APOGEE_stellar_kry_$(nsub_out)_subpix_th_$(th_LSF_R).h5"
 h5write(fname,"Vmat",Vsubpix)

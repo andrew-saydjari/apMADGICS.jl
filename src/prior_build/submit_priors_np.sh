@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=sdss-np
 #SBATCH --partition=sdss-shared-np
-#SBATCH --nodes=6
+#SBATCH --nodes=1
 #SBATCH --ntasks-per-node=64
 
 #SBATCH --mem=0 #requesting all of the memory on the node
@@ -24,8 +24,8 @@
 # julia +1.10.0 sample_Tfun.jl
 # julia +1.10.0 sample_starCont.jl
 # julia +1.10.0 build_starCont.jl
-julia +1.10.0 sample_Korg.jl # 1152 core-h, 3h on 6 nodes, ~ 40 core-s/spec, full blast
-# julia +1.10.0 build_starLines.jl # 40 min on 1 node (est)
+# julia +1.10.0 sample_Korg.jl # 966.4 core-h, 2.5h on 6 nodes, 34.8 core-s/spec, 100% cpu usage
+julia +1.10.0 build_starLines.jl # 40 min on 1 node (est), 50% cpu usage
 
 # Clean up logs and Report Timing
 formatted_time=$(printf '%dd %dh:%dm:%ds\n' $(($SECONDS/86400)) $(($SECONDS%86400/3600)) $(($SECONDS%3600/60)) $(($SECONDS%60)))

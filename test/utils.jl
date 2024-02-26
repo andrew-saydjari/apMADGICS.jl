@@ -3,14 +3,18 @@
     dat = 2.1*ones(10,10)
     dat[1,:].=NaN
 
-    @test nanmean(dat[:,1])==2.1
-    @test nanmean(dat,1)==2.1*ones(1,10)
+    # need to add tests that actually cover the zero cases
+    @test nanzeromean(dat[:,1])==2.1
+    @test nanzeromean(dat,1)==2.1*ones(1,10)
 
     @test nansum(dat[:,1],1)[1] == 2.1*9
     @test nansum(dat,1) == 2.1*9*ones(1,10)
 
-    @test nanmedian(dat[:,1])==2.1
-    @test nanmedian(dat,1)==2.1*ones(1,10)
+    @test nanzerosum(dat[:,1],1)[1] == 2.1*9
+    @test nanzerosum(dat,1) == 2.1*9*ones(1,10)
+
+    @test nanzeromedian(dat[:,1])==2.1
+    @test nanzeromedian(dat,1)==2.1*ones(1,10)
 
     # Gaussian Posterior Test
     using Distributions
