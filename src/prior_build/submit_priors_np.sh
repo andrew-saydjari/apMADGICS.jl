@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=sdss-np
 #SBATCH --partition=sdss-shared-np
-#SBATCH --nodes=1
+#SBATCH --nodes=6
 #SBATCH --ntasks-per-node=64
 
 #SBATCH --mem=0 #requesting all of the memory on the node
@@ -23,7 +23,9 @@
 # julia +1.10.0 build_skyLines.jl
 # julia +1.10.0 sample_Tfun.jl
 # julia +1.10.0 sample_starCont.jl
-julia +1.10.0 build_starCont.jl
+# julia +1.10.0 build_starCont.jl
+julia +1.10.0 sample_Korg.jl # 1152 core-h, 3h on 6 nodes, ~ 40 core-s/spec, full blast
+# julia +1.10.0 build_starLines.jl # 40 min on 1 node (est)
 
 # Clean up logs and Report Timing
 formatted_time=$(printf '%dd %dh:%dm:%ds\n' $(($SECONDS/86400)) $(($SECONDS%86400/3600)) $(($SECONDS%3600/60)) $(($SECONDS%60)))
@@ -32,3 +34,5 @@ echo "Job completed in $formatted_time"
 mkdir -p slurm_logs
 mv ${SLURM_JOB_NAME}_${SLURM_JOBID}.out slurm_logs/${SLURM_JOB_NAME}_${SLURM_JOBID}.out
 mv ${SLURM_JOB_NAME}_${SLURM_JOBID}.err slurm_logs/${SLURM_JOB_NAME}_${SLURM_JOBID}.err
+
+# Note: OOM to be had from precompute H2O cross-sections for sample_Korg.jl

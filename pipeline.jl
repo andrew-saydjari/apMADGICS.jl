@@ -47,10 +47,10 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     refine_iters = 5
     ddstaronly = false
-    runlist_range = 335:335 #1:600 #295, 245, 335, 101
+    runlist_range = 295:295 #1:600 #295, 245, 335, 101
     batchsize = 10 #40
 
-    cache_dir = "../local_cache_395_redo/"
+    cache_dir = "../local_cache_295_redo/"
     inject_cache_dir = prior_dir*"2024_02_08/inject_local_cache"
 
     # Prior Dictionary
