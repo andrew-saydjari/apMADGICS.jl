@@ -47,7 +47,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
 @everywhere begin
     nsub_out = 50
-    normPercent = nothing #94 #nothing turns it off
+    normPercent = 94 #94 #nothing turns it off
 
     nsub_rnd1 = 60
     rnd1size = 800
@@ -61,6 +61,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_base = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/"
     # StarCont Samples
     prior_dict["korg_run_path"] = prior_base*"starLine_disk_KnackedKorg/"
+    prior_dict["out_dir"] = prior_base*"starLine_priors_norm94/"
+
 
     prior_dict["LSF_mat_APO"] = prior_dir0*"2023_04_01/mat_lsf_out/sp_combolsfmat_norm_" # last made 2023_04_01 by AKS
     prior_dict["LSF_mat_LCO"] = prior_dir0*"2023_04_07/mat_lsf_out/sp_combolsfmat_norm_" # last made 2023_04_07 by AKS
@@ -144,7 +146,7 @@ subMat = LowRankMultMat([outsamp],[],samp_fxn_mult);
 
 Vout = kryburyCompress_noDiag(subMat,length(x_model);nsub=nsub_out,tol=kryburytol);
 
-fname = "starLine_priors/APOGEE_stellar_kry_$(nsub_out)_fullres.h5"
+fname = prior_dict["out_dir"]*"APOGEE_stellar_kry_$(nsub_out)_fullres.h5"
 dirName = splitdir(fname)[1]
 if !ispath(dirName)
     mkpath(dirName)
@@ -153,7 +155,7 @@ h5write(fname,"Vmat",Vout)
 
 # Read in FullRes StarLine Prior on Each Worker (prep for convolution)
 @everywhere begin
-    fname = "./starLine_priors/APOGEE_stellar_kry_$(nsub_out)_fullres.h5"
+    fname =  prior_dict["out_dir"]*"APOGEE_stellar_kry_$(nsub_out)_fullres.h5"
     Vout = h5read(fname,"Vmat")
 end
 
@@ -172,7 +174,7 @@ end
             nvecLSF = dropdims(sum(Ksp,dims=2),dims=2);
             Vsubpix[:,:,findx] .= (Ksp*Vout)./nvecLSF;
         end
-        fname = "starLine_priors/APOGEE_stellar_kry_$(nsub_out)_subpix_f"*lpad(fibernum,3,"0")*".h5"
+        fname =  prior_dict["out_dir"]*"APOGEE_stellar_kry_$(nsub_out)_subpix_f"*lpad(fibernum,3,"0")*".h5"
         h5write(fname,"Vmat",Vsubpix)
         return
     end
@@ -184,14 +186,17 @@ pout = @showprogress pmap(convolve_highRes_starModel,1:600);
 fsteprng = (5//10):(-1//10):(-4//10) #that should be left to right (for LSFs only)
 sstep = 6.0e-6
 @showprogress for (findx, fstep) in enumerate(fsteprng)
-    wavetarg_new = 10 .^range(start=(4.179-125*sstep+fstep*sstep),step=sstep,length=8575+125);
-    sp_lsf = instrument_lsf_sparse_matrix(x_model,wavetarg_new,th_LSF_R);
     fname = "ref_lsfs/sp_reflsf_norm_$findx.jdat"
-    dirName = splitdir(fname)[1]
-    if !ispath(dirName)
-        mkpath(dirName)
+    if !isfile(fname)
+        wavetarg_new = 10 .^range(start=(4.179-125*sstep+fstep*sstep),step=sstep,length=8575+125);
+        sp_lsf = instrument_lsf_sparse_matrix(x_model,wavetarg_new,th_LSF_R);
+        
+        dirName = splitdir(fname)[1]
+        if !ispath(dirName)
+            mkpath(dirName)
+        end
+        serialize(fname,sp_lsf)
     end
-    serialize(fname,sp_lsf)
 end
 
 # Write out subpixel convolved starLine prior with theoretical LSF
@@ -201,5 +206,5 @@ for (findx, fstep) in enumerate(fsteprng)
     nvecLSF = dropdims(sum(Ksp,dims=2),dims=2); # this was missing from this step until 2024_02_26
     Vsubpix[:,:,findx] .= (Ksp*Vout)./nvecLSF; 
 end
-fname = "starLine_priors/APOGEE_stellar_kry_$(nsub_out)_subpix_th_$(th_LSF_R).h5"
+fname =  prior_dict["out_dir"]*"APOGEE_stellar_kry_$(nsub_out)_subpix_th_$(th_LSF_R).h5"
 h5write(fname,"Vmat",Vsubpix)
