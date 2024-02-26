@@ -213,7 +213,7 @@ function save_wavecal(wavesavename,outlst,run_tup,wavetype;outlst_arc=nothing,f2
             z = vcat(z,outlst[fiberiter][2])
         end
     end
-    medabs = nanmedian(abs.(z))
+    medabs = nanzeromedian(abs.(z))
 
     # get the pixel to wavelength polynomial coefficients
     x = extract_nth.(outlst,4)
@@ -399,7 +399,7 @@ function make_mvec(wavelstcombo_FPI; f2do = 1:300, swindow = 41, leadwindow = 10
         if wavelen>1
             mtemp = 2*dcav_init./wavelstcombo_FPI[fiber] # you don't need to know the cavity all that well to assign deltaM
             mtemp_rnd0 = round.(Int,mtemp)
-            mtemp_off = nanmedian(mtemp.-mtemp_rnd0)
+            mtemp_off = nanzeromedian(mtemp.-mtemp_rnd0)
             mtemp_rnd = round.(Int,mtemp.-mtemp_off)
             non_unique_vec = non_unique_elements(mtemp_rnd)
             mskg = ones(Bool,length(mtemp))
@@ -556,7 +556,7 @@ function fit_smoothFibDep(outlst_arc,mjd5,expid,exptype;f2do=1:300,save_plot_on=
         ys = outP[.!msk]
         p = Polynomials.fit(xs,ys,order_lst[i-1])
         resid = outP - p.(fibaxis)
-        mskr = msk .| (abs.(resid).>7*naniqr(resid))
+        mskr = msk .| (abs.(resid).>7*nanzeroiqr(resid))
         xs = fibaxis[.!mskr]
         ys = outP[.!mskr]
         p = Polynomials.fit(xs,ys,order_lst[i-1])
@@ -576,7 +576,7 @@ function fit_smoothFibDep(outlst_arc,mjd5,expid,exptype;f2do=1:300,save_plot_on=
         ys = outP[.!msk]
         p = Polynomials.fit(xs,ys,order_lst[i])
         resid = outP - p.(fibaxis)
-        mskr = msk .| (abs.(resid).>7*naniqr(resid))
+        mskr = msk .| (abs.(resid).>7*nanzeroiqr(resid))
         xs = fibaxis[.!mskr]
         ys = outP[.!mskr]
         p = Polynomials.fit(xs,ys,order_lst[i])

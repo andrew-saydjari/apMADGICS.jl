@@ -89,7 +89,7 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
     skyZ = (skyScale.-skyMed)./skyIQR;
     msk = (abs.(skyZ).<skyZcut)
 
-    meanLocSky = dropdims(nanmean(outcont[:,msk],2),dims=2);
+    meanLocSky = dropdims(nanzeromean(outcont[:,msk],2),dims=2);
     VLocSky = (outcont[:,msk].-meanLocSky)./sqrt(count(msk));
     return meanLocSky, VLocSky
 end
@@ -217,11 +217,7 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; telluri
     end
     
     simplemsk = (cntvec.==framecnts)
-    starscale = if count(simplemsk .& (.!isnan.(outvec)))==0
-        NaN
-    else
-        abs(nanmedian(outvec[simplemsk]))
-    end
+    starscale = nanzeromedian(outvec[simplemsk])
 
     goodframeIndx = length.(time_lsts).!=0
     chipmidtimes = zeros(3)

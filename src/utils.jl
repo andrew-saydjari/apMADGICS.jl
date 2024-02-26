@@ -1,35 +1,26 @@
 # Utils Module
-using ParallelDataTransfer, Distributed, Suppressor
-
-nanmean(x) = mean(filter(!isnan,x))
-nanmean(x,y) = mapslices(nanmean,x,dims=y)
-
-nansum(x) = sum(filter(!isnan,x))
-nansum(x,y) = mapslices(nansum,x,dims=y)
-
-nanmedian(x) = median(filter(!isnan,x))
-nanmedian(x,y) = mapslices(nanmedian,x,dims=y)
-
-NaNmedian(x) = if all(isnan,x)
-    NaN
-else
-    median(filter(!isnan,x))
-end
-NaNmedian(x,y) = mapslices(NaNmedian,x,dims=y)
-
-naniqr(x) = iqr(filter(!isnan,x))/1.34896
-naniqr(x,y) = mapslices(naniqr,x,dims=y)
-
-naniqr_NaN(x) = if all(isnan,x)
-    NaN
-else
-    iqr(filter(!isnan,x))/1.34896
-end
-naniqr_NaN(x,y) = mapslices(naniqr_NaN,x,dims=y)
+using ParallelDataTransfer, Distributed, Suppressor, SparseArrays
 
 function isnanorzero(x)
     return isnan(x) | iszero(x)
 end
+
+nanzeromean(x) = if all(isnanorzero,x)
+    NaN
+else
+    mean(filter(!isnanorzero,x))
+end
+nanzeromean(x,y) = mapslices(nanzeromean,x,dims=y)
+
+nansum(x) = sum(filter(!isnan,x))
+nansum(x,y) = mapslices(nansum,x,dims=y)
+
+nanzerosum(x) = if all(isnanorzero,x)
+    NaN
+else
+    sum(filter(!isnanorzero,x))
+end
+nanzerosum(x,y) = mapslices(nanzerosum,x,dims=y)
 
 nanzeromedian(x) = if all(isnanorzero,x)
     NaN
@@ -184,4 +175,33 @@ end
 
 function chi2red_fluxscale(chi2r, flux; fc=0.0)
     return chi2r/(1 + (fc*flux)^2)
+end
+
+function instrument_lsf_sparse_matrix(λ_input, λ_output, R)
+    row, col, val = Int[], Int[], Float64[]
+    for (indx, λ) in enumerate(λ_output)
+        msk, ϕ = instrumental_lsf_kernel(λ_input, λ, R)
+        push!(row,(indx.*ones(Int,count(msk)))...)
+        push!(col,findall(msk)...)
+        push!(val, ϕ...)
+    end
+    return sparse(row,col,val)
+end
+
+function instrumental_lsf_kernel(λ, λc, R)
+    σ, (lower, upper) = lsf_sigma_and_bounds(λc, R)
+    msk = (lower .<= λ .<= upper)
+    ϕ = exp.(-((λ[msk].-λc).^2)/(2σ^2))
+    ϕ ./= dropdims(sum(ϕ,dims=1),dims=1)
+    return msk, ϕ
+end
+
+function lsf_sigma_and_bounds(λ, R; σ_window=10)
+     σ = lsf_sigma(λ, R)
+    return σ, (λ - σ_window * σ, λ + σ_window * σ)
+end
+
+fwhm2sigma = 1/(2 * sqrt(2 * log(2)))
+function lsf_sigma(λ, R)
+    return (λ / R) * fwhm2sigma
 end

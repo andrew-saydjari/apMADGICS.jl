@@ -10,4 +10,5 @@
 */*/*_cache*
 *.out
 *.err
-/src/prior_build/sky_prior_disk/*
+/src/prior_build/*_disk*/*
+/src/prior_build/*_priors/*
