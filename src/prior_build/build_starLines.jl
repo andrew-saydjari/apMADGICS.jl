@@ -127,20 +127,20 @@ println("Number of Synthetic Spectra Samples: ", length(flist))
 iterpart = Iterators.partition(flist,rnd1size)
 println("Number of $rnd1size Spectra Partitions in Round 1: ", length(iterpart))
 
-@everywhere prelim_decomp_bind(subsamples) = prelim_decomp(subsamples;nsub=nsub,normPercent=normPercent)
+@everywhere prelim_decomp_bind(subsamples) = prelim_decomp(subsamples;nsub=nsub_rnd1,normPercent=normPercent)
 pout = @showprogress pmap(prelim_decomp_bind,iterpart);
 
 bind = 1
-outsamp = zeros(length(x_model),length(iterpart)*nsub);
+outsamp = zeros(length(x_model),length(iterpart)*nsub_rnd1);
 for i=1:size(pout,1)
-    outsamp[.. ,bind:(bind+nsub-1)] .= pout[i]
-    bind += nsub
+    outsamp[.. ,bind:(bind+nsub_rnd1-1)] .= pout[i]
+    bind += nsub_rnd1
 end
 
-serialize(prior_dict["korg_run_path"]*"korg_rnd1_kry_"*string(nsub)*".jdat",outsamp)
+serialize(prior_dict["korg_run_path"]*"korg_rnd1_kry_"*string(nsub_rnd1)*".jdat",outsamp)
 
 # Final Krylov Decomposition
-normfac = size(outsamp,2)/nsub
+normfac = size(outsamp,2)/nsub_rnd1
 outsamp./=sqrt(normfac);
 subMat = LowRankMultMat([outsamp],[],samp_fxn_mult);
 
