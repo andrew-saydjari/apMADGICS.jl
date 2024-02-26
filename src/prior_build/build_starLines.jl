@@ -34,7 +34,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     include(src_dir*"src/prior_build/prior_utils.jl")
     
     using StatsBase, ProgressMeter
-    using SortFilters, BasisFunctions, Random, KrylovKit, KryburyCompress, Glob, DelimitedFiles
+    using SortFilters, Random, KrylovKit, KryburyCompress, Glob, DelimitedFiles
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
@@ -52,7 +52,6 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     nsub_rnd1 = 60
     rnd1size = 800
 
-    kryburytol = 1e-15
     rnd_seed = 103
     th_LSF_R = 22_500
 
@@ -89,7 +88,7 @@ end
         return Vi*(Vi'*x)
     end
 
-    function kryburyCompress_noDiag(M::LowRankMultMat,nfeat::Int;nsub=2,eigtol=1e-12,kryburytol=1e-15)
+    function kryburyCompress_noDiag(M::LowRankMultMat,nfeat::Int;nsub=2,tol=1e-15)
         λ, V, info = eigsolve(M,
             nfeat,
             nsub,
@@ -97,7 +96,7 @@ end
             ishermitian=true,
             issymmetric=true,
             :LM,
-            tol=eigtol
+            tol=tol
         );
         return hcat(V[1:nsub]...)*Diagonal(sqrt.(λ[1:nsub]))
     end
@@ -110,7 +109,7 @@ end
         outsamp./=sqrt(length(subsamples));
         subMat = LowRankMultMat([outsamp],[],samp_fxn_mult);
         try
-            return kryburyCompress_noDiag(subMat,length(x_model);nsub=nsub,tol=kryburytol);
+            return kryburyCompress_noDiag(subMat,length(x_model);nsub=nsub);
         catch
             return NaN
         end
@@ -130,11 +129,11 @@ println("Number of $rnd1size Spectra Partitions in Round 1: ", length(iterpart))
 @everywhere prelim_decomp_bind(subsamples) = prelim_decomp(subsamples;nsub=nsub_rnd1,normPercent=normPercent)
 pout = @showprogress pmap(prelim_decomp_bind,iterpart);
 
-bind = 1
+global bind = 1
 outsamp = zeros(length(x_model),length(iterpart)*nsub_rnd1);
 for i=1:size(pout,1)
     outsamp[.. ,bind:(bind+nsub_rnd1-1)] .= pout[i]
-    bind += nsub_rnd1
+    global bind += nsub_rnd1
 end
 
 serialize(prior_dict["korg_run_path"]*"korg_rnd1_kry_"*string(nsub_rnd1)*".jdat",outsamp)
@@ -144,7 +143,7 @@ normfac = size(outsamp,2)/nsub_rnd1
 outsamp./=sqrt(normfac);
 subMat = LowRankMultMat([outsamp],[],samp_fxn_mult);
 
-Vout = kryburyCompress_noDiag(subMat,length(x_model);nsub=nsub_out,tol=kryburytol);
+Vout = kryburyCompress_noDiag(subMat,length(x_model);nsub=nsub_out);
 
 fname = prior_dict["out_dir"]*"APOGEE_stellar_kry_$(nsub_out)_fullres.h5"
 dirName = splitdir(fname)[1]
