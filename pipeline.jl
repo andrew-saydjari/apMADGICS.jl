@@ -67,9 +67,9 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # Star Priors
     # prior_dict["starCont"] = prior_dir*"2023_07_22/star_priors/APOGEE_starcont_svd_60_f"
     prior_dict["starCont"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/star_priors/APOGEE_starcont_svd_60_f"
-    prior_dict["starLines_refLSF"] = prior_dir*"2024_02_21/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_th22500.h5"
+    prior_dict["starLines_refLSF"] = prior_dir*"2024_02_21/sapMADGICS.jl/src/prior_build/tarLine_priors_norm94/APOGEE_stellar_kry_50_subpix_th22500.h5"
     # prior_dict["starLines_LSF"] = prior_dir*"2023_09_26/star_priors/APOGEE_starCor_svd_50_subpix_f"
-    prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f"
+    prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f"
 
     # DIB Priors
     prior_dict["DIB_noLSF"] = prior_dir*"2023_07_22/dib_priors/precomp_dust_1_analyticDeriv_stiff.h5"
