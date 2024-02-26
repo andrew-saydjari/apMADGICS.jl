@@ -102,10 +102,10 @@ end
         return hcat(V[1:nsub]...)*Diagonal(sqrt.(λ[1:nsub]))
     end
 
-    function prelim_decomp(subsamples;nsub=60)
+    function prelim_decomp(subsamples;nsub=60,normPercent=nothing)
         outsamp = zeros(length(x_model),length(subsamples))
         for (i, fval) in enumerate(subsamples)
-            outsamp[:,i].=grab_spectrum(fval)
+            outsamp[:,i].=grab_spectrum(fval,normPercent=normPercent)
         end
         outsamp./=sqrt(length(subsamples));
         subMat = LowRankMultMat([outsamp],[],samp_fxn_mult);
