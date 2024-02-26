@@ -47,7 +47,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
 @everywhere begin
     nsub_out = 50
-    normPercent = 94 #94 #nothing turns it off
+    # normPercent = 94 #nothing turns it off
+    normPercent = nothing #94 #nothing turns it off
 
     nsub_rnd1 = 60
     rnd1size = 800
@@ -60,8 +61,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_base = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/"
     # StarCont Samples
     prior_dict["korg_run_path"] = prior_base*"starLine_disk_KnackedKorg/"
-    prior_dict["out_dir"] = prior_base*"starLine_priors_norm94/"
-
+    # prior_dict["out_dir"] = prior_base*"starLine_priors_norm94/"
+    prior_dict["out_dir"] = prior_base*"starLine_priors/"
 
     prior_dict["LSF_mat_APO"] = prior_dir0*"2023_04_01/mat_lsf_out/sp_combolsfmat_norm_" # last made 2023_04_01 by AKS
     prior_dict["LSF_mat_LCO"] = prior_dir0*"2023_04_07/mat_lsf_out/sp_combolsfmat_norm_" # last made 2023_04_07 by AKS
