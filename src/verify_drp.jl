@@ -44,18 +44,6 @@ tele_try_list =  ["apo25m","lco25m"]
 
 
 ### Ingest allVisit File
-function summary_file_by_dr(release_dir,redux_ver,dr_number)
-    if dr_number==17
-        return replace(getUtahBase(release_dir,redux_ver),"redux"=>"aspcap")*"synspec/allVisit-$(redux_ver)-synspec.fits"
-    elseif dr_number==16
-        return replace(getUtahBase(release_dir,redux_ver),"redux"=>"aspcap")*"l33/allVisit-$(redux_ver)-l33.fits"
-    elseif dr_number==15
-        return getUtahBase(release_dir,redux_ver)*"allVisit-l31c.2.fits"
-    else
-        error("No support for $(dr_number) yet, due to inhomogenous summary files")
-    end
-end
-
 function ingest_allVisit_file(release_dir,redux_ver;tele_try_list=["apo25m","lco25m"])
     dr_number = if occursin("dr", release_dir)
         parse(Int, match(r"dr(\d+)", release_dir).captures[1])
@@ -65,7 +53,7 @@ function ingest_allVisit_file(release_dir,redux_ver;tele_try_list=["apo25m","lco
     
     if (10 <= dr_number <= 17)
         # there is only one for the early DRs
-        sum_file = summary_file_by_dr(release_dir,redux_ver,dr_number)
+        sum_file = summary_file_by_dr(release_dir,redux_ver,dr_number,"allVisit")
         
         f = FITS(sum_file)
         TELESCOPE = read(f[2],"TELESCOPE")

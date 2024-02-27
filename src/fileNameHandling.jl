@@ -64,6 +64,18 @@ function getUtahBase(release_dir, redux_ver)
     return "/uufs/chpc.utah.edu/common/home/sdss/$(release_dir)/apogee/spectro/redux/$(redux_ver)/"
 end
 
+function summary_file_by_dr(release_dir,redux_ver,dr_number,allType) # allType is either "allVisit" or "allStar"
+    if dr_number==17
+        return replace(getUtahBase(release_dir,redux_ver),"redux"=>"aspcap")*"synspec/$(allType)-$(redux_ver)-synspec.fits"
+    elseif dr_number==16
+        return replace(getUtahBase(release_dir,redux_ver),"redux"=>"aspcap")*"l33//$(allType)-$(redux_ver)-l33.fits"
+    elseif dr_number==15
+        return getUtahBase(release_dir,redux_ver)*"/$(allType)-l31c.2.fits"
+    else
+        error("No support for $(dr_number) yet, due to inhomogenous summary files")
+    end
+end
+
 function build_platepath(release_dir,redux_ver,tele,field,plate,mjd,chip)
     base = getUtahBase(release_dir,redux_ver)*"visit"
     prefix = if (tele[1:6] =="apo25m")

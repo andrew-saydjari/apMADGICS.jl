@@ -123,7 +123,12 @@ end
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
 
         skyLineCache_tellDiv = cache_skynameSpec(tele,field,plate,mjd,fiberindx,telluric_div=true,cache_dir=cache_dir)
-        fvec, fvarvec, cntvec, chipmidtimes, metaexport, telvecN = deserialize(skyLineCache_tellDiv)
+        try
+            fvec, fvarvec, cntvec, chipmidtimes, metaexport, telvecN = deserialize(skyLineCache_tellDiv)
+        catch
+            println("Failed to load ",skyLineCache_tellDiv); flush(stdout)
+            fvec, fvarvec, cntvec, chipmidtimes, metaexport, telvecN = deserialize(skyLineCache_tellDiv)
+        end
         simplemsk = (cntvec.==maximum(cntvec)) .& chebmsk_exp;
         if telluric_div
             fnew = sky_smooth_fit(fvec,fvarvec,simplemsk,Vpoly_scaled)
