@@ -11,4 +11,5 @@
 *.out
 *.err
 /src/prior_build/*_disk*/*
-/src/prior_build/*_priors/*
+/src/prior_build/*_priors*/*
+/src/prior_build/ref_lsfs/*
