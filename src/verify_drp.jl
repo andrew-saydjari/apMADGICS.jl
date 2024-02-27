@@ -32,14 +32,14 @@ release_dir_n = replace(replace(release_dir,"/"=>"_"),"-"=>"_")
 redux_ver_n = replace(redux_ver,"."=>"p")
 
 check_ap1d = true
-check_apCframes = true
-check_exp = true
+check_apCframes = false
+check_exp = false
 check_flux = true
-check_plates = true
-write_sky = true
-write_star_plate = true
-write_tell = true
-check_wavecal = true
+check_plates = false
+write_sky = false
+write_star_plate = false
+write_tell = false
+check_wavecal = false
 tele_try_list =  ["apo25m","lco25m"]
 
 
@@ -208,6 +208,8 @@ if check_ap1d
                     serialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_badap1D_lst_"*lpad(adjfibindx,3,"0")*".jdat",collect(subiter)[.!outcheck])
                 end
                 push!(starlst,count(outcheck))
+                # preliminary pass at making the map2visit file (before drops for bad intermediate files)
+                h5write(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2visit_init_1indx.h5",string(adjfiberindx),findall(mskfib)[outcheck])
             end
             flush(stdout)
         end
@@ -458,21 +460,63 @@ if check_flux
     end
 end
 
+# Write out final StarLists for the apMADGICS inputs
 if check_ap1d | check_apCframes | check_exp | check_flux
     # apply any other masking to the star list and generate final star lists
+    allVisitIndLst = []
+    allVisitAdjFibLst = []
     for telematch in tele_list
         for fiber in 1:300
             teleind = (telematch == "lco25m") ? 2 : 1
             adjfibindx = (teleind-1)*300 + fiber
             star_input = deserialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
+            allVisit_inds = h5read(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2visit_init_1indx.h5",string(adjfiberindx))
             msk = deserialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_msk_fluxing_lst_"*lpad(adjfibindx,3,"0")*".jdat")
             subiter = star_input[.!msk]
             new_vec = map(i->map(x->x[i],subiter),1:length(subiter[1]))
             nstar = length(new_vec[1])
             new_vec[1]=1:nstar
             serialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_msked_"*lpad(adjfibindx,3,"0")*".jdat",collect(Iterators.zip(new_vec...)))
+            push!(allVisitIndLst,allVisit_inds[.!msk])
+            push!(allVisitAdjFibLst,adjfibindx*ones(Int,length(allVisit_inds[.!msk])))
         end
     end
+    h5write(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2visit_1indx.h5","map2visit_1indx",vcat(allVisitIndLst...))
+    h5write(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2visit_1indx.h5","adjfibindx",vcat(allVisitAdjFibLst...))
+
+    # Constructive map2star file creation
+    map2visit = h5read(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2visit_1indx.h5","map2visit_1indx")
+    map2visit_adjfibindx = h5read(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2visit_1indx.h5","adjfibindx")
+    allVisit_file = summary_file_by_dr(release_dir,redux_ver,dr_number,"allVisit")
+    f = FITS(allVisit_file)
+    APOGEE_ID_VISIT = read(f[2],"APOGEE_ID")[map2visit]
+    TELESCOPE_VISIT = read(f[2],"TELESCOPE")[map2visit]
+    FIELD_VISIT = read(f[2],"FIELD")[map2visit]
+    close(f)
+
+    allStar_file = summary_file_by_dr(release_dir,redux_ver,dr_number,"allStar")
+    f = FITS(allStar_file)
+    TARGET_ID_STAR = read(f[2],"TARGET_ID")
+    close(f)
+
+    visitzip = Iterators.zip(TELESCOPE_VISIT,FIELD_VISIT,APOGEE_ID_VISIT);
+    star_target_id = map(x-> join([x...],"."),visitzip)
+
+    map2star = zeros(Int, length(APOGEE_ID_VISIT))
+    cnt2star = zeros(Int, length(APOGEE_ID_VISIT))
+    @showprogress for (ind, testid) in enumerate(star_target_id)
+        foundid = findall(testid .== TARGET_ID_STAR)
+        if isempty(foundid)
+            map2star[ind] = -1  # No match found, set to -1 or any other suitable value
+            cnt2star[ind] = 0   # You can also set cnt2star to 0 or any other suitable value
+        else
+            map2star[ind] = foundid[1]
+            cnt2star[ind] = length(foundid)
+        end
+    end
+    h5write(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2star_1indx.h5","map2star_1indx",map2star)
+    h5write(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2star_1indx.h5","cnt2star_1indx",cnt2star)
+    h5write(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2star_1indx.h5","adjfibindx",map2visit_adjfibindx)
 end
 
 @everywhere begin

@@ -22,8 +22,8 @@ echo $SLURM_JOB_NODELIST
 # export JULIA_CPU_THREADS=1
 
 ## Batch over MANY nodes
-# julia +1.10.0 sample_sky.jl # 10% CPU usage
-julia +1.10.0 build_skyCont.jl
+# julia +1.10.0 sample_sky.jl # 3k core-h, 7.7h on 6 nodes, 10% CPU usage (2 corrupted skySpec_tellDiv_ files had to be manually rm-ed)
+julia +1.10.0 build_skyCont.jl # on 6 nodes, 100% cpu usage
 # julia +1.10.0 build_skyLines.jl
 # julia +1.10.0 sample_Tfun.jl
 # julia +1.10.0 sample_starCont.jl
