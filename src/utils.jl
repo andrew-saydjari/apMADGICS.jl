@@ -205,3 +205,20 @@ fwhm2sigma = 1/(2 * sqrt(2 * log(2)))
 function lsf_sigma(λ, R)
     return (λ / R) * fwhm2sigma
 end
+
+function reader(savename,keyval)
+    savename_sub = chop(savename,tail=3)*"_"*keyval*".h5"
+    return h5read(savename_sub,keyval);
+end
+
+function shifted_map(xin,shift)
+    lx = length(xin)
+    shiftedrng = range((1-shift),(lx-shift),length=lx)
+    itp = Interpolations.interpolate(xin,Interpolations.Lanczos());
+    etp = Interpolations.extrapolate(itp,0)
+    return etp(shiftedrng)
+end
+
+function shiftHelper(subspec_in,shiftval)
+    return shifted_map(subspec_in,-shiftval)
+end
