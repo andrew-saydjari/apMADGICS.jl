@@ -102,7 +102,7 @@ end
     global err_correct_Dict = deserialize(prior_dict["chip_fluxdep_err_correction"])
     global red_chi2_dict = deserialize(prior_dict["red_chi2_dict"])
 
-    wavetarg = 10 .^range((4.179-125*6.0e-6),step=6.0e-6,length=8575+125) #first argument is start, revert fix to enable 1.6 compat
+    wavetarg = 10 .^range((start=4.179-125*6.0e-6),step=6.0e-6,length=8575+125)
     minw, maxw = extrema(wavetarg)
     
     c = 299792.458; # in km/s

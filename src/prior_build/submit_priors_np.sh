@@ -15,10 +15,12 @@
 #SBATCH --mail-user=7155301634@vtext.com
 # ------------------------------------------------------------------------------
 
+echo $SLURM_JOB_NODELIST
+
 # export JULIA_NUM_GC_THREADS=1
 # export JULIA_NUM_THREADS=1
 # export JULIA_CPU_THREADS=1
-julia +1.10.0 sample_sky.jl
+julia +1.10.0 sample_sky.jl # 10% CPU usage
 # julia +1.10.0 build_skyCont.jl
 # julia +1.10.0 build_skyLines.jl
 # julia +1.10.0 sample_Tfun.jl
