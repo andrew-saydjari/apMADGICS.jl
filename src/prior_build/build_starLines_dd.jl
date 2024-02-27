@@ -58,7 +58,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
     prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f"
     prior_dict["out_dir"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd/"
-
+end
 
 @everywhere begin
     wavetarg = 10 .^range((4.179-125*6.0e-6),step=6.0e-6,length=8575+125) #first argument is start, revert fix to enable 1.6 compat
@@ -79,11 +79,25 @@ end
         tval = indTenth(svald)
         return pf["x1normMat"][:,indx] .+ (V_starbasis*pf["x2normMat"][:,indx]).*pf["ynormMat"][:,indx]
     end
+
+    function grab_star_spec(findx,RV_pixoff_final,f,g,h,m)
+        svald = RV_pixoff_final[findx]
+        
+        sig = g[keyvalres][:,findx]./f[keyval][:,findx]
+        subspec = replace((g[keyvalres][:,findx])./(sig.^2),NaN=>0)
+        x1norm = shiftHelper(subspec,svald)
+        
+        x2norm_noshift = m[keyvallineCof][:,findx]
+        
+        subspec_ref = replace(h[keyvalref][:,findx]./(sig.^2),NaN=>0)
+        ynorm = shiftHelper(subspec_ref,svald)
+        return x1norm, x2norm_noshift, ynorm
+    end
 end
 
 # for each fiber, build a ddmodel for the starLine component
 @everywhere begin
-    function solve_star_ddmodel_fiber(adjfibindx)
+    function solve_star_ddmodel_fiber(adjfibindx,clean_inds,ynormMat)
 
         f = h5open(prior_dict["starLines_LSF"]*lpad(adjfibindx,3,"0")*".h5")
         V_starbasis = read(f["Vmat"])
@@ -97,21 +111,6 @@ end
         else
             h5open(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","r")
         end
-
-        # could load in only if last fiber was not the same tele
-        clean_inds = if (adjfibindx .<=300)
-            h5read(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo")
-        else
-            h5read(prior_dict["out_dir"]*"clean_inds.h5",,"clean_inds_lco")
-        end;
-
-        # could load in only if last fiber was not the same tele
-        ynormMat = if (adjfibindx.<=300)
-            h5read(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","ynormMat")
-        else
-            h5read(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","ynormMat")
-        end;
-        GC.gc()
 
         finalize_xnorm_partial(indx2run) = finalize_xnorm(indx2run,RV_pixoff_final,pfhand,V_starbasis[:,:,6])
 
@@ -164,12 +163,46 @@ end
             h5write(fname_subpix,"Vmat",Vsubpix)
             h5write(fname_subpix,"msk_starCor",convert.(Int,final_msk))
         end
+        close(pfhand)
     end
 end
 
-## make strip dd precursors and write out
 ## make clean inds and write out (add some flagging with our new metrics)
 
-map(solve_star_ddmodel_fiber,1:600) #pmap inside, SVD speed up if we switch to MKL... do we really want two BLAS deps for this repo?
+
+## make strip dd precursors and write out
+clean_inds_apo = h5read(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo")
+clean_inds_lco = h5read(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_lco")
+
+# Run LCO
+grab_star_spec_partial(adjfiberindx) = grab_star_spec(adjfiberindx,RV_pixoff_final,f,g,h,m)
+pout = @showprogress pmap(grab_star_spec_partial,clean_inds_lco);
+
+x1normMat = zeros(length(wavetarg),length(pout))
+x2normMat = zeros(size(pout[1][2],1),length(pout))
+ynormMat = zeros(length(wavetarg),length(pout))
+for (subindx, subout) in enumerate(pout)
+    x1normMat[:,subindx] .= subout[1]
+    x2normMat[:,subindx] .= subout[2]
+    ynormMat[:,subindx] .= subout[3]
+end
+
+h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","x1normMat",x1normMat)
+h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","x2normMat",x2normMat)
+h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","ynormMat",ynormMat)
+
+## Solve DD Model for StarLine Components
+
+# Run APO
+ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","ynormMat")
+solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_apo,ynormMat)
+@showprogress map(solve_star_ddmodel_fiber_partial,1:300) #pmap inside (right?), SVD speed up if we switch to MKL... do we really want two BLAS deps for this repo?
+
+# Run LCO
+ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","ynormMat")
+GC.gc()
+solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_lco,ynormMat)
+@showprogress map(solve_star_ddmodel_fiber_partial,301:600) #pmap inside, SVD speed up if we switch to MKL... do we really want two BLAS deps for this repo?
+
 
 ## check continuous connected components number in the msk_starCor (really only need to check 1 APO and 1 LCO)
