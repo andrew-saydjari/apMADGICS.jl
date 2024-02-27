@@ -47,7 +47,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
 @everywhere begin
     nsub_out = 50
-    normPercent = 94 #94 #nothing turns it off
+    # normPercent = 94 #nothing turns it off
+    normPercent = nothing #94 #nothing turns it off
 
     nsub_rnd1 = 60
     rnd1size = 800
@@ -60,8 +61,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_base = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/"
     # StarCont Samples
     prior_dict["korg_run_path"] = prior_base*"starLine_disk_KnackedKorg/"
-    prior_dict["out_dir"] = prior_base*"starLine_priors_norm94/"
-
+    # prior_dict["out_dir"] = prior_base*"starLine_priors_norm94/"
+    prior_dict["out_dir"] = prior_base*"starLine_priors/"
 
     prior_dict["LSF_mat_APO"] = prior_dir0*"2023_04_01/mat_lsf_out/sp_combolsfmat_norm_" # last made 2023_04_01 by AKS
     prior_dict["LSF_mat_LCO"] = prior_dir0*"2023_04_07/mat_lsf_out/sp_combolsfmat_norm_" # last made 2023_04_07 by AKS
@@ -165,16 +166,16 @@ end
     function convolve_highRes_starModel(fibernum)
         fill!(Vsubpix,0)
         for (findx, fstep) in enumerate(offrng)
-            if fibernum>300
-                global Ksp = deserialize(prior_dict["LSF_mat_LCO"]*"$findx"*"_"*lpad(fibernum-300,3,"0")*".jdat");
+            Ksp = if fibernum>300
+                deserialize(prior_dict["LSF_mat_LCO"]*"$findx"*"_"*lpad(fibernum-300,3,"0")*".jdat");
             else
-                global Ksp = deserialize(prior_dict["LSF_mat_APO"]*"$findx"*"_"*lpad(fibernum,3,"0")*".jdat");
+                deserialize(prior_dict["LSF_mat_APO"]*"$findx"*"_"*lpad(fibernum,3,"0")*".jdat");
             end
             nvecLSF = dropdims(sum(Ksp,dims=2),dims=2);
             Vsubpix[:,:,findx] .= (Ksp*Vout)./nvecLSF;
         end
-        fname =  prior_dict["out_dir"]*"APOGEE_stellar_kry_$(nsub_out)_subpix_f"*lpad(fibernum,3,"0")*".h5"
-        h5write(fname,"Vmat",Vsubpix)
+        lname =  prior_dict["out_dir"]*"APOGEE_stellar_kry_$(nsub_out)_subpix_f"*lpad(fibernum,3,"0")*".h5"
+        h5write(lname,"Vmat",Vsubpix)
         return
     end
 end
@@ -185,16 +186,16 @@ pout = @showprogress pmap(convolve_highRes_starModel,1:600);
 fsteprng = (5//10):(-1//10):(-4//10) #that should be left to right (for LSFs only)
 sstep = 6.0e-6
 @showprogress for (findx, fstep) in enumerate(fsteprng)
-    fname = "ref_lsfs/sp_reflsf_norm_$findx.jdat"
+    nname = "ref_lsfs/sp_reflsf_norm_$findx.jdat"
     if !isfile(fname)
         wavetarg_new = 10 .^range(start=(4.179-125*sstep+fstep*sstep),step=sstep,length=8575+125);
         sp_lsf = instrument_lsf_sparse_matrix(x_model,wavetarg_new,th_LSF_R);
         
-        dirName = splitdir(fname)[1]
-        if !ispath(dirName)
-            mkpath(dirName)
+        dirNameN = splitdir(nname)[1]
+        if !ispath(dirNameN)
+            mkpath(dirNameN)
         end
-        serialize(fname,sp_lsf)
+        serialize(nname,sp_lsf)
     end
 end
 
