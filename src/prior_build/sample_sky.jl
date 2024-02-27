@@ -120,22 +120,32 @@ end
 end
 @everywhere begin
     function sky_smooth_wrapper(argtup,chebmsk_exp,Vpoly_scaled;telluric_div=false,cache_dir="./local_cache_sky")
-        release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
-
-        skyLineCache_tellDiv = cache_skynameSpec(tele,field,plate,mjd,fiberindx,telluric_div=true,cache_dir=cache_dir)
         try
+            release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
+
+            skyLineCache_tellDiv = cache_skynameSpec(tele,field,plate,mjd,fiberindx,telluric_div=true,cache_dir=cache_dir)
             fvec, fvarvec, cntvec, chipmidtimes, metaexport, telvecN = deserialize(skyLineCache_tellDiv)
+            simplemsk = (cntvec.==maximum(cntvec)) .& chebmsk_exp;
+            if telluric_div
+                fnew = sky_smooth_fit(fvec,fvarvec,simplemsk,Vpoly_scaled)
+            else
+                fnew = sky_smooth_fit(fvec,fvarvec,simplemsk,Vpoly_scaled).*telvecN
+            end
+            return fnew
         catch
+            release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
+
+            skyLineCache_tellDiv = cache_skynameSpec(tele,field,plate,mjd,fiberindx,telluric_div=true,cache_dir=cache_dir)
             println("Failed to load ",skyLineCache_tellDiv); flush(stdout)
             fvec, fvarvec, cntvec, chipmidtimes, metaexport, telvecN = deserialize(skyLineCache_tellDiv)
+            simplemsk = (cntvec.==maximum(cntvec)) .& chebmsk_exp;
+            if telluric_div
+                fnew = sky_smooth_fit(fvec,fvarvec,simplemsk,Vpoly_scaled)
+            else
+                fnew = sky_smooth_fit(fvec,fvarvec,simplemsk,Vpoly_scaled).*telvecN
+            end
+            return fnew
         end
-        simplemsk = (cntvec.==maximum(cntvec)) .& chebmsk_exp;
-        if telluric_div
-            fnew = sky_smooth_fit(fvec,fvarvec,simplemsk,Vpoly_scaled)
-        else
-            fnew = sky_smooth_fit(fvec,fvarvec,simplemsk,Vpoly_scaled).*telvecN
-        end
-        return fnew
     end
 
     function sky_line_wrapper(argtup,skycont;telluric_div=false,cache_dir="./local_cache_sky")

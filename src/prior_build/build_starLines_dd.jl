@@ -53,6 +53,11 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     redux_ver = "dr17"
     dr_number = 17
 
+    DRP_SNR_CUT = 80
+    flux_conserve_cut = 1e-3
+    snr_proxy_cut = 30
+    sfd_cut = 0.05
+
     # See https://www.sdss4.org/dr17/irspec/apogee-bitmasks/
     bad_extratarg_bits = 2^1+2^2+2^3 #COMISSIONING (1), TELLURIC (2), APO1M (3)
     bad_starflag_bits = 2^0+2^1+2^3+2^4+2^12+2^13+2^16+2^17+2^18+2^19+2^20+2^21+2^22+2^23+2^25 
@@ -230,6 +235,7 @@ close(f)
 ## This biases our DD model towards things that FERRE did well on, we should roll this back at some point
 ## To roll it back, we need to convince ourselves that we can handle the outliers well. v0.10
 ## I should visualize the Kiel diagram density changes with and without this cut.
+## SNR similarly is a stellar type bias
 TARG_mask = .!(EXTRATARG .& bad_extratarg_bits.!=0);
 STARFLAG_masks = .!(STARFLAG .& bad_starflag_bits.!=0);
 ASPCAP_masks = .!(ASPCAPFLAG .& bad_aspcap_bits.!=0);
@@ -241,18 +247,31 @@ println("Visits after TARG/STAR/ASPCAP/TEFF/FE masks: $(count(apg_msk)), $(100*c
 ## Query SFD
 sfd_map = SFD98Map()
 sfd_reddening = sfd_map.(deg2rad.(GLON),deg2rad.(GLAT))
-sfd_msk = (sfd_reddening.<0.05)
+sfd_msk = (sfd_reddening.<sfd_cut)
 
-apg_msk = (adjfiberindx.<=300) .& TARG_mask .& STARFLAG_masks .& ASPCAP_masks .& Teff_masks .& FE_masks .& sfd_msk .& (SNR.>80)
-# (.!(-0.8 .< RV_pixoff_final .< 1.2)) .& ## add back moon avoidance only if we see deviation in the theory work up near zero
-println((count(apg_msk), count(apg_msk)/length(apg_msk)))
-clean_inds = findall(apg_msk);
+## MADGICS Cuts
+avg_flux_conservation = reader(prior_dict["past_run"],"avg_flux_conservation")
+msk_flux_conserve = (avg_flux_conservation .< flux_conserve_cut);
+RV_minchi2_final = reader(prior_dict["past_run"],"RV_minchi2_final")
+snr_proxy = sqrt.(-RV_minchi2_final);
+msk_MADGICS_snr = (snr_proxy .> snr_proxy_cut); 
+
+clean_msk = (adjfiberindx.<=300) 
+clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
+clean_msk .&= sfd_msk # SFD Mask (low-reddening)
+clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr) # Remove StarConts that failed to converge well and low SNR model detections
+# clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) .& ## add back moon avoidance only if we see deviation in the theory work up near zero
+println("Clean APO Visits for DD Model Training: $(count(clean_msk)), $(100*count(clean_msk)/length(clean_msk))")
+clean_inds = findall(clean_msk);
 h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo",clean_inds)
 
-apg_msk = (adjfiberindx.>300) .& TARG_mask .& STARFLAG_masks .& ASPCAP_masks .& Teff_masks .& FE_masks .& sfd_msk .& (SNR.>80) 
-# (.!(-0.8 .< RV_pixoff_final .< 1.2)) .& ## add back moon avoidance only if we see deviation in the theory work up near zero
-println((count(apg_msk), count(apg_msk)/length(apg_msk)))
-clean_inds = findall(apg_msk);
+clean_msk = (adjfiberindx.>300) 
+clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
+clean_msk .&= sfd_msk # SFD Mask (low-reddening)
+clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr) # Remove StarConts that failed to converge well and low SNR model detections
+# clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) .& ## add back moon avoidance only if we see deviation in the theory work up near zero
+println("Clean LCO Visits for DD Model Training: $(count(clean_msk)), $(100*count(clean_msk)/length(clean_msk))")
+clean_inds = findall(clean_msk);
 h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_lco",clean_inds)
 
 ## make strip dd precursors and write out

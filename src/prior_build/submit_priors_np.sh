@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=sdss-np
 #SBATCH --partition=sdss-shared-np
-#SBATCH --nodes=1
+#SBATCH --nodes=6
 #SBATCH --ntasks-per-node=64
 
 #SBATCH --mem=0 #requesting all of the memory on the node
@@ -22,8 +22,8 @@ echo $SLURM_JOB_NODELIST
 # export JULIA_CPU_THREADS=1
 
 ## Batch over MANY nodes
-julia +1.10.0 sample_sky.jl # 10% CPU usage
-# julia +1.10.0 build_skyCont.jl
+# julia +1.10.0 sample_sky.jl # 10% CPU usage
+julia +1.10.0 build_skyCont.jl
 # julia +1.10.0 build_skyLines.jl
 # julia +1.10.0 sample_Tfun.jl
 # julia +1.10.0 sample_starCont.jl
