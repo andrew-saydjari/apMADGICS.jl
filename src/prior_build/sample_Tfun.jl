@@ -359,5 +359,5 @@ end
 end
 
 # get_Tfun_samples(runlist_range)
-good_tell_list = convert.(Int,readdlm("../2024_02_21/outlists/summary/dr17_dr17_good_tell_list.txt",','))[:,1]
+good_tell_list = convert.(Int,readdlm(prior_dict["tellStdGood"],','))[:,1]
 @showprogress pmap(get_Tfun_samples,good_tell_list)
