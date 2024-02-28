@@ -118,10 +118,10 @@ end
         fill!(Vall_lsf,0)
         fill!(covdet_lsf,0)
         # analytic shift, so don't shift the LSF
-        Ksp = if fibernum>300
-            deserialize(prior_dict["LSF_mat_LCO"]*"6_"*lpad(fibernum-300,3,"0")*".jdat");
+        Ksp = if adjfibindx>300
+            deserialize(prior_dict["LSF_mat_LCO"]*"6_"*lpad(adjfibindx-300,3,"0")*".jdat");
         else
-            deserialize(prior_dict["LSF_mat_APO"]*"6_"*lpad(fibernum,3,"0")*".jdat");
+            deserialize(prior_dict["LSF_mat_APO"]*"6_"*lpad(adjfibindx,3,"0")*".jdat");
         end
         nvecLSF = dropdims(sum(Ksp,dims=2),dims=2);
 
