@@ -1,7 +1,8 @@
-name: CI
+name: CI_nightly
 on:
   schedule:
     - cron: 0 0 * * *
+  workflow_call:
   workflow_dispatch:
 concurrency:
   # Skip intermediate builds: always.
@@ -9,18 +10,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 jobs:
-  lite:
-    uses: ./.github/workflows/CI_lite.yml
-  test:
+  test_nightly:
     name: JuliaMatrix ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
-    needs: [lite]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         version:
-          - '1.7'
-          - '1'
+          - 'nightly'
         os:
           - ubuntu-latest
           - macOS-latest
