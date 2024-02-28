@@ -130,7 +130,7 @@ end
     # tuple1dprint(slvl_tuple)
 
     # (Wave, Sig) DIB
-    dib_center_lst = [15273, 15273]#, 15653]
+    dib_center_lst = [15273, 15273, 15672, 15672]#, 15672, 15653]
     lvl1d = ((-150:4:150),(18//10:18//10))
     lvl2d = ((0:0), (-7//5:4//100:11//5))
     lvl3d = ((-18:2//10:18), (0:0))
@@ -143,7 +143,7 @@ end
     lvltuple = (lvl1d, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
     lvl1d_2 = ((-60:4:60),(18//10:18//10))
     lvltuple_2 = (lvl1d_2, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
-    lvltuple_lst = [lvltuple, lvltuple_2]
+    lvltuple_lst = [lvltuple, lvltuple_2, lvltuple, lvltuple_2]
     # tuple2dprint(lvltuple)
 
     # Flux marginalize region

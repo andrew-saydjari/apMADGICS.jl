@@ -85,7 +85,7 @@ end
 @everywhere begin
     wavetarg = 10 .^range((4.179-125*6.0e-6),step=6.0e-6,length=8575+125) #first argument is start, revert fix to enable 1.6 compat
     minw, maxw = extrema(wavetarg);
-    x_model = 15000:0.01:17000;
+    x_model = 15000:(1//100):17000;
 
     Vsubpix = zeros(length(wavetarg),nsub_out,length(offrng));
     pixmskMat = zeros(Bool,length(wavetarg),nsub_out,length(offrng));
