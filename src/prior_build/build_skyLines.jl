@@ -51,7 +51,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     nsub_faint = 120;
 
     nsigma_schedule = [20, 8, 6];
-    usamp_factor = 5
+    usamp_factor = 7
 
     function thresh_bright_faint(adjfibindx)
         if adjfibindx <= 300
