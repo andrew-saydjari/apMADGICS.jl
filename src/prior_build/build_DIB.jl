@@ -89,6 +89,10 @@ for (sigindx,sigma) in enumerate(sigrng), (sindx,offset) in enumerate(offrng)
 end
 
 fname = prior_dict["out_dir"]*"precomp_dust_$(nkeep)_analyticDeriv_stiff.h5"
+dirName = splitdir(fname)[1]
+if !ispath(dirName)
+    mkpath(dirName)
+end
 h5write(fname,"Vmat",Vall[:,1:nkeep,:,:])
 h5write(fname,"covdet",covdet)
 
