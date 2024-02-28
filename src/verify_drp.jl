@@ -209,7 +209,7 @@ if check_ap1d
                 end
                 push!(starlst,count(outcheck))
                 # preliminary pass at making the map2visit file (before drops for bad intermediate files)
-                h5write(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2visit_init_1indx.h5",string(adjfiberindx),findall(mskfib)[outcheck])
+                h5write(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2visit_init_1indx.h5",string(adjfibindx),findall(mskfib)[outcheck])
             end
             flush(stdout)
         end
