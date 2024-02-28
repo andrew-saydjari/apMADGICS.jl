@@ -23,7 +23,7 @@ echo $SLURM_JOB_NODELIST
 
 # julia +1.10.0 sample_sky.jl # 3k core-h, 7.7h on 6 nodes, 10% CPU usage (2 corrupted skySpec_tellDiv_ files had to be manually rm-ed)
 # julia +1.10.0 build_skyCont.jl # 672 core-h, 1.75h on 6 nodes, 100% cpu usage [OOM possible with Krylov]
-# julia +1.10.0 build_skyLines.jl # on 6 nodes, 100% cpu usage [never use Krylov]
+julia +1.10.0 build_skyLines.jl # on 6 nodes, 100% cpu usage [never use Krylov]
 # julia +1.10.0 sample_Tfun.jl
 # julia +1.10.0 sample_starCont.jl
 # julia +1.10.0 build_starCont.jl [OOM possible with Krylov]
