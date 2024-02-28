@@ -8,7 +8,7 @@ import Pkg
 using InteractiveUtils; versioninfo()
 Pkg.activate("../"); Pkg.instantiate(); Pkg.precompile()
 
-using FITSIO, StatsBase, ProgressMeter, Distributed, Serialization, Glob, DelimitedFiles, Suppressor
+using FITSIO, HDF5, StatsBase, ProgressMeter, Distributed, Serialization, Glob, DelimitedFiles, Suppressor
 
 src_dir = abspath("./")
 include(src_dir*"/fileNameHandling.jl")

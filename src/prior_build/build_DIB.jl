@@ -114,7 +114,7 @@ h5write(fname,"covdet",covdet) #but we wouldn't want to use this covdet
 end
 
 @everywhere begin
-    function lsfDIB(adjfiberindx)
+    function lsfDIB(adjfibindx)
         fill!(Vall_lsf,0)
         fill!(covdet_lsf,0)
         # analytic shift, so don't shift the LSF
