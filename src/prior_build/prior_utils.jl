@@ -205,3 +205,30 @@ function blackbody(T, λ; hplanck_cgs = 6.62607015e-27, c_cgs = 2.99792458e10, k
 
     2*h*c^2/λ^5 * 1/(exp(h*c/λ/k/T) - 1)
 end
+
+function find_zero_ranges(vector)
+    zero_ranges = Vector{Tuple{Int, Int}}()  # Stores start and end indices of zero ranges
+    in_zero_range = false
+    start_index = 0
+
+    for (index, value) in enumerate(vector)
+        if value == 0
+            if !in_zero_range
+                in_zero_range = true
+                start_index = index
+            end
+        else
+            if in_zero_range
+                push!(zero_ranges, (start_index, index - 1))
+                in_zero_range = false
+            end
+        end
+    end
+
+    # Check for an open zero range at the end of the vector
+    if in_zero_range
+        push!(zero_ranges, (start_index, length(vector)))
+    end
+
+    return zero_ranges
+end
