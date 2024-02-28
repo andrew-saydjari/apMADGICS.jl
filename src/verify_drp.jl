@@ -32,14 +32,14 @@ release_dir_n = replace(replace(release_dir,"/"=>"_"),"-"=>"_")
 redux_ver_n = replace(redux_ver,"."=>"p")
 
 check_ap1d = true
-check_apCframes = false
-check_exp = false
+check_apCframes = true
+check_exp = true
 check_flux = true
-check_plates = false
-write_sky = false
-write_star_plate = false
-write_tell = false
-check_wavecal = false
+check_plates = true
+write_sky = true
+write_star_plate = true
+write_tell = true
+check_wavecal = true
 tele_try_list =  ["apo25m","lco25m"]
 
 
@@ -470,7 +470,7 @@ if check_ap1d | check_apCframes | check_exp | check_flux
             teleind = (telematch == "lco25m") ? 2 : 1
             adjfibindx = (teleind-1)*300 + fiber
             star_input = deserialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
-            allVisit_inds = h5read(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2visit_init_1indx.h5",string(adjfiberindx))
+            allVisit_inds = h5read(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2visit_init_1indx.h5",string(adjfibindx))
             msk = deserialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_msk_fluxing_lst_"*lpad(adjfibindx,3,"0")*".jdat")
             subiter = star_input[.!msk]
             new_vec = map(i->map(x->x[i],subiter),1:length(subiter[1]))
