@@ -462,6 +462,11 @@ end
 
 # Write out final StarLists for the apMADGICS inputs
 if check_ap1d | check_apCframes | check_exp | check_flux
+    dr_number = if occursin("dr", release_dir)
+        parse(Int, match(r"dr(\d+)", release_dir).captures[1])
+    else
+        -1
+    end
     # apply any other masking to the star list and generate final star lists
     allVisitIndLst = []
     allVisitAdjFibLst = []
@@ -763,16 +768,16 @@ if check_plates
                     else
                         unique(clamp.(adjfibindx .+ (-wid:wid),1,300))
                     end
-                    samp_len = 0
+                    samp_len_lst = []
                     for test_ind in test_inds
                         fname = outdir*"tell/"*"$(release_dir_n)_$(redux_ver_n)_tell_input_lst_plate_msked_"*lpad(test_ind,3,"0")*".jdat"
                         if isfile(fname)
-                            samp_len += length(deserialize(fname))
+                            push!(samp_len_lst,length(deserialize(fname)))
                         end
                     end
-                    if samp_len>20
-                        push!(samp_lst,test_inds)
-                        tellcounts_wind[sfibindx] = samp_len
+                    if sum(samp_len_lst)>20
+                        push!(samp_lst,test_inds[samp_len_lst.!=0])
+                        tellcounts_wind[sfibindx] = sum(samp_len_lst)
                         break
                     end
                 end
