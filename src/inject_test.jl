@@ -33,7 +33,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     include(src_dir*"src/prior_build/prior_utils.jl")
     
     using StatsBase, ProgressMeter
-    using SortFilters, Random, KrylovKit, KryburyCompress, Glob, DelimitedFiles, DustExtinction
+    using SortFilters, Random, KrylovKit, KryburyCompress, Glob, DelimitedFiles, PoissonRandom
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
@@ -45,24 +45,48 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 workers() git_branch; @passobj 1 workers() git_commit
 
 @everywhere begin
-    nsub_out = 50
-    fracdatcut = 0.4
+    nsamp = 3*5_080
+
+    fibindx = 295 # injecting into this fiber
+    adjfibindx = 295 # sky samples injections are made into, running simulated observed on this fiber
+
+    RV_range_pix = (-68,68) # pixscale is ~4.14 km/s per pixel
+
+    dib_inject = true
+    dib_center_lambda_lst = [15273,15672]
+    dib_ew_range = (-1.5,0)
+    dib_sig_range = (0.7,3.7)
+    dib_vel_range = (-450, 450) # km/s
+
+    skycont_only = false
+    no_sky = false
+    dibs_on=true
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
-    prior_dict["past_run"] = prior_dir*"2023_09_26/outdir_wu_th/apMADGICS_out.h5" # update for the new run
-    prior_dict["map2visit"] = prior_dir*"2024_02_21/summary/dr17_dr17_map2visit_1indx.h5"
-    prior_dict["map2star"] = prior_dir*"2024_02_21/summary/dr17_dr17_map2star_1indx.h5"
+    prior_dict["out_dir"] = prior_dir*"2024_03_01/inject_dibs_295/"
+    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_01/inject_cache_dir/"
+    prior_dict["local_cache"] = prior_dir*"2024_03_01/local_cache/"
 
-    prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f"
-    prior_dict["out_dir"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd/"
+    prior_dict["past_run"] = prior_dir*"2024_02_21/outdir_wu_295_th/apMADGICS_out.h5" # used for StarScale distribution only
+    prior_dict["korg_run_path"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_disk_KnackedKorg/"
+
+    # Sky Sources
+    prior_dict["sky_runlist"] = prior_dir*"2024_02_21/outlists/sky/dr17_dr17_sky_input_lst_plate_msked_"
+    prior_dict["starContSamples"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/tell_prior_disk/starCont_"
+    prior_dict["skyContSamples"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_prior_disk/skycont_"
+    prior_dict["chebmsk_exp"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_prior_disk/chebmsk_exp_"
+
+    rnd_seed = 695
+    println("NumSamples Acceptable for Filenaming: "length(string(nsamp)) <= 7)
 end
 
 @everywhere begin
     delLog = 6e-6;
     wavetarg = 10 .^range(start = (4.179-125*delLog),step=delLog,length=8575+125)
     minw, maxw = extrema(wavetarg)
+    c = 299792.458; # in km/s
 
     Xd_stack = zeros(3*2048)
     Xd_std_stack = zeros(3*2048)
@@ -74,6 +98,24 @@ end
     outvec = zeros(length(wavetarg))
     outvar = zeros(length(wavetarg))
     cntvec = zeros(Int,length(wavetarg));
+end
+
+@everywhere begin
+    savename = prior_dict["starContSamples"]*lpad(adjfibindx,3,"0")*".jdat"
+    starContSamples = deserialize(savename);
+
+    savename = prior_dict["chebmsk_exp"]*lpad(adjfibindx,3,"0")*".jdat"
+    chebmsk_exp = deserialize(savename);
+
+    adjfiberindx = reader(prior_dict["past_run"],"adjfiberindx");
+    mskFIB = (adjfiberindx.==295)
+    starscale = reader(prior_dict["past_run"],"starscale")
+    starscale_red = starscale[..,mskFIB];
+
+    savename = prior_dict["skyContSamples"]*lpad(adjfibindx,3,"0")*".jdat"
+    skyContSamples_raw = deserialize(savename)
+    msk_skyCont = map(x->(!any(isnan.(x)))&(!any(x.<0)),eachcol(skyContSamples_raw));
+    skyContSamples = skyContSamples_raw[:,msk_skyCont]
 end
 
 @everywhere begin
@@ -115,200 +157,229 @@ end
     end
 end
 
-# for each fiber, build a ddmodel for the starLine component
 @everywhere begin
-    function solve_star_ddmodel_fiber(adjfibindx,clean_inds)
+    function grab_spectrum(fname)
+        return readdlm(fname)[:,2].-1
+    end
 
-        f = h5open(prior_dict["starLines_LSF"]*lpad(adjfibindx,3,"0")*".h5")
-        V_starbasis = read(f["Vmat"])
-        close(f)
+    function get_star(intup)
+        (fname, rv, fibernum) = intup
+        rval = indInt(rv)
+        tval = indTenth(rv)
 
-        fname = prior_dict["out_dir"]*"APOGEE_starCor_svd_"*string(nsub_out)*"_f"*lpad(adjfibindx,3,"0")*".h5"
-        fname_subpix = prior_dict["out_dir"]*"APOGEE_starCor_svd_"*string(nsub_out)*"_subpix_f"*lpad(adjfibindx,3,"0")*".h5" 
+        hres_spec = grab_spectrum(fname)
 
-        pfhand = if (adjfibindx .<=300)
-            h5open(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","r")
+        # this could be more efficient, except for that we are going to 
+        # batch with many fiber numbers at some point
+        Ksp = if adjfibindx>300
+            deserialize(prior_dict["LSF_mat_LCO"]*"$(tval)_"*lpad(adjfibindx-300,3,"0")*".jdat");
         else
-            h5open(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","r")
+            deserialize(prior_dict["LSF_mat_APO"]*"$(tval)_"*lpad(adjfibindx,3,"0")*".jdat");
         end
+        nvecLSF = dropdims(sum(Ksp,dims=2),dims=2);
+        lres_spec = (Ksp*hres_spec)./nvecLSF;
 
-        finalize_xnorm_partial(indx2run) = finalize_xnorm(indx2run,RV_pixoff_final,pfhand,V_starbasis[:,:,6])
+        return ShiftedArrays.circshift(lres_spec,rval)
+    end
 
-        if (!isfile(fname) & !isfile(fname_subpix))
-            pout = map(finalize_xnorm_partial,enumerate(clean_inds));
+    # finish fixing this up
+    function take_draw(ovtup; skycont_only = false, no_sky = false, dibs_on=true, caching=true, dib_center_lambda_lst=[15273], inject_cache_dir="./inject_local_cache",cache_dir="./local_cache")
+        argtup, starCont_indx, skyCont_indx, starscale, fname, rv, ew, λ0, sigma, injectindx, injectfiber = ovtup
+        ival = argtup[1]
+        intup = argtup[2:end]
+        (release_dir,redux_ver,tele,field,plate,mjd,fiberindx) = intup
 
-            xnormMat = zeros(length(wavetarg),length(pout))
-            for (subindx, subout) in enumerate(pout)
-                xnormMat[:,subindx] .= subout
+        teleind = (tele[1:6] == "lco25m") ? 2 : 1
+        adjfibindx = (teleind-1)*300 + fiberindx
+        gain = (tele[1:6] == "lco25m") ? 3.0 : 1.9
+        
+        # Get Throughput Fluxing 
+        fluxingcache = cache_fluxname(tele,field,plate,mjd; cache_dir=cache_dir)
+        if !isfile(fluxingcache)
+            dirName = splitdir(fluxingcache)[1]
+            if !ispath(dirName)
+                mkpath(dirName)
             end
-
-            nodat = dropdims(sum(iszero.(ynormMat),dims=2),dims=2)./size(ynormMat,2);
-            msk_starCor = (nodat.<fracdatcut);
-
-            xdat = xnormMat[msk_starCor,:]
-            ydat = ynormMat[msk_starCor,:]
-            Ccor = xdat*xdat'
-            Ccor ./= (ydat*ydat');
-
-            SF = svd(Ccor);
-            EVEC = zeros(length(wavetarg),size(SF.U,2))
-            EVEC[msk_starCor,:].=SF.U;
-
-            ## Save results as prior (without subpix shifts)
-            h5write(fname,"Vmat",EVEC[:,1:nsub_out]*Diagonal(sqrt.(SF.S[1:nsub_out])))
-            h5write(fname,"λv",SF.S[1:nsub_out])
-            h5write(fname,"msk_starCor",convert.(Int,msk_starCor))
-
-            ## subpix shifts
-            fill!(Vsubpix,0)
-            fill!(pixmskMat,0)
-            fltmsk = convert.(Float64,msk_starCor);
-
-            for (sindx, shift) in enumerate(offrng)
-                for eigind in 1:nsub_out
-                    Vsubpix[:,eigind,sindx] .= (shiftHelper(EVEC[:,eigind],-shift)).*sqrt.(SF.S[eigind]);
-                    shiftmsk = shiftHelper(fltmsk,-shift);
-                    pixmskMat[:,eigind,sindx] .= (abs.(shiftmsk.-1).<1e-2)
+            getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd,cache_dir=cache_dir)
+        end
+        
+        skycacheSpec = cache_skynameSpec(tele,field,plate,mjd,fiberindx,inject_cache_dir=inject_cache_dir,cache_dir=cache_dir)
+        if (isfile(skycacheSpec) & caching)
+            fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
+            starscalesky,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
+        else
+            fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
+            starscalesky,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
+            if caching
+                dirName = splitdir(skycacheSpec)[1]
+                if !ispath(dirName)
+                    mkpath(dirName)
+                end
+                serialize(skycacheSpec,[fvec, fvarvec, cntvec, chipmidtimes, metaexport])
+            end
+        end
+        outup = (release_dir,redux_ver,tele*lpad(injectindx,7,"0")*"i",field,plate,mjd,injectfiber)
+        starcache = cache_starname(tele*lpad(injectindx,7,"0")*"i",field,plate,mjd,injectfiber,cache_dir=cache_dir,inject_cache_dir=inject_cache_dir)
+        
+        if !isfile(starcache)
+            starcomp = starContSamples[:,starCont_indx]
+            medstar = median(starcomp)
+            starcomp .*= (starscale/medstar)
+            starLines = get_star((fname, rv, adjfibindx))
+            starcomp .*= (1 .+ starLines)
+            if dibs_on
+                for (dib_ind, dib_center_lambda) in enumerate(dib_center_lambda_lst)
+                    dibcomp = gauss1d(ew[dib_ind],λ0[dib_ind],sigma[dib_ind],wavetarg)
+                    starcomp .*= (1 .+ dibcomp)
                 end
             end
 
-            final_msk = dropdims(minimum(dropdims(minimum(pixmskMat,dims=3),dims=3),dims=2),dims=2)
-
-            for (sindx, shift) in enumerate(offrng)
-                for eigind in 1:nsub_out
-                    Vsubpix[.!final_msk,eigind,sindx] .= 0;
-                end
+            # add only sky cont
+            if skycont_only
+                starcomp .+= view(skyContSamples,:,skyCont_indx)
             end
 
-            h5write(fname_subpix,"Vmat",Vsubpix)
-            h5write(fname_subpix,"msk_starCor",convert.(Int,final_msk))
+            # seed the Poisson draw
+            rng = MersenneTwister(mjd+adjfibindx) # seed on mjd and fiber index so unique
+            if (no_sky | skycont_only)
+                outfvec = pois_rand.(rng,starcomp*gain)/gain
+            else
+                outfvec = fvec .+ pois_rand.(rng,starcomp*gain)/gain
+            end
+
+            outcntvec = cntvec
+            outcntvec[.!chebmsk_exp] .= 0
+
+            framecnts = maximum(outcntvec)
+            simplemsk = (outcntvec.==framecnts)
+            
+            starscale_o = if count(simplemsk .& (.!isnan.(outfvec)))==0
+                NaN
+            else
+                abs(nanmedian(outfvec[simplemsk]))
+            end
+
+            # add variance of sky observations to variance of poisson draw of the models
+            outvar = if (no_sky | skycont_only)
+                zeros(length(fvarvec))
+            else
+                fvarvec
+            end
+            outvar .+= starcomp./gain # add poisson noise of the model
+
+            # just using chipmidtimes from sky exposure, won't need to use in inject WU
+            metaexport = (starscale_o,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit)
+
+            dirName = splitdir(starcache)[1]
+            if !ispath(dirName)
+                mkpath(dirName)
+            end
+            serialize(starcache,[outfvec, outvar, outcntvec, chipmidtimes, metaexport])
+            return (injectindx, outup...), starcache
+        else
+            return (injectindx, outup...), starcache
         end
-        close(pfhand)
     end
 end
 
-## Make clean inds and write out (add some flagging with our new metrics)
+## Read in Synthetic Stellar Models
+flist = sort(glob("*/*.dat",prior_dict["korg_run_path"]));
+indxpassing = map(x->parse(Int,split(split(x,"_")[end],".")[1]),flist);
 
-# handle making and reading map2star/map2visit
-# (what to do if those things are not done?, would need to change cuts, later version question)
-map2star = h5read(prior_dict["map2star"],"map2star_1indx")
-map2visit = h5read(prior_dict["map2visit"],"map2visit_1indx");
+param_grid_file = prior_dict["korg_run_path"]*"korg_grid_params.h5"
+Teffi = h5read(param_grid_file,"Teff")
+loggi = h5read(param_grid_file,"logg")
+m_hi = h5read(param_grid_file,"m_h")
+vmici = h5read(param_grid_file,"vmic")
+a_mi = h5read(param_grid_file,"a_m")
+c_mi = h5read(param_grid_file,"c_m")
+abundancesi = h5read(param_grid_file,"abundances")
+converged_flagi = h5read(param_grid_file,"converged_flag");
 
-f = FITS(summary_file_by_dr(release_dir,redux_ver,dr_number,"allVisit"))
-GLON = read(f[2],"GLON")[map2visit]
-GLAT = read(f[2],"GLAT")[map2visit]
-VREL = read(f[2],"VREL")[map2visit];
-SNR = read(f[2],"SNR")[map2visit];
-STARFLAG = read(f[2],"STARFLAG")[map2visit]
-STARFLAGS = read(f[2],"STARFLAGS")[map2visit];
-close(f)
+Teff = Teffi[indxpassing,..]
+logg = loggi[indxpassing,..]
+m_h = m_hi[indxpassing,..]
+vmic = vmici[indxpassing,..]
+a_m = a_mi[indxpassing,..]
+c_m = c_mi[indxpassing,..]
+abundances = abundancesi[indxpassing,..]
+converged_flag = converged_flagi[indxpassing,..]
 
-f = FITS(summary_file_by_dr(release_dir,redux_ver,dr_number,"allStar"))
-EXTRATARG = read(f[2],"EXTRATARG")[map2star]
-ASPCAPFLAG = read(f[2],"ASPCAPFLAG")[map2star]
-FE_H_FLAG = read(f[2],"FE_H_FLAG")[map2star]
+## Read in Relevant Sky Observations (in adjfibindx)
+ntuplst = deserialize(prior_dict["sky_runlist"]*lpad(adjfibindx,3,"0")*".jdat");
 
-TEFF = read(f[2],"TEFF")[map2star]
-LOGG = read(f[2],"LOGG")[map2star]
-X_H = read(f[2],"X_H")[map2star]
-M_H = read(f[2],"M_H")[map2star]
-VMICRO = read(f[2],"VMICRO")[map2star]
-VSINI = read(f[2],"VSINI")[map2star]
-ALPHA_M = read(f[2],"ALPHA_M")[map2star];
-close(f)
-
-## This biases our DD model towards things that FERRE did well on, we should roll this back at some point
-## To roll it back, we need to convince ourselves that we can handle the outliers well. v0.10
-## I should visualize the Kiel diagram density changes with and without this cut.
-## SNR similarly is a stellar type bias
-TARG_mask = .!(EXTRATARG .& bad_extratarg_bits.!=0);
-STARFLAG_masks = .!(STARFLAG .& bad_starflag_bits.!=0);
-ASPCAP_masks = .!(ASPCAPFLAG .& bad_aspcap_bits.!=0);
-Teff_masks = (.!isnan.(TEFF));
-FE_masks = (FE_H_FLAG .== 0);
-apg_msk = TARG_mask .& STARFLAG_masks .& ASPCAP_masks .& Teff_masks .& FE_masks
-println("Visits after TARG/STAR/ASPCAP/TEFF/FE masks: $(count(apg_msk)), $(100*count(apg_msk)/length(apg_msk))")
-
-## Query SFD
-sfd_map = SFD98Map()
-sfd_reddening = sfd_map.(deg2rad.(GLON),deg2rad.(GLAT))
-sfd_msk = (sfd_reddening.<sfd_cut)
-
-## MADGICS Cuts
-avg_flux_conservation = reader(prior_dict["past_run"],"avg_flux_conservation")
-msk_flux_conserve = (avg_flux_conservation .< flux_conserve_cut);
-RV_minchi2_final = reader(prior_dict["past_run"],"RV_minchi2_final")
-snr_proxy = sqrt.(-RV_minchi2_final);
-msk_MADGICS_snr = (snr_proxy .> snr_proxy_cut); 
-
-clean_msk = (adjfiberindx.<=300) 
-clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
-clean_msk .&= sfd_msk # SFD Mask (low-reddening)
-clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr) # Remove StarConts that failed to converge well and low SNR model detections
-# clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) .& ## add back moon avoidance only if we see deviation in the theory work up near zero
-println("Clean APO Visits for DD Model Training: $(count(clean_msk)), $(100*count(clean_msk)/length(clean_msk))")
-clean_inds = findall(clean_msk);
-h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo",clean_inds)
-
-clean_msk = (adjfiberindx.>300) 
-clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
-clean_msk .&= sfd_msk # SFD Mask (low-reddening)
-clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr) # Remove StarConts that failed to converge well and low SNR model detections
-# clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) .& ## add back moon avoidance only if we see deviation in the theory work up near zero
-println("Clean LCO Visits for DD Model Training: $(count(clean_msk)), $(100*count(clean_msk)/length(clean_msk))")
-clean_inds = findall(clean_msk);
-h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_lco",clean_inds)
-
-## make strip dd precursors and write out
-clean_inds_apo = h5read(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo")
-clean_inds_lco = h5read(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_lco")
-
-grab_star_spec_partial(indx2run) = grab_star_spec(indx2run,RV_pixoff_final,f,g,h,m)
-
-# Run APO
-pout = @showprogress pmap(grab_star_spec_partial,clean_inds_apo);
-
-x1normMat = zeros(length(wavetarg),length(pout))
-x2normMat = zeros(size(pout[1][2],1),length(pout))
-ynormMat = zeros(length(wavetarg),length(pout))
-for (subindx, subout) in enumerate(pout)
-    x1normMat[:,subindx] .= subout[1]
-    x2normMat[:,subindx] .= subout[2]
-    ynormMat[:,subindx] .= subout[3]
+## Generate Injection Parameters
+rng = MersenneTwister(rnd_seed)
+injectfiber = fibindx*ones(Int,nsamp) # this should not be adjusted
+injectindx = 1:nsamp
+sky_tup = StatsBase.sample(rng,ntuplst,nsamp)
+starCont_indx = rand(rng,1:size(starContSamples,2),nsamp);
+skyCont_indx = rand(rng,1:size(skyContSamples,2),nsamp); # only matters if skycont_only is true
+starscale_lst = StatsBase.sample(rng,2 .*starscale_red[starscale_red.>0],nsamp)
+RV = rand(rng,Uniform(RV_range_pix...),nsamp);
+korgindx = rand(rng,1:length(flist),nsamp);
+fname_list = flist[korgindx]
+## need to add second DIB to a loop
+dib_sig = []
+dib_lam = []
+dib_ew = []
+for dib_center_lambda in dib_center_lambda_lst
+    push!(dib_sig,rand(rng,Uniform(dib_sig_range...),nsamp));
+    push!(dib_lam,rand(rng,Uniform(dib_center_lambda*(1-dib_vel_range[1]/c),dib_center_lambda*(1+dib_vel_range[2]/c)),nsamp));
+    if dib_inject
+        push!(dib_ew,rand(rng,Uniform(dib_ew_range...),nsamp))
+    else
+        push!(dib_ew,zeros(nsamp))
+    end
 end
 
-h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","x1normMat",x1normMat)
-h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","x2normMat",x2normMat)
-h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","ynormMat",ynormMat)
+itarg = Iterators.zip(sky_tup,starCont_indx,skyCont_indx,starscale_lst,fname_list,RV,,eachrow(hcat(dib_ew...),,eachrow(hcat(dib_lam...),,eachrow(hcat(dib_sig...),injectindx,injectfiber);
 
-# Run LCO
-pout = @showprogress pmap(grab_star_spec_partial,clean_inds_lco);
-
-x1normMat = zeros(length(wavetarg),length(pout))
-x2normMat = zeros(size(pout[1][2],1),length(pout))
-ynormMat = zeros(length(wavetarg),length(pout))
-for (subindx, subout) in enumerate(pout)
-    x1normMat[:,subindx] .= subout[1]
-    x2normMat[:,subindx] .= subout[2]
-    ynormMat[:,subindx] .= subout[3]
+## Save Injection Parameters to Disk
+fname = prior_dict["out_dir"]*"inject_params.h5"
+dirName = splitdir(fname)[1]
+if !ispath(dirName)
+    mkpath(dirName)
 end
+f = h5open(fname,"w")
+write(f,"injectfiber",injectfiber)
+write(f,"injectindx",collect(injectindx))
+write(f,"starscale_lst",starscale_lst)
+write(f,"RV",RV)
+write(f,"korgindx",korgindx)
+write(f,"fname_list",fname_list)
+write(f,"Teff",Teff[korgindx,..])
+write(f,"logg",logg[korgindx,..])
+write(f,"m_h",m_h[korgindx,..])
+write(f,"vmic",vmic[korgindx,..])
+write(f,"a_m",a_m[korgindx,..])
+write(f,"c_m",c_m[korgindx,..])
+write(f,"abundances",abundances[korgindx,..])
+write(f,"converged_flag",converged_flag[korgindx,..])
+for dib_center_lambda in dib_center_lambda_lst
+    write(f,"dib_sig_$(dib_center_lambda)",dib_sig)
+    write(f,"dib_lam_$(dib_center_lambda)",dib_lam)
+    write(f,"dib_ew_$(dib_center_lambda)",dib_ew)
+end
+close(f)
 
-h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","x1normMat",x1normMat)
-h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","x2normMat",x2normMat)
-h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","ynormMat",ynormMat)
+serialize(prior_dict["out_dir"]*"inject_sky_tup.jdat",sky_tup);
+serialize(prior_dict["out_dir"]*"inject_skyCont_indx.jdat",skyCont_indx);
 
-## Solve DD Model for StarLine Components (I split this part into 3 scripts 2 APO, 1 LCO because of how slow it was last time)
-
-# Run APO
-@everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","ynormMat")
-solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_apo)
-@showprogress pmap(solve_star_ddmodel_fiber_partial,1:300) # tried switching the pmap outside, watch RAM
-
-# Run LCO
-@everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","ynormMat")
-GC.gc()
-solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_lco)
-@showprogress pmap(solve_star_ddmodel_fiber_partial,301:600) #obvi SVD speed up if we switch to MKL... do we really want two BLAS deps for this repo?
+println("All Star Models Used Converged: ", sum(converged_flag[korgindx,..]) == length(converged_flag[korgindx,..]))
 
 ## Create an injection test series
-pout = @showprogress pmap(take_draw,itarg);
+take_draw_partial(ovtup) = take_draw(ovtup,skycont_only=skycont_only,no_sky=no_sky,dibs_on=dibs_on,dib_center_lambda_lst=dib_center_lambda_lst,inject_cache_dir=prior_dict["inject_cache_dir"],cache_dir=prior_dict["local_cache"])
+pout = @showprogress pmap(take_draw_partial,itarg);
+
+## Write out runlist needed to run the apMADGICS.jl on it
+input_lst = []
+starcache_lst = []
+for (subindx, subout) in enumerate(pout)
+    push!(input_lst,subout[1])
+    push!(starcache_lst,subout[2])
+end
+
+println("All of the injected spectra wrote to unique cache files: ", length(starcache_lst) == length(unique(starcache_lst)))
+
+serialize(prior_dict["out_dir"]*"injection_input_lst_"*lpad(adjfibindx,3,"0")*".jdat",input_lst);

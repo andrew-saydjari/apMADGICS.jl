@@ -233,6 +233,10 @@ function find_zero_ranges(vector)
     return zero_ranges
 end
 
+function gauss1d_ew(ew,x0,sigma,pixcoord)
+    return ew .* exp.(-0.5 .*((pixcoord.-x0)./sigma).^2)./(sqrt(2*pi*(sigma^2)))
+end
+
 function gauss1d(amp,x0,sigma,pixcoord)
     return amp .* exp.(-0.5 .*((pixcoord.-x0)./sigma).^2)./(sqrt(2*pi))
 end
