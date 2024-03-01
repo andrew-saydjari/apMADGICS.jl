@@ -139,5 +139,5 @@ end
     end
 end
 
-gen_starCont_samples(runlist_range,loc_parallel=true)
-# @showprogress pmap(gen_starCont_samples,1:600)
+# gen_starCont_samples(runlist_range,loc_parallel=true)
+@showprogress pmap(gen_starCont_samples,1:600)

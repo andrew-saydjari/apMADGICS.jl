@@ -33,7 +33,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     include(src_dir*"src/prior_build/prior_utils.jl")
     
     using StatsBase, ProgressMeter
-    using SortFilters, BasisFunctions, Random, DustExtinction
+    using SortFilters, BasisFunctions, Random, DustExtinction, DelimitedFiles
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
@@ -358,6 +358,6 @@ end
     end
 end
 
-get_Tfun_samples(runlist_range)
-# good_tell_list = convert.(Int,readdlm("../2024_02_21/outlists/summary/dr17_dr17_good_tell_list.txt",','))[:,1]
-# @showprogress pmap(get_Tfun_samples,good_tell_list)
+# get_Tfun_samples(runlist_range)
+good_tell_list = convert.(Int,readdlm(prior_dict["tellStdGood"],','))[:,1]
+@showprogress pmap(get_Tfun_samples,good_tell_list)

@@ -102,5 +102,5 @@ end
     end
 end
 
-build_starCont(runlist_range)
-# @showprogress pmap(build_starCont,1:600) # last run was 4.5h on 6 np nodes
+# build_starCont(runlist_range)
+@showprogress pmap(build_starCont,1:600) # last run was 4.5h on 6 np nodes

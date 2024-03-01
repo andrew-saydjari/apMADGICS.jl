@@ -82,6 +82,37 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict["red_chi2_dict"] = src_dir*"data/red_chi2_dict.jdat"
 end
 
+# it would be great to move this into a parameter file that is read for each run
+@everywhere begin
+    # Star Wave
+    lvl1 = -70:1//2:70
+    lvl2 = -8:2//10:8
+    lvl3 = -3:1//10:3
+    slvl_tuple = (lvl1,lvl2,lvl3)
+    # tuple1dprint(slvl_tuple)
+
+    # (Wave, Sig) DIB
+    dib_center_lst = [15273, 15273, 15672, 15672]#, 15672, 15653]
+    lvl1d = ((-150:4:150),(18//10:18//10))
+    lvl2d = ((0:0), (-7//5:4//100:11//5))
+    lvl3d = ((-18:2//10:18), (0:0))
+    lvl4d = ((0:0), (-90//100:2//100:90//100))
+    lvl5d = ((-1:2//10:1), (0:0))
+    lvl6d = ((0:0), (-10//100:2//100:10//100))
+    lvl7d = ((-6//10:2//10:6//10), (0:0))
+    lvl8d = ((0:0), (-6//100:2//100:6//100))
+    lvl9d = ((-4//10:1//10:4//10), (-4//100:1//100:4//100));
+    lvltuple = (lvl1d, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
+    lvl1d_2 = ((-60:4:60),(18//10:18//10))
+    lvltuple_2 = (lvl1d_2, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
+    lvltuple_lst = [lvltuple, lvltuple_2, lvltuple, lvltuple_2]
+    # tuple2dprint(lvltuple)
+
+    # Flux marginalize region
+    sigMarg0 = -50//100:10//100:50//100
+    svalMarg0 = -0//10:1//10:0//10;
+end
+
 @everywhere begin
     # Load the Global Priors
     # nothing to do on size here, if anything expand
@@ -118,37 +149,6 @@ end
     outvec = zeros(length(wavetarg))
     outvar = zeros(length(wavetarg))
     cntvec = zeros(Int,length(wavetarg));
-end
-
-# it would be great to move this into a parameter file that is read for each run
-@everywhere begin
-    # Star Wave
-    lvl1 = -70:1//2:70
-    lvl2 = -8:2//10:8
-    lvl3 = -3:1//10:3
-    slvl_tuple = (lvl1,lvl2,lvl3)
-    # tuple1dprint(slvl_tuple)
-
-    # (Wave, Sig) DIB
-    dib_center_lst = [15273, 15273]#, 15653]
-    lvl1d = ((-150:4:150),(18//10:18//10))
-    lvl2d = ((0:0), (-7//5:4//100:11//5))
-    lvl3d = ((-18:2//10:18), (0:0))
-    lvl4d = ((0:0), (-90//100:2//100:90//100))
-    lvl5d = ((-1:2//10:1), (0:0))
-    lvl6d = ((0:0), (-10//100:2//100:10//100))
-    lvl7d = ((-6//10:2//10:6//10), (0:0))
-    lvl8d = ((0:0), (-6//100:2//100:6//100))
-    lvl9d = ((-4//10:1//10:4//10), (-4//100:1//100:4//100));
-    lvltuple = (lvl1d, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
-    lvl1d_2 = ((-60:4:60),(18//10:18//10))
-    lvltuple_2 = (lvl1d_2, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
-    lvltuple_lst = [lvltuple, lvltuple_2]
-    # tuple2dprint(lvltuple)
-
-    # Flux marginalize region
-    sigMarg0 = -50//100:10//100:50//100
-    svalMarg0 = -0//10:1//10:0//10;
 end
 
 @everywhere begin

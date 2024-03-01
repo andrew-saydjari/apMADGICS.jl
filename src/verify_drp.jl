@@ -8,7 +8,7 @@ import Pkg
 using InteractiveUtils; versioninfo()
 Pkg.activate("../"); Pkg.instantiate(); Pkg.precompile()
 
-using FITSIO, StatsBase, ProgressMeter, Distributed, Serialization, Glob, DelimitedFiles, Suppressor
+using FITSIO, HDF5, StatsBase, ProgressMeter, Distributed, Serialization, Glob, DelimitedFiles, Suppressor
 
 src_dir = abspath("./")
 include(src_dir*"/fileNameHandling.jl")
@@ -32,14 +32,14 @@ release_dir_n = replace(replace(release_dir,"/"=>"_"),"-"=>"_")
 redux_ver_n = replace(redux_ver,"."=>"p")
 
 check_ap1d = true
-check_apCframes = false
-check_exp = false
+check_apCframes = true
+check_exp = true
 check_flux = true
-check_plates = false
-write_sky = false
-write_star_plate = false
-write_tell = false
-check_wavecal = false
+check_plates = true
+write_sky = true
+write_star_plate = true
+write_tell = true
+check_wavecal = true
 tele_try_list =  ["apo25m","lco25m"]
 
 
@@ -209,7 +209,7 @@ if check_ap1d
                 end
                 push!(starlst,count(outcheck))
                 # preliminary pass at making the map2visit file (before drops for bad intermediate files)
-                h5write(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2visit_init_1indx.h5",string(adjfiberindx),findall(mskfib)[outcheck])
+                h5write(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2visit_init_1indx.h5",string(adjfibindx),findall(mskfib)[outcheck])
             end
             flush(stdout)
         end
@@ -462,6 +462,11 @@ end
 
 # Write out final StarLists for the apMADGICS inputs
 if check_ap1d | check_apCframes | check_exp | check_flux
+    dr_number = if occursin("dr", release_dir)
+        parse(Int, match(r"dr(\d+)", release_dir).captures[1])
+    else
+        -1
+    end
     # apply any other masking to the star list and generate final star lists
     allVisitIndLst = []
     allVisitAdjFibLst = []
@@ -470,7 +475,7 @@ if check_ap1d | check_apCframes | check_exp | check_flux
             teleind = (telematch == "lco25m") ? 2 : 1
             adjfibindx = (teleind-1)*300 + fiber
             star_input = deserialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_input_lst_"*lpad(adjfibindx,3,"0")*".jdat")
-            allVisit_inds = h5read(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2visit_init_1indx.h5",string(adjfiberindx))
+            allVisit_inds = h5read(outdir*"summary/"*"$(release_dir_n)_$(redux_ver_n)_map2visit_init_1indx.h5",string(adjfibindx))
             msk = deserialize(outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_msk_fluxing_lst_"*lpad(adjfibindx,3,"0")*".jdat")
             subiter = star_input[.!msk]
             new_vec = map(i->map(x->x[i],subiter),1:length(subiter[1]))
@@ -763,16 +768,16 @@ if check_plates
                     else
                         unique(clamp.(adjfibindx .+ (-wid:wid),1,300))
                     end
-                    samp_len = 0
+                    samp_len_lst = []
                     for test_ind in test_inds
                         fname = outdir*"tell/"*"$(release_dir_n)_$(redux_ver_n)_tell_input_lst_plate_msked_"*lpad(test_ind,3,"0")*".jdat"
                         if isfile(fname)
-                            samp_len += length(deserialize(fname))
+                            push!(samp_len_lst,length(deserialize(fname)))
                         end
                     end
-                    if samp_len>20
-                        push!(samp_lst,test_inds)
-                        tellcounts_wind[sfibindx] = samp_len
+                    if sum(samp_len_lst)>20
+                        push!(samp_lst,test_inds[samp_len_lst.!=0])
+                        tellcounts_wind[sfibindx] = sum(samp_len_lst)
                         break
                     end
                 end
