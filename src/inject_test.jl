@@ -79,7 +79,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict["chebmsk_exp"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_prior_disk/chebmsk_exp_"
 
     rnd_seed = 695
-    println("NumSamples Acceptable for Filenaming: "length(string(nsamp)) <= 7)
+    println("NumSamples Acceptable for Filenaming: ",length(string(nsamp)) <= 7)
 end
 
 @everywhere begin
