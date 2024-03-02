@@ -287,7 +287,7 @@ dib_lam = []
 dib_ew = []
 for dib_center_lambda in dib_center_lambda_lst
     push!(dib_sig,rand(rng,Uniform(dib_sig_range...),nsamp));
-    push!(dib_lam,rand(rng,Uniform(dib_center_lambda*(1-dib_vel_range[1]/c),dib_center_lambda*(1+dib_vel_range[2]/c)),nsamp));
+    push!(dib_lam,rand(rng,Uniform(dib_center_lambda*(1+dib_vel_range[1]/c),dib_center_lambda*(1+dib_vel_range[2]/c)),nsamp));
     if dib_inject
         push!(dib_ew,rand(rng,Uniform(dib_ew_range...),nsamp))
     else
@@ -295,7 +295,7 @@ for dib_center_lambda in dib_center_lambda_lst
     end
 end
 
-itarg = Iterators.zip(sky_tup,starCont_indx,skyCont_indx,starscale_lst,fname_list,RV,,eachrow(hcat(dib_ew...),,eachrow(hcat(dib_lam...),,eachrow(hcat(dib_sig...),injectindx,injectfiber);
+itarg = Iterators.zip(sky_tup,starCont_indx,skyCont_indx,starscale_lst,fname_list,RV,eachrow(hcat(dib_ew...),eachrow(hcat(dib_lam...),eachrow(hcat(dib_sig...),injectindx,injectfiber);
 
 ## Save Injection Parameters to Disk
 fname = prior_dict["out_dir"]*"inject_params.h5"
