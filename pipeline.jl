@@ -189,6 +189,8 @@ end
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(starcache)
             starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
         elseif tele[end]=='i'
+            println(starcache)
+            println(caching)
             @warn "Injections not found at injection cache dir!"
         else
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
