@@ -318,10 +318,10 @@ write(f,"a_m",a_m[korgindx,..])
 write(f,"c_m",c_m[korgindx,..])
 write(f,"abundances",abundances[korgindx,..])
 write(f,"converged_flag",converged_flag[korgindx,..])
-for dib_center_lambda in dib_center_lambda_lst
-    write(f,"dib_sig_$(dib_center_lambda)",dib_sig)
-    write(f,"dib_lam_$(dib_center_lambda)",dib_lam)
-    write(f,"dib_ew_$(dib_center_lambda)",dib_ew)
+for (dibind, dib_center_lambda) in enumerate(dib_center_lambda_lst)
+    write(f,"dib_sig_$(dib_center_lambda)",dib_sig[dibind])
+    write(f,"dib_lam_$(dib_center_lambda)",dib_lam[dibind])
+    write(f,"dib_ew_$(dib_center_lambda)",dib_ew[dibind])
 end
 close(f)
 
