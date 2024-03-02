@@ -33,7 +33,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     include(src_dir*"src/prior_build/prior_utils.jl")
     
     using StatsBase, ProgressMeter
-    using SortFilters, Random, KrylovKit, KryburyCompress, Glob, DelimitedFiles, PoissonRandom
+    using SortFilters, Random, Distributions, Glob, DelimitedFiles, PoissonRandom
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
