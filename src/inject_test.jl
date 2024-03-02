@@ -78,6 +78,9 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict["skyContSamples"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_prior_disk/skycont_"
     prior_dict["chebmsk_exp"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_prior_disk/chebmsk_exp_"
 
+    prior_dict["LSF_mat_APO"] = prior_dir0*"2023_04_01/mat_lsf_out/sp_combolsfmat_norm_" # last made 2023_04_01 by AKS
+    prior_dict["LSF_mat_LCO"] = prior_dir0*"2023_04_07/mat_lsf_out/sp_combolsfmat_norm_" # last made 2023_04_07 by AKS
+
     prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jdat"
 
     rnd_seed = 695
@@ -222,7 +225,7 @@ end
             starscale_o = if count(simplemsk .& (.!isnan.(outfvec)))==0
                 NaN
             else
-                abs(nanmedian(outfvec[simplemsk]))
+                abs(nanzeromedian(outfvec[simplemsk]))
             end
 
             # add variance of sky observations to variance of poisson draw of the models
