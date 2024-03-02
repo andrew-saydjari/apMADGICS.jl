@@ -57,7 +57,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict = Dict{String,String}()
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
-    prior_dict["runlists"] = prior_dir*"2024_03_01/injection_input_lst_msked_"
+    prior_dict["runlists"] = prior_dir*"2024_03_01/inject_dibs_295/injection_input_lst_msked_"
     # prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
 
     # Sky Priors

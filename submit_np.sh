@@ -6,7 +6,7 @@
 
 #SBATCH --mem=0 #requesting all of the memory on the node
 
-#SBATCH --time=96:00:00
+#SBATCH --time=12:00:00
 #SBATCH --job-name=apMADGICS
 #SBATCH --output=%x_%j.out
 #SBATCH --err=%x_%j.err
