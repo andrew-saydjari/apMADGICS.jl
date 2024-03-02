@@ -79,8 +79,9 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict["chebmsk_exp"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_prior_disk/chebmsk_exp_"
 
     rnd_seed = 695
-    println("NumSamples Acceptable for Filenaming: ",length(string(nsamp)) <= 7)
 end
+
+println("NumSamples Acceptable for Filenaming: ",length(string(nsamp)) <= 7)
 
 @everywhere begin
     delLog = 6e-6;
@@ -116,45 +117,6 @@ end
     skyContSamples_raw = deserialize(savename)
     msk_skyCont = map(x->(!any(isnan.(x)))&(!any(x.<0)),eachcol(skyContSamples_raw));
     skyContSamples = skyContSamples_raw[:,msk_skyCont]
-end
-
-@everywhere begin
-    RV_pixoff_final = reader(prior_dict["past_run"],"RV_pixoff_final")
-
-    keyval = "x_residuals_z_v0"
-    savename_sub = chop(savename,tail=3)*"_"*keyval*".h5"
-    f = h5open(savename_sub)
-    keyvalres = "x_residuals_v0"
-    savename_sub_res = chop(savename,tail=3)*"_"*keyvalres*".h5"
-    g = h5open(savename_sub_res)
-    keyvalref = "x_starContinuum_v0"
-    savename_sub_ref = chop(savename,tail=3)*"_"*keyvalref*".h5"
-    h = h5open(savename_sub_ref)
-    keyvallineCof = "x_starLineCof_v0"
-    savename_sub_starLineCof = chop(savename,tail=3)*"_"*keyvallineCof*".h5"
-    m = h5open(savename_sub_starLineCof)
-
-    function finalize_xnorm(intup,RV_pixoff_final,pf,V_starbasis)
-        (indx, findx) = intup
-        svald = RV_pixoff_final[findx]
-        rval = indInt(svald)
-        tval = indTenth(svald)
-        return pf["x1normMat"][:,indx] .+ (V_starbasis*pf["x2normMat"][:,indx]).*pf["ynormMat"][:,indx]
-    end
-
-    function grab_star_spec(findx,RV_pixoff_final,f,g,h,m)
-        svald = RV_pixoff_final[findx]
-        
-        sig = g[keyvalres][:,findx]./f[keyval][:,findx]
-        subspec = replace((g[keyvalres][:,findx])./(sig.^2),NaN=>0)
-        x1norm = shiftHelper(subspec,svald)
-        
-        x2norm_noshift = m[keyvallineCof][:,findx]
-        
-        subspec_ref = replace(h[keyvalref][:,findx]./(sig.^2),NaN=>0)
-        ynorm = shiftHelper(subspec_ref,svald)
-        return x1norm, x2norm_noshift, ynorm
-    end
 end
 
 @everywhere begin
