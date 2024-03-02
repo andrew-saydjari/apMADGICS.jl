@@ -396,7 +396,7 @@ end
                         x_comp_lst[5:end]...]
 
             chi2res = x_comp_lst[1]'*(Ainv*x_comp_lst[1])
-            chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale1, fc=red_chi2_dict[tele])
+            chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale1, fc=red_chi2_dict[tele[1:6]])
             push!(out,(chi2res,chi2r_fc)) # 8
 
             push!(out,x_comp_out) # 9
