@@ -78,6 +78,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict["skyContSamples"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_prior_disk/skycont_"
     prior_dict["chebmsk_exp"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_prior_disk/chebmsk_exp_"
 
+    prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jdat"
+
     rnd_seed = 695
 end
 
@@ -117,6 +119,8 @@ end
     skyContSamples_raw = deserialize(savename)
     msk_skyCont = map(x->(!any(isnan.(x)))&(!any(x.<0)),eachcol(skyContSamples_raw));
     skyContSamples = skyContSamples_raw[:,msk_skyCont]
+
+    err_correct_Dict = deserialize(prior_dict["chip_fluxdep_err_correction"])
 end
 
 @everywhere begin
