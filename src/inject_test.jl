@@ -295,7 +295,7 @@ for dib_center_lambda in dib_center_lambda_lst
     end
 end
 
-itarg = Iterators.zip(sky_tup,starCont_indx,skyCont_indx,starscale_lst,fname_list,RV,eachrow(hcat(dib_ew...),eachrow(hcat(dib_lam...),eachrow(hcat(dib_sig...),injectindx,injectfiber);
+itarg = Iterators.zip(sky_tup,starCont_indx,skyCont_indx,starscale_lst,fname_list,RV,eachrow(hcat(dib_ew...)),eachrow(hcat(dib_lam...)),eachrow(hcat(dib_sig...)),injectindx,injectfiber);
 
 ## Save Injection Parameters to Disk
 fname = prior_dict["out_dir"]*"inject_params.h5"
