@@ -33,7 +33,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     include(src_dir*"src/prior_build/prior_utils.jl")
     
     using StatsBase, ProgressMeter
-    using SortFilters, Random, KrylovKit, KryburyCompress, Glob, DelimitedFiles, PoissonRandom
+    using SortFilters, Random, Distributions, Glob, DelimitedFiles, PoissonRandom
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
@@ -78,9 +78,15 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict["skyContSamples"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_prior_disk/skycont_"
     prior_dict["chebmsk_exp"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_prior_disk/chebmsk_exp_"
 
+    prior_dict["LSF_mat_APO"] = prior_dir0*"2023_04_01/mat_lsf_out/sp_combolsfmat_norm_" # last made 2023_04_01 by AKS
+    prior_dict["LSF_mat_LCO"] = prior_dir0*"2023_04_07/mat_lsf_out/sp_combolsfmat_norm_" # last made 2023_04_07 by AKS
+
+    prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jdat"
+
     rnd_seed = 695
-    println("NumSamples Acceptable for Filenaming: "length(string(nsamp)) <= 7)
 end
+
+println("NumSamples Acceptable for Filenaming: ",length(string(nsamp)) <= 7)
 
 @everywhere begin
     delLog = 6e-6;
@@ -116,45 +122,8 @@ end
     skyContSamples_raw = deserialize(savename)
     msk_skyCont = map(x->(!any(isnan.(x)))&(!any(x.<0)),eachcol(skyContSamples_raw));
     skyContSamples = skyContSamples_raw[:,msk_skyCont]
-end
 
-@everywhere begin
-    RV_pixoff_final = reader(prior_dict["past_run"],"RV_pixoff_final")
-
-    keyval = "x_residuals_z_v0"
-    savename_sub = chop(savename,tail=3)*"_"*keyval*".h5"
-    f = h5open(savename_sub)
-    keyvalres = "x_residuals_v0"
-    savename_sub_res = chop(savename,tail=3)*"_"*keyvalres*".h5"
-    g = h5open(savename_sub_res)
-    keyvalref = "x_starContinuum_v0"
-    savename_sub_ref = chop(savename,tail=3)*"_"*keyvalref*".h5"
-    h = h5open(savename_sub_ref)
-    keyvallineCof = "x_starLineCof_v0"
-    savename_sub_starLineCof = chop(savename,tail=3)*"_"*keyvallineCof*".h5"
-    m = h5open(savename_sub_starLineCof)
-
-    function finalize_xnorm(intup,RV_pixoff_final,pf,V_starbasis)
-        (indx, findx) = intup
-        svald = RV_pixoff_final[findx]
-        rval = indInt(svald)
-        tval = indTenth(svald)
-        return pf["x1normMat"][:,indx] .+ (V_starbasis*pf["x2normMat"][:,indx]).*pf["ynormMat"][:,indx]
-    end
-
-    function grab_star_spec(findx,RV_pixoff_final,f,g,h,m)
-        svald = RV_pixoff_final[findx]
-        
-        sig = g[keyvalres][:,findx]./f[keyval][:,findx]
-        subspec = replace((g[keyvalres][:,findx])./(sig.^2),NaN=>0)
-        x1norm = shiftHelper(subspec,svald)
-        
-        x2norm_noshift = m[keyvallineCof][:,findx]
-        
-        subspec_ref = replace(h[keyvalref][:,findx]./(sig.^2),NaN=>0)
-        ynorm = shiftHelper(subspec_ref,svald)
-        return x1norm, x2norm_noshift, ynorm
-    end
+    err_correct_Dict = deserialize(prior_dict["chip_fluxdep_err_correction"])
 end
 
 @everywhere begin
@@ -203,7 +172,7 @@ end
             getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd,cache_dir=cache_dir)
         end
         
-        skycacheSpec = cache_skynameSpec(tele,field,plate,mjd,fiberindx,inject_cache_dir=inject_cache_dir,cache_dir=cache_dir)
+        skycacheSpec = cache_skynameSpec(tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
         if (isfile(skycacheSpec) & caching)
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
             starscalesky,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
@@ -256,7 +225,7 @@ end
             starscale_o = if count(simplemsk .& (.!isnan.(outfvec)))==0
                 NaN
             else
-                abs(nanmedian(outfvec[simplemsk]))
+                abs(nanzeromedian(outfvec[simplemsk]))
             end
 
             # add variance of sky observations to variance of poisson draw of the models
@@ -325,7 +294,7 @@ dib_lam = []
 dib_ew = []
 for dib_center_lambda in dib_center_lambda_lst
     push!(dib_sig,rand(rng,Uniform(dib_sig_range...),nsamp));
-    push!(dib_lam,rand(rng,Uniform(dib_center_lambda*(1-dib_vel_range[1]/c),dib_center_lambda*(1+dib_vel_range[2]/c)),nsamp));
+    push!(dib_lam,rand(rng,Uniform(dib_center_lambda*(1+dib_vel_range[1]/c),dib_center_lambda*(1+dib_vel_range[2]/c)),nsamp));
     if dib_inject
         push!(dib_ew,rand(rng,Uniform(dib_ew_range...),nsamp))
     else
@@ -333,7 +302,7 @@ for dib_center_lambda in dib_center_lambda_lst
     end
 end
 
-itarg = Iterators.zip(sky_tup,starCont_indx,skyCont_indx,starscale_lst,fname_list,RV,,eachrow(hcat(dib_ew...),,eachrow(hcat(dib_lam...),,eachrow(hcat(dib_sig...),injectindx,injectfiber);
+itarg = Iterators.zip(sky_tup,starCont_indx,skyCont_indx,starscale_lst,fname_list,RV,eachrow(hcat(dib_ew...)),eachrow(hcat(dib_lam...)),eachrow(hcat(dib_sig...)),injectindx,injectfiber);
 
 ## Save Injection Parameters to Disk
 fname = prior_dict["out_dir"]*"inject_params.h5"
@@ -356,10 +325,10 @@ write(f,"a_m",a_m[korgindx,..])
 write(f,"c_m",c_m[korgindx,..])
 write(f,"abundances",abundances[korgindx,..])
 write(f,"converged_flag",converged_flag[korgindx,..])
-for dib_center_lambda in dib_center_lambda_lst
-    write(f,"dib_sig_$(dib_center_lambda)",dib_sig)
-    write(f,"dib_lam_$(dib_center_lambda)",dib_lam)
-    write(f,"dib_ew_$(dib_center_lambda)",dib_ew)
+for (dibind, dib_center_lambda) in enumerate(dib_center_lambda_lst)
+    write(f,"dib_sig_$(dib_center_lambda)",dib_sig[dibind])
+    write(f,"dib_lam_$(dib_center_lambda)",dib_lam[dibind])
+    write(f,"dib_ew_$(dib_center_lambda)",dib_ew[dibind])
 end
 close(f)
 
@@ -369,7 +338,7 @@ serialize(prior_dict["out_dir"]*"inject_skyCont_indx.jdat",skyCont_indx);
 println("All Star Models Used Converged: ", sum(converged_flag[korgindx,..]) == length(converged_flag[korgindx,..]))
 
 ## Create an injection test series
-take_draw_partial(ovtup) = take_draw(ovtup,skycont_only=skycont_only,no_sky=no_sky,dibs_on=dibs_on,dib_center_lambda_lst=dib_center_lambda_lst,inject_cache_dir=prior_dict["inject_cache_dir"],cache_dir=prior_dict["local_cache"])
+@everywhere take_draw_partial(ovtup) = take_draw(ovtup,skycont_only=skycont_only,no_sky=no_sky,dibs_on=dibs_on,dib_center_lambda_lst=dib_center_lambda_lst,inject_cache_dir=prior_dict["inject_cache_dir"],cache_dir=prior_dict["local_cache"])
 pout = @showprogress pmap(take_draw_partial,itarg);
 
 ## Write out runlist needed to run the apMADGICS.jl on it
