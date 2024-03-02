@@ -165,7 +165,7 @@ end
             getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd,cache_dir=cache_dir)
         end
         
-        skycacheSpec = cache_skynameSpec(tele,field,plate,mjd,fiberindx,inject_cache_dir=inject_cache_dir,cache_dir=cache_dir)
+        skycacheSpec = cache_skynameSpec(tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
         if (isfile(skycacheSpec) & caching)
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
             starscalesky,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
