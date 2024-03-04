@@ -52,21 +52,20 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
     RV_range_pix = (-68,68) # pixscale is ~4.14 km/s per pixel
 
-    dib_inject = true
-    dib_center_lambda_lst = [15273,15672]
-    dib_ew_range = (-1.5,0)
-    dib_sig_range = (0.7,3.7)
-    dib_vel_range = (-450, 450) # km/s
-
     skycont_only = false
     no_sky = false
     dibs_on=true
 
+    dib_center_lambda_lst = [15273] #,15672]
+    dib_ew_range = (-1.5,0)
+    dib_sig_range = (0.7,3.7)
+    dib_vel_range = (-450, 450) # km/s
+
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
-    prior_dict["out_dir"] = prior_dir*"2024_03_01/inject_dibs_295/"
-    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_01/inject_cache_dir/"
+    prior_dict["out_dir"] = prior_dir*"2024_03_01/inject_no_dibs_295/"
+    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_01/inject_local_cache_no_dibs/"
     prior_dict["local_cache"] = prior_dir*"2024_03_01/local_cache/"
 
     prior_dict["past_run"] = prior_dir*"2024_02_21/outdir_wu_295_th/apMADGICS_out.h5" # used for StarScale distribution only
@@ -198,7 +197,7 @@ end
             starcomp .*= (1 .+ starLines)
             if dibs_on
                 for (dib_ind, dib_center_lambda) in enumerate(dib_center_lambda_lst)
-                    dibcomp = gauss1d(ew[dib_ind],λ0[dib_ind],sigma[dib_ind],wavetarg)
+                    dibcomp = gauss1d_ew(ew[dib_ind],λ0[dib_ind],sigma[dib_ind],wavetarg)
                     starcomp .*= (1 .+ dibcomp)
                 end
             end
@@ -295,7 +294,7 @@ dib_ew = []
 for dib_center_lambda in dib_center_lambda_lst
     push!(dib_sig,rand(rng,Uniform(dib_sig_range...),nsamp));
     push!(dib_lam,rand(rng,Uniform(dib_center_lambda*(1+dib_vel_range[1]/c),dib_center_lambda*(1+dib_vel_range[2]/c)),nsamp));
-    if dib_inject
+    if dibs_on
         push!(dib_ew,rand(rng,Uniform(dib_ew_range...),nsamp))
     else
         push!(dib_ew,zeros(nsamp))

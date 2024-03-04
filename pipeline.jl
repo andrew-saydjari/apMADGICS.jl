@@ -50,14 +50,17 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     runlist_range = 295:295 #1:600 #295, 245, 335, 101
     batchsize = 10 #40
 
-    cache_dir = "../local_cache_295_redo/"
-    inject_cache_dir = prior_dir*"2024_02_08/inject_local_cache"
+    RV_err_step = 4 # in subpix steps (used to be 8)
+
+    cache_dir = "../local_cache_inject295/"
+    inject_cache_dir = prior_dir*"2024_03_01/inject_local_cache_no_dibs"
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
-    prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
+    prior_dict["runlists"] = prior_dir*"2024_03_01/inject_no_dibs_295/injection_input_lst_"
+    # prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
 
     # Sky Priors
     prior_dict["skycont"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_priors/APOGEE_skycont_svd_30_f"
@@ -72,10 +75,10 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f"
 
     # DIB Priors
-    prior_dict["DIB_noLSF"] = prior_dir*"2023_07_22/dib_priors/precomp_dust_1_analyticDeriv_stiff.h5"
-    prior_dict["DIB_noLSF_soft"] = prior_dir*"2023_07_22/dib_priors/precomp_dust_3_analyticDeriv_soft.h5"
-    prior_dict["DIB_LSF"] = prior_dir*"2023_07_22/dib_priors/precomp_dust_1_analyticDerivLSF_stiff_"
-    prior_dict["DIB_LSF_soft"] = prior_dir*"2023_07_22/dib_priors/precomp_dust_3_analyticDerivLSF_soft_"
+    prior_dict["DIB_noLSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_1_analyticDeriv_stiff.h5"
+    prior_dict["DIB_noLSF_soft"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_3_analyticDeriv_soft.h5"
+    prior_dict["DIB_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_1_analyticDerivLSF_stiff_"
+    prior_dict["DIB_LSF_soft"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_3_analyticDerivLSF_soft_"
 
     # Data for Detector Cals (not really a prior, but an input the results depend on in detail)
     prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jdat"
@@ -188,6 +191,8 @@ end
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(starcache)
             starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
         elseif tele[end]=='i'
+            println(starcache)
+            println(caching)
             @warn "Injections not found at injection cache dir!"
         else
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
@@ -273,7 +278,7 @@ end
         else
             Base.Fix2(chi2_wrapper,(rvmsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice))
         end
-        lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=1//10,stepx=8)
+        lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=1//10,stepx=RV_err_step)
         svalc = lout[1][3]
         push!(out,lout) # 2
 
@@ -335,7 +340,7 @@ end
         skyscale1 = nanzeromedian(x_comp_out[4])
         dvec = (fvec .-(x_comp_out[2].+x_comp_out[3].+x_comp_out[4].+x_comp_out[5].*(1 .+ nanify(x_comp_lst[5],finalmsk))))./fvec;
         chi2res = x_comp_lst[1]'*(Ainv*x_comp_lst[1])
-        chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale1, fc=red_chi2_dict[tele])
+        chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale1, fc=red_chi2_dict[tele[1:6]])
         push!(out,(chi2res,chi2r_fc,nanzeroiqr(dvec),count(finalmsk),starscale1,skyscale1)) # 3
         push!(out,x_comp_out) # 4
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
@@ -393,7 +398,7 @@ end
                         x_comp_lst[5:end]...]
 
             chi2res = x_comp_lst[1]'*(Ainv*x_comp_lst[1])
-            chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale1, fc=red_chi2_dict[tele])
+            chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale1, fc=red_chi2_dict[tele[1:6]])
             push!(out,(chi2res,chi2r_fc)) # 8
 
             push!(out,x_comp_out) # 9
