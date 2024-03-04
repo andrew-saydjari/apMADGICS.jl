@@ -50,14 +50,16 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     runlist_range = 295:295 #1:600 #295, 245, 335, 101
     batchsize = 10 #40
 
+    RV_err_step = 10 # in subpix steps (used to be 8)
+
     cache_dir = "../local_cache_inject295/"
-    inject_cache_dir = prior_dir*"2024_03_01/inject_local_cache"
+    inject_cache_dir = prior_dir*"2024_03_01/inject_local_cache_no_dibs"
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
-    prior_dict["runlists"] = prior_dir*"2024_03_01/inject_dibs_295/injection_input_lst_"
+    prior_dict["runlists"] = prior_dir*"2024_03_01/inject_no_dibs_295/injection_input_lst_"
     # prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
 
     # Sky Priors
@@ -276,7 +278,7 @@ end
         else
             Base.Fix2(chi2_wrapper,(rvmsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice))
         end
-        lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=1//10,stepx=8)
+        lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=1//10,stepx=RV_err_step)
         svalc = lout[1][3]
         push!(out,lout) # 2
 

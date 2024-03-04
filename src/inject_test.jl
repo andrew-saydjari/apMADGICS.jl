@@ -52,7 +52,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
     RV_range_pix = (-68,68) # pixscale is ~4.14 km/s per pixel
 
-    dib_inject = true
+    dib_inject = false
     dib_center_lambda_lst = [15273,15672]
     dib_ew_range = (-1.5,0)
     dib_sig_range = (0.7,3.7)
@@ -65,8 +65,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
-    prior_dict["out_dir"] = prior_dir*"2024_03_01/inject_dibs_295/"
-    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_01/inject_local_cache/"
+    prior_dict["out_dir"] = prior_dir*"2024_03_01/inject_no_dibs_295/"
+    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_01/inject_local_cache_no_dibs/"
     prior_dict["local_cache"] = prior_dir*"2024_03_01/local_cache/"
 
     prior_dict["past_run"] = prior_dir*"2024_02_21/outdir_wu_295_th/apMADGICS_out.h5" # used for StarScale distribution only
