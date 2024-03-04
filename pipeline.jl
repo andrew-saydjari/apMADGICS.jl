@@ -53,13 +53,13 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     RV_err_step = 4 # in subpix steps (used to be 8)
 
     cache_dir = "../local_cache_inject295/"
-    inject_cache_dir = prior_dir*"2024_03_01/inject_local_cache_no_dibs"
+    inject_cache_dir = prior_dir*"2024_03_04/inject_local_cache_15273only"
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
-    prior_dict["runlists"] = prior_dir*"2024_03_01/inject_no_dibs_295/injection_input_lst_"
+    prior_dict["runlists"] = prior_dir*"2024_03_04/inject_15273only_295/injection_input_lst_"
     # prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
 
     # Sky Priors
