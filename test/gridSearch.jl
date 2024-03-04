@@ -35,5 +35,22 @@
     
     out = sampler_2d_hierarchy_var(tstfun2d,tsttup_2d)
     @test out[1] == ((1.5, 2.5), 3.0, (3//2, 5//2), 3.0, CartesianIndex(3, 3), 0, 0.5, 0.5, -0.0, 0.5, 0.5)
-    
+
+    alpha = 1
+    x = -10:1//10:10
+    y = alpha.*x.^2;
+    minind = findmin(y)[2]
+    @test err1d(x,y,minind;stepx=60) == 1//(2*alpha)
+    @test err1d(x,y,minind;stepx=22) == 1//(2*alpha)
+    @test err1d(x,y,minind;stepx=5) == 1//(2*alpha)
+    @test err1d(x,y,minind;stepx=1) == 1//(2*alpha)
+
+    alpha = 4
+    x = -10:1//10:10
+    y = alpha.*x.^2;
+    minind = findmin(y)[2]
+    @test err1d(x,y,minind;stepx=60) == 1//(2*alpha)
+    @test err1d(x,y,minind;stepx=22) == 1//(2*alpha)
+    @test err1d(x,y,minind;stepx=5) == 1//(2*alpha)
+    @test err1d(x,y,minind;stepx=1) == 1//(2*alpha)
 end

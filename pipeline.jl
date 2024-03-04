@@ -50,7 +50,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     runlist_range = 295:295 #1:600 #295, 245, 335, 101
     batchsize = 10 #40
 
-    RV_err_step = 10 # in subpix steps (used to be 8)
+    RV_err_step = 4 # in subpix steps (used to be 8)
 
     cache_dir = "../local_cache_inject295/"
     inject_cache_dir = prior_dir*"2024_03_01/inject_local_cache_no_dibs"
