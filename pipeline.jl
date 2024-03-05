@@ -51,6 +51,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     batchsize = 10 #40
 
     RV_err_step = 4
+    rescaleDIBprior = 10.0
 
     cache_dir = "../local_cache/"
     inject_cache_dir = prior_dir*"2024_03_05/inject_local_cache_15273only"
@@ -121,10 +122,12 @@ end
     # nothing to do on size here, if anything expand
     f = h5open(prior_dict["DIB_noLSF"])
     global V_dib_noLSF = read(f["Vmat"])
+    V_dib_noLSF[:,1] .*= rescaleDIBprior
     close(f)
 
     f = h5open(prior_dict["DIB_noLSF_soft"])
     global V_dib_noLSF_soft = read(f["Vmat"])
+    V_dib_noLSF_soft[:,1] .*= rescaleDIBprior
     close(f)
 
     alpha = 1;
@@ -469,10 +472,12 @@ end
 
                 f = h5open(prior_dict["DIB_LSF"]*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib = read(f["Vmat"])
+                V_dib[:,1] .*= rescaleDIBprior
                 close(f)
 
                 f = h5open(prior_dict["DIB_LSF_soft"]*lpad(adjfibindx,3,"0")*".h5")
                 global V_dib_soft = read(f["Vmat"])
+                V_dib_soft[:,1] .*= rescaleDIBprior
                 close(f)
                 GC.gc()
             end
