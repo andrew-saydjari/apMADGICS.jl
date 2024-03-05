@@ -47,8 +47,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     nsamp = 3*5_080
 
-    fibindx = 295 # injecting into this fiber
-    adjfibindx = 295 # sky samples injections are made into, running simulated observed on this fiber
+    fibindx = 335 # injecting into this fiber
+    adjfibindx = 335 # sky samples injections are made into, running simulated observed on this fiber
 
     RV_range_pix = (-68,68) # pixscale is ~4.14 km/s per pixel
 
@@ -64,8 +64,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
-    prior_dict["out_dir"] = prior_dir*"2024_03_05/inject_15273only_295/"
-    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_05/inject_local_cache_15273only/"
+    prior_dict["out_dir"] = prior_dir*"2024_03_05/inject_15273only_335/"
+    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_05/inject_local_cache_15273only_335/"
     prior_dict["local_cache"] = prior_dir*"2024_03_05/local_cache/"
 
     prior_dict["past_run"] = prior_dir*"2024_02_21/outdir_wu_295_th/apMADGICS_out.h5" # used for StarScale distribution only
@@ -192,7 +192,7 @@ end
         
         if !isfile(starcache)
             starcomp = starContSamples[:,starCont_indx]
-            medstar = median(starcomp)
+            medstar = nanzeromedian(starcomp)
             starcomp .*= (starscale/medstar)
             starLines = get_star((fname, rv, adjfibindx))
             starcomp .*= (1 .+ starLines)
@@ -218,9 +218,17 @@ end
             # seed the Poisson draw
             rng = MersenneTwister(mjd+adjfibindx) # seed on mjd and fiber index so unique
             if (no_sky | skycont_only)
-                outfvec = pois_rand.(rng,starcomp*gain)/gain
+                if all(!isnan.(starcomp))
+                    outfvec = pois_rand.(rng,starcomp*gain)/gain
+                else
+                    outfvec = NaN*ones(length(starcomp))
+                end
             else
-                outfvec = fvec .+ pois_rand.(rng,starcomp*gain)/gain
+                if all(!isnan.(starcomp))
+                    outfvec = fvec .+ pois_rand.(rng,starcomp*gain)/gain
+                else
+                    outfvec = NaN*ones(length(starcomp))
+                end
             end
 
             outcntvec = cntvec
