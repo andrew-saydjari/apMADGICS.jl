@@ -54,7 +54,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
     skycont_only = false
     no_sky = false
-    dibs_on=true
+    dibs_on = true
 
     dib_center_lambda_lst = [15273] #,15672]
     dib_ew_range = (-1.5,0)
@@ -64,9 +64,9 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
-    prior_dict["out_dir"] = prior_dir*"2024_03_01/inject_no_dibs_295/"
-    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_01/inject_local_cache_no_dibs/"
-    prior_dict["local_cache"] = prior_dir*"2024_03_01/local_cache/"
+    prior_dict["out_dir"] = prior_dir*"2024_03_04/inject_15273only_295/"
+    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_04/inject_local_cache_15273only/"
+    prior_dict["local_cache"] = prior_dir*"2024_03_04/local_cache/"
 
     prior_dict["past_run"] = prior_dir*"2024_02_21/outdir_wu_295_th/apMADGICS_out.h5" # used for StarScale distribution only
     prior_dict["korg_run_path"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_disk_KnackedKorg/"
@@ -91,6 +91,7 @@ println("NumSamples Acceptable for Filenaming: ",length(string(nsamp)) <= 7)
     delLog = 6e-6;
     wavetarg = 10 .^range(start = (4.179-125*delLog),step=delLog,length=8575+125)
     minw, maxw = extrema(wavetarg)
+    x_model = 15000:(1//100):17000;
     c = 299792.458; # in km/s
 
     Xd_stack = zeros(3*2048)
@@ -196,8 +197,15 @@ end
             starLines = get_star((fname, rv, adjfibindx))
             starcomp .*= (1 .+ starLines)
             if dibs_on
+                # analytic shift, so don't shift the LSF
+                Ksp = if adjfibindx>300
+                    deserialize(prior_dict["LSF_mat_LCO"]*"6_"*lpad(adjfibindx-300,3,"0")*".jdat");
+                else
+                    deserialize(prior_dict["LSF_mat_APO"]*"6_"*lpad(adjfibindx,3,"0")*".jdat");
+                end
+                nvecLSF = dropdims(sum(Ksp,dims=2),dims=2);
                 for (dib_ind, dib_center_lambda) in enumerate(dib_center_lambda_lst)
-                    dibcomp = gauss1d_ew(ew[dib_ind],λ0[dib_ind],sigma[dib_ind],wavetarg)
+                    dibcomp = Ksp*gauss1d_ew(ew[dib_ind],λ0[dib_ind],sigma[dib_ind],x_model)./nvecLSF
                     starcomp .*= (1 .+ dibcomp)
                 end
             end
