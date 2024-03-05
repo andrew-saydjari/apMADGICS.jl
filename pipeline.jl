@@ -51,6 +51,9 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     batchsize = 10 #40
 
     RV_err_step = 4
+    DIB_pix_err_step = 3 # consider increasing to 4 (self consistency + LSF test)
+    DIB_sig_err_step = 3
+
     rescaleDIBprior = 10.0
 
     cache_dir = "../local_cache/"
@@ -88,6 +91,14 @@ end
 
 # it would be great to move this into a parameter file that is read for each run
 @everywhere begin
+    # minimum step sizes of the priors (might want to store in the file structures of those priors and read in)
+    minRVres = 1//10
+    minDIBvelres = 1//10
+    minDIBsigres = 1//100
+
+    ## sigrng is somewhat counterintuitively defined in the chi2Wrappers.jl file
+    minSigval, maxSigval = extrema(sigrng)
+
     # Star Wave
     lvl1 = -70:1//2:70
     lvl2 = -8:2//10:8
@@ -281,7 +292,7 @@ end
         else
             Base.Fix2(chi2_wrapper,(rvmsk,Ctotinv_cur,Xd_obs,starCont_Mscale,V_subpix,pre_Vslice))
         end
-        lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=1//10,stepx=RV_err_step)
+        lout = sampler_1d_hierarchy_var(chi2_wrapper_partial,slvl_tuple,minres=minRVres,stepx=RV_err_step)
         svalc = lout[1][3]
         push!(out,lout) # 2
 
@@ -367,14 +378,14 @@ end
             ## Solve DIB parameters (for just 15273), not any more, just a single DIB
             # one of the main questions is how many time to compute components and where
             chi2_wrapper_partial = Base.Fix2(chi2_wrapper2d,(finalmsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,pre_Vslice,dib_center,scan_offset))
-            lout = sampler_2d_hierarchy_var(chi2_wrapper_partial,lvltuple_dib,step1=3,step2=3,minres1=1//10,minres2=1//100)
+            lout = sampler_2d_hierarchy_var(chi2_wrapper_partial,lvltuple_dib,step1=DIB_pix_err_step,step2=DIB_sig_err_step,minres1=minDIBvelres,minres2=minDIBsigres)
             opt_tup = lout[1][3]
             push!(out,lout) # 6
 
             ## Shift the marginalization sampling (should this be wrapped inside the function?)
             # especially because we need to do bounds handling
             svalMarg = svalMarg0 .+ opt_tup[1]
-            sigMarg = shift_trim_range(sigMarg0,opt_tup[2]; minv=4//10, maxv=4)
+            sigMarg = shift_trim_range(sigMarg0,opt_tup[2]; minv=minSigval, maxv=maxSigval)
             samp_lst = Iterators.product(svalMarg,sigMarg)
 
             intupf = (finalmsk,Ctotinv_cur,Xd_obs,wave_obs,starFull_Mscale,Vcomb_cur,V_dib,pre_Vslice,dib_center,scan_offset)
