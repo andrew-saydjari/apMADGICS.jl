@@ -72,9 +72,9 @@ function ingest_allVisit_file(release_dir,redux_ver;tele_try_list=["apo25m","lco
 
         println("Found $(length(TELESCOPE[msk_tele])) visits to run")
         
-        return tele_list, TELESCOPE[msk_tele], FIELD[msk_tele], PLATE[msk_tele], MJD[msk_tele], FIBERID[msk_tele]
+        return tele_list, TELESCOPE, FIELD, PLATE, MJD, FIBERID
         ## TBD
-    else
+    else #### This complicates map2visit in modern era
         tele_list = []
         for tele in tele_try_list
             allVisitpath = getUtahBase(release_dir, redux_ver)*"summary/allVisit-$(redux_ver)-$(tele).fits"
