@@ -196,8 +196,15 @@ end
             starLines = get_star((fname, rv, adjfibindx))
             starcomp .*= (1 .+ starLines)
             if dibs_on
+                # analytic shift, so don't shift the LSF
+                Ksp = if adjfibindx>300
+                    deserialize(prior_dict["LSF_mat_LCO"]*"6_"*lpad(adjfibindx-300,3,"0")*".jdat");
+                else
+                    deserialize(prior_dict["LSF_mat_APO"]*"6_"*lpad(adjfibindx,3,"0")*".jdat");
+                end
+                nvecLSF = dropdims(sum(Ksp,dims=2),dims=2);
                 for (dib_ind, dib_center_lambda) in enumerate(dib_center_lambda_lst)
-                    dibcomp = gauss1d_ew(ew[dib_ind],λ0[dib_ind],sigma[dib_ind],wavetarg)
+                    dibcomp = Ksp*gauss1d_ew(ew[dib_ind],λ0[dib_ind],sigma[dib_ind],x_model)./nvecLSF
                     starcomp .*= (1 .+ dibcomp)
                 end
             end

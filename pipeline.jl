@@ -50,7 +50,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     runlist_range = 295:295 #1:600 #295, 245, 335, 101
     batchsize = 10 #40
 
-    RV_err_step = 4 # in subpix steps (used to be 8)
+    RV_err_step = 4
 
     cache_dir = "../local_cache_inject295/"
     inject_cache_dir = prior_dir*"2024_03_04/inject_local_cache_15273only"
@@ -75,6 +75,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f"
 
     # DIB Priors
+    # prior_dict["DIB_noLSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_1_analyticDeriv_stiff.h5"
     prior_dict["DIB_noLSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_1_analyticDeriv_stiff.h5"
     prior_dict["DIB_noLSF_soft"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_3_analyticDeriv_soft.h5"
     prior_dict["DIB_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_1_analyticDerivLSF_stiff_"
@@ -389,8 +390,6 @@ end
                 (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_c, V_dibc),
             )
             # I am not sure that during production we really want to run and output full sets of components per DIB
-            # I would like to fill NaNs in chip gaps for the sky/continuum components
-            # revisit that when we revisit the interpolations before making other fiber priors
             x_comp_out = [nanify(x_comp_lst[1]./sqrt.(fvarvec[finalmsk]),finalmsk), nanify(x_comp_lst[1],finalmsk),
                         # nanify(x_comp_lst[2][skymsk_bright[finalmsk]],finalmsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
                         nanify(x_comp_lst[2][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
