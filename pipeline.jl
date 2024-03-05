@@ -52,7 +52,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
     RV_err_step = 4
 
-    cache_dir = "../local_cache_inject295/"
+    cache_dir = "../local_cache/"
     inject_cache_dir = prior_dir*"2024_03_05/inject_local_cache_15273only"
 
     # Prior Dictionary
