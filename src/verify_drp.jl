@@ -334,7 +334,7 @@ end
         
         plateFile = build_platepath(release_dir,redux_ver,tele,field,plate,mjd,"a")
         frame_lst = getFramesFromPlate(plateFile)
-        firstVisitExp =  minimum(parse.(Int,frame_lst))
+        firstVisitExp = minimum(parse.(Int,frame_lst))
         expFile = build_expPath(release_dir,redux_ver,tele,mjd)
         
         if !isfile(expFile)
