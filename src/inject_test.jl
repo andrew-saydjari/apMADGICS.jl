@@ -91,6 +91,7 @@ println("NumSamples Acceptable for Filenaming: ",length(string(nsamp)) <= 7)
     delLog = 6e-6;
     wavetarg = 10 .^range(start = (4.179-125*delLog),step=delLog,length=8575+125)
     minw, maxw = extrema(wavetarg)
+    x_model = 15000:(1//100):17000;
     c = 299792.458; # in km/s
 
     Xd_stack = zeros(3*2048)
