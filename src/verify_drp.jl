@@ -116,7 +116,7 @@ function ingest_allVisit_file(release_dir,redux_ver;tele_try_list=["apo25m","lco
 end
 
 ### Boot Up Workers
-addprocs(32)
+addprocs(64)
 @everywhere begin
     using FITSIO, StatsBase, ProgressMeter, Distributed, Serialization, Glob, DelimitedFiles, ParallelDataTransfer, DataFrames
 
@@ -223,7 +223,7 @@ if check_ap1d
             fname = outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_badap1D_lst_"*lpad(adjfibindx,3,"0")*".jdat"
             if isfile(fname)
                 subiter = deserialize(fname)
-                badframes = get_bad_ap1D.(subiter)
+                badframes = pmap(get_bad_ap1D,subiter)
                 push!(badlst,badframes)
             end
         end
@@ -262,7 +262,7 @@ if check_apCframes
         end
     end
 
-    fcheck = check_file_size.(apCframes)
+    fcheck = pmap(check_file_size,apCframes)
     println("Total apCframe files that are Zero bytes: ",count(fcheck.==0))
 
     # fig = plt.figure(figsize=(6,6),dpi=150)
