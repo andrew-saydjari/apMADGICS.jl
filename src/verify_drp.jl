@@ -773,6 +773,8 @@ if check_plates
                         fname = outdir*"tell/"*"$(release_dir_n)_$(redux_ver_n)_tell_input_lst_plate_msked_"*lpad(test_ind,3,"0")*".jdat"
                         if isfile(fname)
                             push!(samp_len_lst,length(deserialize(fname)))
+                        else
+                            push!(samp_len_lst,0)
                         end
                     end
                     if length(samp_len_lst)>0 && sum(samp_len_lst)>20
