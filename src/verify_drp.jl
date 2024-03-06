@@ -775,7 +775,7 @@ if check_plates
                             push!(samp_len_lst,length(deserialize(fname)))
                         end
                     end
-                    if sum(samp_len_lst)>20
+                    if length(samp_len_lst)>0 && sum(samp_len_lst)>20
                         push!(samp_lst,test_inds[samp_len_lst.!=0])
                         tellcounts_wind[sfibindx] = sum(samp_len_lst)
                         break
