@@ -22,7 +22,7 @@ function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_d
     end
 
     msk_bad_thrpt = (thrpt_mat[1,:] .< thrpt_cut) .| (thrpt_mat[2,:] .< thrpt_cut) .| (thrpt_mat[3,:] .< thrpt_cut)
-    thrpt_mat[:,msk_bad_thrpt] .= NaN
+    thrpt_mat[:,msk_bad_thrpt] .= -1
     
     for (chipind,chip) in enumerate(["a","b","c"])
         write(h,thrpt_mat[chipind,:],name=chip)
@@ -64,10 +64,10 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
         skycacheSpec = cache_skynameSpec(tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
         if (isfile(skycacheSpec) & caching)
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
-            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux = metaexport
+            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit,ingest_bit = metaexport
         else
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
-            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux = metaexport
+            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit,ingest_bit = metaexport
             if caching
                 dirName = splitdir(skycacheSpec)[1]
                 if !ispath(dirName)
@@ -132,7 +132,8 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; telluri
     end
     cartVisit = parse(Int,read_header(f[1])["CARTID"])
     close(f)
-    
+
+    ingest_bit = 0
     fill!(outvec,0)
     fill!(outvar,0)
     fill!(cntvec,0)
@@ -208,12 +209,32 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; telluri
             Rinv = generateInterpMatrix_sparse_inv(waveobs_stack,ones(Int,length(fullBit)).*2^3,wavetarg,(1:length(waveobs_stack)));
             telvec .+= Rinv*telluric_stack
         end
+
+        if all(isnanorzero.(Xd_stack)) && ((ingest_bit & 2^1)==0)
+            ingest_bit .+= 2^1 # ap1D flux is literally NaNs (for at least one of the exposures)
+        elseif all(.!((fullBit .& 2^4).==0)) && ((ingest_bit & 2^2)==0)
+            ingest_bit .+= 2^2 # all masked by DRP pixmask  (for at least one of the exposures)
+        elseif all(isnanorzero.(Xd_std_stack)) && ((ingest_bit & 2^3)==0)
+            ingest_bit .+= 2^3 # either upstream std NaNs or err_factor NaNed  (for at least one of the exposures)
+        end
     end
     framecnts = maximum(cntvec) # a little shocked that I throw it away if it is bad in even one frame
     outvec./=framecnts
     outvar./=(framecnts^2)
     if telluric_div
         telvec./=framecnts
+    end
+
+    if all(isnanorzero.(outvec))
+        ingest_bit .+= 2^4 # all NaNs or zeros after interp
+    elseif (thrptDict["a"]<0) || (thrptDict["b"]<0) || (thrptDict["c"]<0)
+        ingest_bit .+= 2^5 # bad thrpt below thrpt_cut, NaNed by apMADGICS.jl
+    elseif isnan(thrptDict["a"]) || isnan(thrptDict["b"]) || isnan(thrptDict["c"])
+        ingest_bit .+= 2^6 # NaNs in apFlux file, however apMADGICS.jl does not depend on these values
+    end
+
+    if isnan(thrptDict["a"]) || isnan(thrptDict["b"]) || isnan(thrptDict["c"])
+        outvec.*=NaN
     end
     
     simplemsk = (cntvec.==framecnts)
@@ -223,7 +244,7 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; telluri
     chipmidtimes = zeros(3)
     chipmidtimes[goodframeIndx] .= mean.(time_lsts[goodframeIndx]) #consider making this flux weighted (need to worry about skyline variance driving it)
     chipmidtimes[.!goodframeIndx] .= NaN
-    metaexport = (starscale,framecnts,thrptDict["a"],thrptDict["b"],thrptDict["c"],cartVisit)
+    metaexport = (starscale,framecnts,thrptDict["a"],thrptDict["b"],thrptDict["c"],cartVisit,ingest_bit)
     if telluric_div
         return outvec, outvar, cntvec, chipmidtimes, metaexport, telvec
     end

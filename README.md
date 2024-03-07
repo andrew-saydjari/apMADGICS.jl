@@ -52,4 +52,18 @@ There is still a (much smaller dimensional) space that MADGICS needs to sample o
 | 16    | 4     | Bad curvature of chi2 surface (can't invert full 2d Hessian)|
 | 32    | 5     | Very bad curvature of chi2 surface (can't invert diagonal entries)|
 
+## Ingest Module Flag Bits
+
+During ingestion, some of the exposure files may have issues that cause the spectrum to come through apMADGICS.jl as a vector of only NaNs. This pipeline bit gives insight into the root cause of why this (tiny fraction of the) data is unable to be processed.
+
+| Value         | Bit         | Meaning     |
+| ----------- | ----------- | ----------- |
+| 0     | -     | No problems       |
+| 2     | 1     | ap1D flux was NaNs (for at least one of the exposures) |
+| 4     | 2     | DRP masked all pixels (for at least one of the exposures) |
+| 8     | 3     | Error calibration NaNed observation or upstream std_dev NaNs (for at least one of the exposures) |
+| 16    | 4     | Thrpt in apFlux file below thrpt_cut, NaNed by apMADGICS.jl |
+| 32    | 5     | NaNs in apFlux file, but apMADGIC.jl does not depend on these values|
+
+
 

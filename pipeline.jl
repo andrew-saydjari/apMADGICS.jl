@@ -47,7 +47,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     refine_iters = 5
     ddstaronly = false
-    runlist_range = 295:295 #1:600 #295, 245, 335, 101
+    runlist_range = 335:335 #1:600 #295, 245, 335, 101
     batchsize = 10 #40
 
     RV_err_step = 4
@@ -61,8 +61,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict = Dict{String,String}()
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
-    prior_dict["runlists"] = prior_dir*"2024_03_05/inject_15672only_295/injection_input_lst_"
-    # prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
+    # prior_dict["runlists"] = prior_dir*"2024_03_05/inject_15672only_295/injection_input_lst_"
+    prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
 
     # Sky Priors
     prior_dict["skycont"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_priors/APOGEE_skycont_svd_30_f"
@@ -215,14 +215,14 @@ end
         starcache = cache_starname(tele,field,plate,mjd,fiberindx,cache_dir=cache_dir,inject_cache_dir=inject_cache_dir)
         if (isfile(starcache) & caching)
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(starcache)
-            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
+            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit,ingest_bit = metaexport
         elseif tele[end]=='i'
             println(starcache)
             println(caching)
             @warn "Injections not found at injection cache dir!"
         else
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
-            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
+            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit,ingest_bit = metaexport
             if caching
                 dirName = splitdir(starcache)[1]
                 if !ispath(dirName)
@@ -233,7 +233,7 @@ end
         end
         simplemsk = (cntvec.==framecnts) .& skymsk;
         
-        push!(out,(count(simplemsk), starscale, skyscale0, framecnts, chipmidtimes, a_relFlux, b_relFlux, c_relFlux, cartVisit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
+        push!(out,(count(simplemsk), starscale, skyscale0, framecnts, chipmidtimes, a_relFlux, b_relFlux, c_relFlux, cartVisit, ingest_bit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
 
         if skyCont_off
             meanLocSky.=0
@@ -539,8 +539,9 @@ end
                 (x->x[metai][7],                        "b_relFlux"),
                 (x->x[metai][8],                        "c_relFlux"),
                 (x->x[metai][9],                        "cartVisit"),
-                (x->x[metai][10],                       "flux"),
-                (x->x[metai][11],                       "fluxerr2"),
+                (x->x[metai][10],                       "ingestBit"),
+                (x->x[metai][11],                       "flux"),
+                (x->x[metai][12],                       "fluxerr2"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),

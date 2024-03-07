@@ -177,10 +177,10 @@ end
         skycacheSpec = cache_skynameSpec(tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
         if (isfile(skycacheSpec) & caching)
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
-            starscalesky,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
+            starscalesky,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit,ingest_bit = metaexport
         else
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
-            starscalesky,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit = metaexport
+            starscalesky,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit,ingest_bit = metaexport
             if caching
                 dirName = splitdir(skycacheSpec)[1]
                 if !ispath(dirName)
