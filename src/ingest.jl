@@ -211,11 +211,11 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; telluri
         end
 
         if all(isnanorzero.(Xd_stack)) && ((ingest_bit & 2^1)==0)
-            ingest_bit .+= 2^1 # ap1D flux is literally NaNs (for at least one of the exposures)
+            ingest_bit += 2^1 # ap1D flux is literally NaNs (for at least one of the exposures)
         elseif all(.!((fullBit .& 2^4).==0)) && ((ingest_bit & 2^2)==0)
-            ingest_bit .+= 2^2 # all masked by DRP pixmask  (for at least one of the exposures)
+            ingest_bit += 2^2 # all masked by DRP pixmask  (for at least one of the exposures)
         elseif all(isnanorzero.(Xd_std_stack)) && ((ingest_bit & 2^3)==0)
-            ingest_bit .+= 2^3 # either upstream std NaNs or err_factor NaNed  (for at least one of the exposures)
+            ingest_bit += 2^3 # either upstream std NaNs or err_factor NaNed  (for at least one of the exposures)
         end
     end
     framecnts = maximum(cntvec) # a little shocked that I throw it away if it is bad in even one frame
@@ -226,11 +226,11 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; telluri
     end
 
     if all(isnanorzero.(outvec))
-        ingest_bit .+= 2^4 # all NaNs or zeros after interp
+        ingest_bit += 2^4 # all NaNs or zeros after interp
     elseif (thrptDict["a"]<0) || (thrptDict["b"]<0) || (thrptDict["c"]<0)
-        ingest_bit .+= 2^5 # bad thrpt below thrpt_cut, NaNed by apMADGICS.jl
+        ingest_bit += 2^5 # bad thrpt below thrpt_cut, NaNed by apMADGICS.jl
     elseif isnan(thrptDict["a"]) || isnan(thrptDict["b"]) || isnan(thrptDict["c"])
-        ingest_bit .+= 2^6 # NaNs in apFlux file, however apMADGICS.jl does not depend on these values
+        ingest_bit += 2^6 # NaNs in apFlux file, however apMADGICS.jl does not depend on these values
     end
 
     if isnan(thrptDict["a"]) || isnan(thrptDict["b"]) || isnan(thrptDict["c"])

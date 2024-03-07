@@ -63,7 +63,7 @@ During ingestion, some of the exposure files may have issues that cause the spec
 | 4     | 2     | DRP masked all pixels (for at least one of the exposures) |
 | 8     | 3     | Error calibration NaNed observation or upstream std_dev NaNs (for at least one of the exposures) |
 | 16    | 4     | Thrpt in apFlux file below thrpt_cut, NaNed by apMADGICS.jl |
-| 32    | 5     | NaNs in apFlux file, but apMADGIC.jl does not depend on these values|
+| 32    | 5     | NaNs in apFlux file, but apMADGICS.jl does not depend on these values|
 
 
 
