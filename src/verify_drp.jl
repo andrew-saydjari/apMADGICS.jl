@@ -72,9 +72,9 @@ function ingest_allVisit_file(release_dir,redux_ver;tele_try_list=["apo25m","lco
 
         println("Found $(length(TELESCOPE[msk_tele])) visits to run")
         
-        return tele_list, TELESCOPE[msk_tele], FIELD[msk_tele], PLATE[msk_tele], MJD[msk_tele], FIBERID[msk_tele]
+        return tele_list, TELESCOPE, FIELD, PLATE, MJD, FIBERID
         ## TBD
-    else
+    else #### This complicates map2visit in modern era
         tele_list = []
         for tele in tele_try_list
             allVisitpath = getUtahBase(release_dir, redux_ver)*"summary/allVisit-$(redux_ver)-$(tele).fits"
@@ -116,7 +116,7 @@ function ingest_allVisit_file(release_dir,redux_ver;tele_try_list=["apo25m","lco
 end
 
 ### Boot Up Workers
-addprocs(32)
+addprocs(64)
 @everywhere begin
     using FITSIO, StatsBase, ProgressMeter, Distributed, Serialization, Glob, DelimitedFiles, ParallelDataTransfer, DataFrames
 
@@ -223,7 +223,7 @@ if check_ap1d
             fname = outdir*"star/"*"$(release_dir_n)_$(redux_ver_n)_star_badap1D_lst_"*lpad(adjfibindx,3,"0")*".jdat"
             if isfile(fname)
                 subiter = deserialize(fname)
-                badframes = get_bad_ap1D.(subiter)
+                badframes = pmap(get_bad_ap1D,subiter)
                 push!(badlst,badframes)
             end
         end
@@ -262,7 +262,7 @@ if check_apCframes
         end
     end
 
-    fcheck = check_file_size.(apCframes)
+    fcheck = pmap(check_file_size,apCframes)
     println("Total apCframe files that are Zero bytes: ",count(fcheck.==0))
 
     # fig = plt.figure(figsize=(6,6),dpi=150)
@@ -334,7 +334,7 @@ end
         
         plateFile = build_platepath(release_dir,redux_ver,tele,field,plate,mjd,"a")
         frame_lst = getFramesFromPlate(plateFile)
-        firstVisitExp =  minimum(parse.(Int,frame_lst))
+        firstVisitExp = minimum(parse.(Int,frame_lst))
         expFile = build_expPath(release_dir,redux_ver,tele,mjd)
         
         if !isfile(expFile)
@@ -773,9 +773,11 @@ if check_plates
                         fname = outdir*"tell/"*"$(release_dir_n)_$(redux_ver_n)_tell_input_lst_plate_msked_"*lpad(test_ind,3,"0")*".jdat"
                         if isfile(fname)
                             push!(samp_len_lst,length(deserialize(fname)))
+                        else
+                            push!(samp_len_lst,0)
                         end
                     end
-                    if sum(samp_len_lst)>20
+                    if length(samp_len_lst)>0 && sum(samp_len_lst)>20
                         push!(samp_lst,test_inds[samp_len_lst.!=0])
                         tellcounts_wind[sfibindx] = sum(samp_len_lst)
                         break

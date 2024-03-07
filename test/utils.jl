@@ -1,4 +1,5 @@
 @testset "utils.jl" begin
+    using StableRNGs
 
     dat = 2.1*ones(10,10)
     dat[1,:].=NaN
@@ -116,6 +117,25 @@
     p = z2pix(z)
     @test p ≈ 1
 
-    @test prop_p2z(1) ≈ 2.302616904602455
-    @test prop_z2v(1)==1.6
+    # test propagate errors using a unit normal
+    rng = StableRNG(123)
+    mu_pix = 2.1
+    err_pix = 0.1
+    delLog = 6e-6
+    nsamp = 500000
+    pix = err_pix*randn(rng,nsamp).+mu_pix
+    tststat = nanzeroiqr((pix.-mu_pix)./err_pix)
+    @test abs(tststat.-1) .< 5e-4
+
+    z = 10 .^(pix.*delLog) .-1
+    z_mu = 10 .^(mu_pix.*delLog) .-1
+    zerr = prop_p2z.(pix).*err_pix;
+    tststat = nanzeroiqr((z.-z_mu)./zerr)
+    @test abs(tststat.-1) .< 5e-4
+
+    vel = z2v.(z);
+    vel_mu = z2v(z_mu)
+    verr = prop_z2v.(z).*zerr;
+    tststat = nanzeroiqr((vel.-vel_mu)./verr)
+    @test abs(tststat.-1) .< 5e-4
 end
