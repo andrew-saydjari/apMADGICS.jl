@@ -55,7 +55,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     DIB_sig_err_step = 3
 
     cache_dir = "../local_cache/"
-    inject_cache_dir = prior_dir*"2024_03_05/inject_local_cache_15672only_295"
+    inject_cache_dir = prior_dir*"2024_03_05/inject_local_cache_15672only"
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
@@ -79,11 +79,18 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # DIB Priors
     dib_waves = [15273, 15672]
     for dib in dib_waves
-        prior_dict["DIB_noLSF_$(dib)"] = prior_dir*"2024_03_05/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_1_$(dib)_analyticDeriv_stiff.h5"
+        # prior_dict["DIB_noLSF_$(dib)"] = prior_dir*"2024_03_05/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_1_$(dib)_analyticDeriv_stiff.h5"
         prior_dict["DIB_noLSF_soft_$(dib)"] = prior_dir*"2024_03_05/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_3_$(dib)_analyticDeriv_soft.h5"
         prior_dict["DIB_LSF_$(dib)"] = prior_dir*"2024_03_05/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_1_$(dib)_analyticDerivLSF_stiff_"
         prior_dict["DIB_LSF_soft_$(dib)"] = prior_dir*"2024_03_05/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_3_$(dib)_analyticDerivLSF_soft_"
     end
+
+    # maps dib scans to dib_waves
+    dib_ind_prior = Dict{Int,Int}()
+    dib_ind_prior[1] = 1
+    dib_ind_prior[2] = 1
+    dib_ind_prior[3] = 2
+    dib_ind_prior[4] = 2
 
     # Data for Detector Cals (not really a prior, but an input the results depend on in detail)
     prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jdat"
@@ -108,7 +115,7 @@ end
     # tuple1dprint(slvl_tuple)
 
     # (Wave, Sig) DIB
-    dib_center_lst = [dib_waves[1], dib_waves[1], dib_waves[2], dib_waves[2]]
+    dib_center_lst = map(x->dib_waves[dib_ind_prior[x]],1:length(dib_ind_prior)) # not clear we need this anymore since we don't scanOffset
     lvl1d = ((-150:4:150),(18//10:18//10))
     lvl2d = ((0:0), (-7//5:4//100:11//5))
     lvl3d = ((-18:2//10:18), (0:0))
@@ -132,15 +139,15 @@ end
 @everywhere begin
     # Load the Global Priors
     # nothing to do on size here, if anything expand
-    global V_dib_noLSF_lst = []
-    for dib in dib_center_lst
-        local f = h5open(prior_dict["DIB_noLSF_$(dib)"])
-        push!(V_dib_noLSF_lst, read(f["Vmat"]))
-        close(f)
-    end
+    # global V_dib_noLSF_lst = []
+    # for dib in dib_waves
+    #     local f = h5open(prior_dict["DIB_noLSF_$(dib)"])
+    #     push!(V_dib_noLSF_lst, read(f["Vmat"]))
+    #     close(f)
+    # end
 
     global V_dib_noLSF_soft_lst = []
-    for dib in dib_center_lst
+    for dib in dib_waves
         local f = h5open(prior_dict["DIB_noLSF_soft_$(dib)"])
         push!(V_dib_noLSF_soft_lst, read(f["Vmat"]))
         close(f)
@@ -375,15 +382,16 @@ end
         
         # currently, this is modeling each DIB seperately... I think we want to change this later, just easier parallel structure
         for dib_ind = 1:length(dib_center_lst) # eventually need to decide if these are cumulative or not
-            V_dib = V_dib_lst[dib_ind]
-            V_dib_soft = V_dib_soft_lst[dib_ind]
-            V_dib_noLSF = V_dib_noLSF_lst[dib_ind]
-            V_dib_noLSF_soft = V_dib_noLSF_soft_lst[dib_ind]
+            V_dib = V_dib_lst[dib_ind_prior[dib_ind]]
+            V_dib_soft = V_dib_soft_lst[dib_ind_prior[dib_ind]]
+            # V_dib_noLSF = V_dib_noLSF_lst[dib_ind_prior[dib_ind]]
+            V_dib_noLSF_soft = V_dib_noLSF_soft_lst[dib_ind_prior[dib_ind]]
 
             pre_Vslice = zeros(count(finalmsk),size(V_dib,2))
             lvltuple_dib = lvltuple_lst[dib_ind]
             dib_center = dib_center_lst[dib_ind]
-            scan_offset = findmin(abs.(wavetarg.-dib_center_lst[dib_ind]))[2].-findmin(abs.(wavetarg.-dib_center_lst[1]))[2]
+            # scan_offset deprecated with individual DIB priors
+            scan_offset = 0 #findmin(abs.(wavetarg.-dib_center_lst[dib_ind]))[2].-findmin(abs.(wavetarg.-dib_center_lst[1]))[2]
             
             ## Solve DIB parameters (for just 15273), not any more, just a single DIB
             # one of the main questions is how many time to compute components and where
@@ -492,14 +500,14 @@ end
                 close(f)
 
                 global V_dib_lst = []
-                for dib in dib_center_lst
+                for dib in dib_waves
                     local f = h5open(prior_dict["DIB_LSF_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
                     push!(V_dib_lst,read(f["Vmat"]))
                     close(f)
                 end
 
                 global V_dib_soft_lst = []
-                for dib in dib_center_lst
+                for dib in dib_waves
                     local f = h5open(prior_dict["DIB_LSF_soft_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
                     push!(V_dib_soft_lst,read(f["Vmat"]))
                     close(f)
