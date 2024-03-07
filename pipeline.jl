@@ -79,10 +79,10 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # DIB Priors
     dib_waves = [15273, 15672]
     for dib in dib_waves
-        prior_dict["DIB_noLSF_$(dib)"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_1_$(dib)_analyticDeriv_stiff.h5"
-        prior_dict["DIB_noLSF_soft_$(dib)"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_3_$(dib)_analyticDeriv_soft.h5"
-        prior_dict["DIB_LSF_$(dib)"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_1_$(dib)_analyticDerivLSF_stiff_"
-        prior_dict["DIB_LSF_soft_$(dib)"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_3_$(dib)_analyticDerivLSF_soft_"
+        prior_dict["DIB_noLSF_$(dib)"] = prior_dir*"2024_03_05/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_1_$(dib)_analyticDeriv_stiff.h5"
+        prior_dict["DIB_noLSF_soft_$(dib)"] = prior_dir*"2024_03_05/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_3_$(dib)_analyticDeriv_soft.h5"
+        prior_dict["DIB_LSF_$(dib)"] = prior_dir*"2024_03_05/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_1_$(dib)_analyticDerivLSF_stiff_"
+        prior_dict["DIB_LSF_soft_$(dib)"] = prior_dir*"2024_03_05/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_3_$(dib)_analyticDerivLSF_soft_"
     end
 
     # Data for Detector Cals (not really a prior, but an input the results depend on in detail)
@@ -134,14 +134,14 @@ end
     # nothing to do on size here, if anything expand
     global V_dib_noLSF_lst = []
     for dib in dib_center_lst
-        f = h5open(prior_dict["DIB_noLSF_$(dib)"])
+        local f = h5open(prior_dict["DIB_noLSF_$(dib)"])
         push!(V_dib_noLSF_lst, read(f["Vmat"]))
         close(f)
     end
 
     global V_dib_noLSF_soft_lst = []
     for dib in dib_center_lst
-        f = h5open(prior_dict["DIB_noLSF_soft_$(dib)"])
+        local f = h5open(prior_dict["DIB_noLSF_soft_$(dib)"])
         push!(V_dib_noLSF_soft_lst, read(f["Vmat"]))
         close(f)
     end
@@ -493,14 +493,14 @@ end
 
                 global V_dib_lst = []
                 for dib in dib_center_lst
-                    f = h5open(prior_dict["DIB_LSF_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
+                    local f = h5open(prior_dict["DIB_LSF_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
                     push!(V_dib_lst,read(f["Vmat"]))
                     close(f)
                 end
 
                 global V_dib_soft_lst = []
                 for dib in dib_center_lst
-                    f = h5open(prior_dict["DIB_LSF_soft_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
+                    local f = h5open(prior_dict["DIB_LSF_soft_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
                     push!(V_dib_soft_lst,read(f["Vmat"]))
                     close(f)
                 end
