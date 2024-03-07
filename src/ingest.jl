@@ -233,7 +233,7 @@ function stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx; telluri
         ingest_bit += 2^6 # NaNs in apFlux file, however apMADGICS.jl does not depend on these values
     end
 
-    if isnan(thrptDict["a"]) || isnan(thrptDict["b"]) || isnan(thrptDict["c"])
+    if (thrptDict["a"]<0) || (thrptDict["b"]<0) || (thrptDict["c"]<0)
         outvec.*=NaN
     end
     
