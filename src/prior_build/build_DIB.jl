@@ -53,7 +53,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
-    prior_base = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/"
+    prior_base = prior_dir*"2024_03_05/apMADGICS.jl/src/prior_build/"
 
     prior_dict["out_dir"] = prior_base*"dib_priors/"
 
@@ -88,7 +88,7 @@ for (sigindx,sigma) in enumerate(sigrng), (sindx,offset) in enumerate(offrng)
     covdet[sigindx,sindx] = logdet(2*pi.*Diagonal(norm_array[1:nkeep,sigindx,sindx]))
 end
 
-fname = prior_dict["out_dir"]*"precomp_dust_$(nkeep)_analyticDeriv_stiff.h5"
+fname = prior_dict["out_dir"]*"precomp_dust_$(nkeep)_$(cwave_cent)_analyticDeriv_stiff.h5"
 dirName = splitdir(fname)[1]
 if !ispath(dirName)
     mkpath(dirName)
@@ -103,7 +103,7 @@ for (sigindx,sigma) in enumerate(sigrng), (sindx,offset) in enumerate(offrng)
     covdet[sigindx,sindx] = logdet(2*pi.*Diagonal(norm_array[1:nkeep,sigindx,sindx]))
 end
 
-fname = prior_dict["out_dir"]*"precomp_dust_$(nkeep)_analyticDeriv_soft.h5"
+fname = prior_dict["out_dir"]*"precomp_dust_$(nkeep)_$(cwave_cent)_analyticDeriv_soft.h5"
 h5write(fname,"Vmat",Vall[:,1:nkeep,:,:])
 h5write(fname,"covdet",covdet) #but we wouldn't want to use this covdet
 
@@ -139,7 +139,7 @@ end
             covdet_lsf[sigindx,sindx] = logdet(2*pi.*Diagonal(norm_array_lsf[1:nkeep,sigindx,sindx]))
         end
         
-        savename = prior_dict["out_dir"]*"precomp_dust_$(nkeep)_analyticDerivLSF_stiff_"*lpad(adjfibindx,3,"0")*".h5"
+        savename = prior_dict["out_dir"]*"precomp_dust_$(nkeep)_$(cwave_cent)_analyticDerivLSF_stiff_"*lpad(adjfibindx,3,"0")*".h5"
         h5write(savename,"Vmat",Vall_lsf[:,1:nkeep,:,:])
         h5write(savename,"covdet",covdet_lsf)
         
@@ -149,7 +149,7 @@ end
             covdet_lsf[sigindx,sindx] = logdet(2*pi.*Diagonal(norm_array_lsf[1:nkeep,sigindx,sindx]))
         end
         
-        savename = prior_dict["out_dir"]*"precomp_dust_$(nkeep)_analyticDerivLSF_soft_"*lpad(adjfibindx,3,"0")*".h5"
+        savename = prior_dict["out_dir"]*"precomp_dust_$(nkeep)_$(cwave_cent)_analyticDerivLSF_soft_"*lpad(adjfibindx,3,"0")*".h5"
         h5write(savename,"Vmat",Vall_lsf[:,1:nkeep,:,:])
         h5write(savename,"covdet",covdet_lsf)
     end

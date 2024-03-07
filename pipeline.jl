@@ -47,7 +47,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     refine_iters = 5
     ddstaronly = false
-    runlist_range = 295:295 #1:600 #295, 245, 335, 101
+    runlist_range = 335:335 #1:600 #295, 245, 335, 101
     batchsize = 10 #40
 
     RV_err_step = 4
@@ -77,10 +77,13 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f"
 
     # DIB Priors
-    prior_dict["DIB_noLSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_1_analyticDeriv_stiff.h5"
-    prior_dict["DIB_noLSF_soft"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_3_analyticDeriv_soft.h5"
-    prior_dict["DIB_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_1_analyticDerivLSF_stiff_"
-    prior_dict["DIB_LSF_soft"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_3_analyticDerivLSF_soft_"
+    dib_waves = [15273, 15672]
+    for dib in dib_waves
+        prior_dict["DIB_noLSF_$(dib)"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_1_$(dib)_analyticDeriv_stiff.h5"
+        prior_dict["DIB_noLSF_soft_$(dib)"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_3_$(dib)_analyticDeriv_soft.h5"
+        prior_dict["DIB_LSF_$(dib)"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_1_$(dib)_analyticDerivLSF_stiff_"
+        prior_dict["DIB_LSF_soft_$(dib)"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/dib_priors/precomp_dust_3_$(dib)_analyticDerivLSF_soft_"
+    end
 
     # Data for Detector Cals (not really a prior, but an input the results depend on in detail)
     prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jdat"
@@ -105,7 +108,7 @@ end
     # tuple1dprint(slvl_tuple)
 
     # (Wave, Sig) DIB
-    dib_center_lst = [15273, 15273, 15672, 15672]#, 15672, 15653]
+    dib_center_lst = [dib_waves[1], dib_waves[1], dib_waves[2], dib_waves[2]]
     lvl1d = ((-150:4:150),(18//10:18//10))
     lvl2d = ((0:0), (-7//5:4//100:11//5))
     lvl3d = ((-18:2//10:18), (0:0))
@@ -129,13 +132,19 @@ end
 @everywhere begin
     # Load the Global Priors
     # nothing to do on size here, if anything expand
-    f = h5open(prior_dict["DIB_noLSF"])
-    global V_dib_noLSF = read(f["Vmat"])
-    close(f)
+    global V_dib_noLSF_lst = []
+    for dib in dib_center_lst
+        f = h5open(prior_dict["DIB_noLSF_$(dib)"])
+        push!(V_dib_noLSF_lst, read(f["Vmat"]))
+        close(f)
+    end
 
-    f = h5open(prior_dict["DIB_noLSF_soft"])
-    global V_dib_noLSF_soft = read(f["Vmat"])
-    close(f)
+    global V_dib_noLSF_soft_lst = []
+    for dib in dib_center_lst
+        f = h5open(prior_dict["DIB_noLSF_soft_$(dib)"])
+        push!(V_dib_noLSF_soft_lst, read(f["Vmat"]))
+        close(f)
+    end
 
     alpha = 1;
     f = h5open(prior_dict["starLines_refLSF"])
@@ -365,8 +374,13 @@ end
         Ctotinv_cur, Ctotinv_fut = Ctotinv_fut, Ctotinv_cur; Vcomb_cur, Vcomb_fut = Vcomb_fut, Vcomb_cur # swap to updated covariance finally
         
         # currently, this is modeling each DIB seperately... I think we want to change this later, just easier parallel structure
-        pre_Vslice = zeros(count(finalmsk),size(V_dib,2))
         for dib_ind = 1:length(dib_center_lst) # eventually need to decide if these are cumulative or not
+            V_dib = V_dib_lst[dib_ind]
+            V_dib_soft = V_dib_soft_lst[dib_ind]
+            V_dib_noLSF = V_dib_noLSF_lst[dib_ind]
+            V_dib_noLSF_soft = V_dib_noLSF_soft_lst[dib_ind]
+
+            pre_Vslice = zeros(count(finalmsk),size(V_dib,2))
             lvltuple_dib = lvltuple_lst[dib_ind]
             dib_center = dib_center_lst[dib_ind]
             scan_offset = findmin(abs.(wavetarg.-dib_center_lst[dib_ind]))[2].-findmin(abs.(wavetarg.-dib_center_lst[1]))[2]
@@ -477,13 +491,19 @@ end
                 end
                 close(f)
 
-                f = h5open(prior_dict["DIB_LSF"]*lpad(adjfibindx,3,"0")*".h5")
-                global V_dib = read(f["Vmat"])
-                close(f)
+                global V_dib_lst = []
+                for dib in dib_center_lst
+                    f = h5open(prior_dict["DIB_LSF_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
+                    push!(V_dib_lst,read(f["Vmat"]))
+                    close(f)
+                end
 
-                f = h5open(prior_dict["DIB_LSF_soft"]*lpad(adjfibindx,3,"0")*".h5")
-                global V_dib_soft = read(f["Vmat"])
-                close(f)
+                global V_dib_soft_lst = []
+                for dib in dib_center_lst
+                    f = h5open(prior_dict["DIB_LSF_soft_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
+                    push!(V_dib_soft_lst,read(f["Vmat"]))
+                    close(f)
+                end
                 GC.gc()
             end
             global loaded_adjfibindx = adjfibindx

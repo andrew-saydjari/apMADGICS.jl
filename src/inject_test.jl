@@ -47,14 +47,18 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     nsamp = 3*5_080
 
-    fibindx = 295 # injecting into this fiber
-    adjfibindx = 295 # sky samples injections are made into, running simulated observed on this fiber
+    adjfibindx = 335 # sky samples injections are made into, running simulated observed on this fiber
+    fiberindx = if adjfibindx>300
+        adjfibindx-300
+    else
+        adjfibindx
+    end
 
     RV_range_pix = (-68,68) # pixscale is ~4.14 km/s per pixel
 
     skycont_only = false
     no_sky = false
-    dibs_on = false
+    dibs_on = true
 
     dib_center_lambda_lst = [15273] #,15672]
     dib_ew_range = (-1.5,0)
@@ -64,8 +68,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
-    prior_dict["out_dir"] = prior_dir*"2024_03_05/inject_no_dibs_295/"
-    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_05/inject_local_cache_no_dibs_295/"
+    prior_dict["out_dir"] = prior_dir*"2024_03_05/inject_15273only_335/"
+    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_05/inject_local_cache_15273only_335/"
     prior_dict["local_cache"] = prior_dir*"2024_03_05/local_cache/"
 
     prior_dict["past_run"] = prior_dir*"2024_02_21/outdir_wu_295_th/apMADGICS_out.h5" # used for StarScale distribution only
@@ -150,8 +154,6 @@ end
 
         return ShiftedArrays.circshift(lres_spec,rval)
     end
-
-    # finish fixing this up
     function take_draw(ovtup; skycont_only = false, no_sky = false, dibs_on=true, caching=true, dib_center_lambda_lst=[15273], inject_cache_dir="./inject_local_cache",cache_dir="./local_cache")
         argtup, starCont_indx, skyCont_indx, starscale, fname, rv, ew, λ0, sigma, injectindx, injectfiber = ovtup
         ival = argtup[1]
@@ -294,7 +296,7 @@ ntuplst = deserialize(prior_dict["sky_runlist"]*lpad(adjfibindx,3,"0")*".jdat");
 
 ## Generate Injection Parameters
 rng = MersenneTwister(rnd_seed)
-injectfiber = fibindx*ones(Int,nsamp) # this should not be adjusted
+injectfiber = fiberindx*ones(Int,nsamp) # this should not be adjusted
 injectindx = 1:nsamp
 sky_tup = StatsBase.sample(rng,ntuplst,nsamp)
 starCont_indx = rand(rng,1:size(starContSamples,2),nsamp);
