@@ -205,15 +205,15 @@ end
         # Get Sky Prior
         skycache = cache_skyname(tele,field,plate,mjd,cache_dir=cache_dir)
         if (isfile(skycache) & sky_caching)
-            meanLocSky, VLocSky, VLocSkyLines = deserialize(skycache)
+            meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines = deserialize(skycache)
         else
-            meanLocSky, VLocSky, VLocSkyLines = getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skymsk,V_skyline_bright,V_skyline_faint,V_skycont,caching=sky_caching,cache_dir=cache_dir)
+            meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines = getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skymsk,V_skyline_bright,V_skyline_faint,V_skycont,caching=sky_caching,cache_dir=cache_dir)
             if sky_caching
                 dirName = splitdir(skycache)[1]
                 if !ispath(dirName)
                     mkpath(dirName)
                 end
-                serialize(skycache,[meanLocSky, VLocSky, VLocSkyLines])
+                serialize(skycache,[meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines])
             end
         end
         skyscale0 = nanzeromedian(meanLocSky)
@@ -262,7 +262,7 @@ end
 
         ## Select data for use (might want to handle mean more generally)
         ## Mask full RV scan range
-        Xd_obs = (fvec.-meanLocSky)[rvmsk];
+        Xd_obs = (fvec.-meanLocSky.-meanLocSkyLines)[rvmsk];
         wave_obs = wavetarg[rvmsk]
 
         ## Set up residuals prior
@@ -328,7 +328,7 @@ end
             finalmsk .&= ShiftedArrays.circshift(msk_starCor,rvshift)
         end
 
-        Xd_obs = (fvec.-meanLocSky)[finalmsk];
+        Xd_obs = (fvec.-meanLocSky.-meanLocSkyLines)[finalmsk];
         wave_obs = wavetarg[finalmsk]
 
         ## Set up residuals prior
@@ -366,9 +366,9 @@ end
         
         x_comp_out = [nanify(x_comp_lst[1]./sqrt.(fvarvec[finalmsk]),finalmsk), nanify(x_comp_lst[1],finalmsk), 
             # nanify(x_comp_lst[2][skymsk_bright[finalmsk]],finalmsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
-            nanify(x_comp_lst[2][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
+            nanify(x_comp_lst[2][skymsk_faint[finalmsk]].+meanLocSkyLines[finalmsk .& skymsk_faint],finalmsk .& skymsk_faint), 
             nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4],finalmsk),
-            x_comp_lst[6:end]..., nanify((fvec[finalmsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[finalmsk]))./ x_comp_lst[4],finalmsk),finalmsk,V_subpix_refLSF[:,:,6]*x_comp_lst[7]
+            x_comp_lst[6:end]..., nanify((fvec[finalmsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[finalmsk].+meanLocSkyLines[finalmsk]))./ x_comp_lst[4],finalmsk),finalmsk,V_subpix_refLSF[:,:,6]*x_comp_lst[7]
         ]
 
         skyscale1 = nanzeromedian(x_comp_out[4])
@@ -431,7 +431,7 @@ end
             # I am not sure that during production we really want to run and output full sets of components per DIB
             x_comp_out = [nanify(x_comp_lst[1]./sqrt.(fvarvec[finalmsk]),finalmsk), nanify(x_comp_lst[1],finalmsk),
                         # nanify(x_comp_lst[2][skymsk_bright[finalmsk]],finalmsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
-                        nanify(x_comp_lst[2][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
+                        nanify(x_comp_lst[2][skymsk_faint[finalmsk]].+meanLocSkyLines[finalmsk .& skymsk_faint],finalmsk .& skymsk_faint), 
                         nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4],finalmsk),
                         x_comp_lst[5:end]...]
 

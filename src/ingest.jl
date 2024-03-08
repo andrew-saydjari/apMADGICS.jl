@@ -93,10 +93,10 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
     msk = (abs.(skyZ).<skyZcut)
 
     meanLocSky = dropdims(nanzeromean(outcont[:,msk],2),dims=2);
-    # meanLocSkyLines = dropdims(nanzeromean(outLines[:,msk],2),dims=2);
+    meanLocSkyLines = dropdims(nanzeromean(outLines[:,msk],2),dims=2);
     VLocSky = (outcont[:,msk].-meanLocSky)./sqrt(count(msk));
-    VLocSkyLines = (outLines[:,msk])./sqrt(count(msk));
-    return meanLocSky, VLocSky, VLocSkyLines
+    VLocSkyLines = (outLines[:,msk].-meanLocSkyLines)./sqrt(count(msk));
+    return meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines
 end
 
 function sky_decomp(outvec,outvar,simplemsk,V_skyline_bright,V_skyline_faint,V_skycont)   
