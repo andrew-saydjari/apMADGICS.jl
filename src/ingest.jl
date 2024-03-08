@@ -60,6 +60,7 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
 
     ### Decompose all of the Sky Fibers
     outcont = zeros(length(wavetarg),length(skyinds));
+    outLines = zeros(length(wavetarg),length(skyinds));
     for (findx,fiberind) in enumerate(skyinds)
         skycacheSpec = cache_skynameSpec(tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
         if (isfile(skycacheSpec) & caching)
@@ -80,7 +81,9 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
         simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
         contvec = sky_decomp(fvec, fvarvec, simplemsk, V_skyline_bright, V_skyline_faint, V_skycont)
         # do we want to save the other components to disk? I am not sure we do.
+        # using sky - skycont as the skyline prior will parition a bit more noise into the skylines, but I worry about marginalizing over moon position
         outcont[:,findx] .= contvec
+        outLines[skymsk,findx] .= (fvec.-contvec)[skymsk]
     end
 
     skyScale = dropdims(nanzeromedian(outcont,1),dims=1);
@@ -90,8 +93,10 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
     msk = (abs.(skyZ).<skyZcut)
 
     meanLocSky = dropdims(nanzeromean(outcont[:,msk],2),dims=2);
+    # meanLocSkyLines = dropdims(nanzeromean(outLines[:,msk],2),dims=2);
     VLocSky = (outcont[:,msk].-meanLocSky)./sqrt(count(msk));
-    return meanLocSky, VLocSky
+    VLocSkyLines = (outLines[:,msk])./sqrt(count(msk));
+    return meanLocSky, VLocSky, VLocSkyLines
 end
 
 function sky_decomp(outvec,outvar,simplemsk,V_skyline_bright,V_skyline_faint,V_skycont)   

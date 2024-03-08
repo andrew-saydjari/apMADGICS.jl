@@ -54,7 +54,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     DIB_pix_err_step = 3 # consider increasing to 4 (self consistency + LSF test)
     DIB_sig_err_step = 3
 
-    cache_dir = "../local_cache_both/"
+    cache_dir = "../local_cache_pipe/"
     inject_cache_dir = prior_dir*"2024_03_07/inject_local_cache_both_295"
 
     # Prior Dictionary
@@ -205,15 +205,15 @@ end
         # Get Sky Prior
         skycache = cache_skyname(tele,field,plate,mjd,cache_dir=cache_dir)
         if (isfile(skycache) & sky_caching)
-            meanLocSky, VLocSky = deserialize(skycache)
+            meanLocSky, VLocSky, VLocSkyLines = deserialize(skycache)
         else
-            meanLocSky, VLocSky = getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skymsk,V_skyline_bright,V_skyline_faint,V_skycont,caching=sky_caching,cache_dir=cache_dir)
+            meanLocSky, VLocSky, VLocSkyLines = getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skymsk,V_skyline_bright,V_skyline_faint,V_skycont,caching=sky_caching,cache_dir=cache_dir)
             if sky_caching
                 dirName = splitdir(skycache)[1]
                 if !ispath(dirName)
                     mkpath(dirName)
                 end
-                serialize(skycache,[meanLocSky, VLocSky])
+                serialize(skycache,[meanLocSky, VLocSky, VLocSkyLines])
             end
         end
         skyscale0 = nanzeromedian(meanLocSky)
@@ -242,6 +242,7 @@ end
         
         push!(out,(count(simplemsk), starscale, skyscale0, framecnts, chipmidtimes, a_relFlux, b_relFlux, c_relFlux, cartVisit, ingest_bit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
 
+        ##### FIXME PLEASE
         if skyCont_off
             meanLocSky.=0
             VLocSky.=0
@@ -271,7 +272,7 @@ end
         ## Set up priors
         # V_skyline_bright_c = V_skyline_bright
         # V_skyline_bright_r = V_skyline_bright_c[simplemsk,:]
-        V_skyline_faint_c = V_skyline_faint
+        V_skyline_faint_c = VLocSkyLines
         V_skyline_faint_r = V_skyline_faint_c[rvmsk,:]
         # V_skyline_tot_c = hcat(V_skyline_bright_c,V_skyline_faint_c)
         # V_skyline_tot_r = hcat(V_skyline_bright_r,V_skyline_faint_r)
