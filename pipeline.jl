@@ -54,15 +54,15 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     DIB_pix_err_step = 3 # consider increasing to 4 (self consistency + LSF test)
     DIB_sig_err_step = 3
 
-    cache_dir = "../local_cache/"
-    inject_cache_dir = prior_dir*"2024_03_05/inject_local_cache_both"
+    cache_dir = "../local_cache_both/"
+    inject_cache_dir = prior_dir*"2024_03_07/inject_local_cache_both_295"
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
-    # prior_dict["runlists"] = prior_dir*"2024_03_05/inject_both_295/injection_input_lst_"
-    prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
+    prior_dict["runlists"] = prior_dir*"2024_03_07/inject_both_295/injection_input_lst_"
+    # prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
 
     # Sky Priors
     prior_dict["skycont"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_priors/APOGEE_skycont_svd_30_f"
@@ -132,7 +132,11 @@ end
     lvltuple_15273wide = (lvl1d_15273wide, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
     lvltuple_15672wide = (lvl1d_15672wide, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
     lvltuple_narrow = (lvl1d_narrow, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
-    lvltuple_lst = [lvltuple_15273wide, lvltuple_narrow, lvltuple_15672wide, lvltuple_narrow]
+    # lvltuple_lst = [lvltuple_15273wide, lvltuple_narrow, lvltuple_15672wide, lvltuple_narrow]
+
+    lvl1d_2 = ((-60:4:60),(18//10:18//10))
+    lvltuple_2 = (lvl1d_2, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
+    lvltuple_lst = [lvltuple, lvltuple_2, lvltuple, lvltuple_2]
     # tuple2dprint(lvltuple)
 
     # Flux marginalize region
