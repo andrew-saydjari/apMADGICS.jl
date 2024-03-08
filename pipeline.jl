@@ -132,11 +132,10 @@ end
     lvltuple_15273wide = (lvl1d_15273wide, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
     lvltuple_15672wide = (lvl1d_15672wide, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
     lvltuple_narrow = (lvl1d_narrow, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
-    # lvltuple_lst = [lvltuple_15273wide, lvltuple_narrow, lvltuple_15672wide, lvltuple_narrow]
-
-    lvl1d_2 = ((-60:4:60),(18//10:18//10))
-    lvltuple_2 = (lvl1d_2, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
-    lvltuple_lst = [lvltuple, lvltuple_2, lvltuple, lvltuple_2]
+    lvltuple_lst = [lvltuple_15273wide, lvltuple_narrow, lvltuple_15672wide, lvltuple_narrow]
+    # lvl1d_2 = ((-60:4:60),(18//10:18//10))
+    # lvltuple_2 = (lvl1d_2, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
+    # lvltuple_lst = [lvltuple, lvltuple_2, lvltuple, lvltuple_2]
     # tuple2dprint(lvltuple)
 
     # Flux marginalize region
