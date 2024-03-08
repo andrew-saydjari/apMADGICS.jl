@@ -62,8 +62,9 @@ During ingestion, some of the exposure files may have issues that cause the spec
 | 2     | 1     | ap1D flux was NaNs (for at least one of the exposures) |
 | 4     | 2     | DRP masked all pixels (for at least one of the exposures) |
 | 8     | 3     | Error calibration NaNed observation or upstream std_dev NaNs (for at least one of the exposures) |
-| 16    | 4     | Thrpt in apFlux file below thrpt_cut, NaNed by apMADGICS.jl |
-| 32    | 5     | NaNs in apFlux file, but apMADGIC.jl does not depend on these values|
+| 16    | 4     | All NaNs or zeros after interpolation |
+| 32    | 5     | Thrpt in apFlux file below thrpt_cut, NaNed by apMADGICS.jl |
+| 64    | 6     | NaNs in apFlux file, but apMADGICS.jl does not depend on these values |
 
 
 
