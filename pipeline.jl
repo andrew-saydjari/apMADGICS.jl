@@ -61,8 +61,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict = Dict{String,String}()
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
-    prior_dict["runlists"] = prior_dir*"2024_03_05/inject_both_295/injection_input_lst_"
-    # prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
+    # prior_dict["runlists"] = prior_dir*"2024_03_05/inject_both_295/injection_input_lst_"
+    prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
 
     # Sky Priors
     prior_dict["skycont"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_priors/APOGEE_skycont_svd_30_f"
@@ -116,6 +116,9 @@ end
 
     # (Wave, Sig) DIB
     dib_center_lst = map(x->dib_waves[dib_ind_prior[x]],1:length(dib_ind_prior)) # not clear we need this anymore since we don't scanOffset
+    lvl1d_15273wide = ((-137:4:150),(18//10:18//10))
+    lvl1d_15672wide = ((-54:4:150),(18//10:18//10))
+    lvl1d_narrow = ((-54:4:54),(18//10:18//10))
     lvl1d = ((-150:4:150),(18//10:18//10))
     lvl2d = ((0:0), (-7//5:4//100:11//5))
     lvl3d = ((-18:2//10:18), (0:0))
@@ -126,9 +129,10 @@ end
     lvl8d = ((0:0), (-6//100:2//100:6//100))
     lvl9d = ((-4//10:1//10:4//10), (-4//100:1//100:4//100));
     lvltuple = (lvl1d, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
-    lvl1d_2 = ((-60:4:60),(18//10:18//10))
-    lvltuple_2 = (lvl1d_2, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
-    lvltuple_lst = [lvltuple, lvltuple_2, lvltuple, lvltuple_2]
+    lvltuple_15273wide = (lvl1d_15273wide, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
+    lvltuple_15672wide = (lvl1d_15672wide, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
+    lvltuple_narrow = (lvl1d_narrow, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
+    lvltuple_lst = [lvltuple_15273wide, lvltuple_narrow, lvltuple_15672wide, lvltuple_narrow]
     # tuple2dprint(lvltuple)
 
     # Flux marginalize region
