@@ -54,7 +54,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     DIB_pix_err_step = 3 # consider increasing to 4 (self consistency + LSF test)
     DIB_sig_err_step = 3
 
-    cache_dir = "../local_cache_pipe/"
+    cache_dir = "../local_cache_mean/"
     inject_cache_dir = prior_dir*"2024_03_07/inject_local_cache_both_295"
 
     # Prior Dictionary
