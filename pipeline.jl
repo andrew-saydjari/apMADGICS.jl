@@ -55,13 +55,13 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     DIB_sig_err_step = 3
 
     cache_dir = "../local_cache_mean/"
-    inject_cache_dir = prior_dir*"2024_03_07/inject_local_cache_both_295"
+    inject_cache_dir = prior_dir*"2024_03_08/inject_local_cache_15273only"
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
-    # prior_dict["runlists"] = prior_dir*"2024_03_07/inject_both_295/injection_input_lst_"
+    # prior_dict["runlists"] = prior_dir*"2024_03_08/inject_15273only_295/injection_input_lst_"
     prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
 
     # Sky Priors
@@ -242,12 +242,13 @@ end
         
         push!(out,(count(simplemsk), starscale, skyscale0, framecnts, chipmidtimes, a_relFlux, b_relFlux, c_relFlux, cartVisit, ingest_bit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
 
-        ##### FIXME PLEASE
         if skyCont_off
             meanLocSky.=0
             VLocSky.=0
         end
         if skyLines_off
+            meanLocSkyLines.=0
+            VLocSkyLines.=0
             V_skyline_bright.=0
             V_skyline_faint.=0
         end
@@ -287,8 +288,17 @@ end
         # compute stellar continuum to modify stellar line prior
         Vcomb_skylines = hcat(V_skyline_tot_r,V_locSky_r,V_starCont_r);
         Ctotinv_skylines = LowRankMultMatIP([Ainv,Vcomb_skylines],wood_precomp_mult_mat([Ainv,Vcomb_skylines],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
-        x_comp_lst = deblend_components_all(Ctotinv_skylines, Xd_obs, (V_starCont_r,))
-        starCont_Mscale = x_comp_lst[1]
+        x_comp_lst = deblend_components_all(Ctotinv_skylines, Xd_obs, (V_starCont_c, ))
+
+        # Subtract off the starContinuum component
+        starCont_Mscale_ref = x_comp_lst[1]
+        starCont_Mscale = x_comp_lst[1][rvmsk]
+        Xd_obs = (fvec.-meanLocSky.-meanLocSkyLines.-starCont_Mscale_ref)[rvmsk];
+        
+        ## Adjust the starContinuum covariance to be 1% of the "starScale"
+        starscalep5 = nanzeromedian(starCont_Mscale)
+        V_starCont_c = 0.01*abs(starscalep5)*V_starcont
+        V_starCont_r = V_starCont_c[rvmsk,:]
 
         # now take out the skylines to be included in the scanning
         Vcomb_cur = hcat(V_locSky_r,V_starCont_r);
@@ -318,8 +328,7 @@ end
 
         # re-estiamte starScale before re-creating the priors with the new finalRV msk
         Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],rvmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
-        x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r, ))
-        starscale1 = nanzeromedian(x_comp_lst[1])
+        x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_c, ))
 
         # Change data mask based on final inferred RV
         finalmsk = copy(simplemsk)
@@ -328,8 +337,12 @@ end
             finalmsk .&= ShiftedArrays.circshift(msk_starCor,rvshift)
         end
 
-        Xd_obs = (fvec.-meanLocSky.-meanLocSkyLines)[finalmsk];
+        starCont_Mscale_ref .+= x_comp_lst[1]
+        starCont_Mscale = starCont_Mscale_ref[finalmsk]
+        Xd_obs = (fvec.-meanLocSky.-meanLocSkyLines.-starCont_Mscale_ref)[finalmsk]
         wave_obs = wavetarg[finalmsk]
+
+        starscale1 = nanzeromedian(starCont_Mscale)
 
         ## Set up residuals prior
         A = Diagonal(fvarvec[finalmsk]);
@@ -340,20 +353,20 @@ end
         V_skyline_faint_r = V_skyline_faint_c[finalmsk,:]
         V_skyline_tot_r = V_skyline_faint_r
         V_locSky_r = V_locSky_c[finalmsk,:]
-        V_starCont_c = abs(starscale1)*V_starcont
+        V_starCont_c = 0.01*abs(starscale1)*V_starcont
         V_starCont_r = V_starCont_c[finalmsk,:]
 
         Vcomb_skylines = hcat(V_skyline_tot_r,V_locSky_r,V_starCont_r);
         Ctotinv_skylines = LowRankMultMatIP([Ainv,Vcomb_skylines],wood_precomp_mult_mat([Ainv,Vcomb_skylines],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
 
         x_comp_lst = deblend_components_all(Ctotinv_skylines, Xd_obs, (V_starCont_r,))
-        starCont_Mscale = x_comp_lst[1]
+        starCont_Mscale = starCont_Mscale_ref[finalmsk] .+ x_comp_lst[1]
 
         # update the Ctotinv to include the stellar line component (iterate to refine starCont_Mscale)
         for i=1:refine_iters
             Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
             x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r, ))
-            starCont_Mscale = x_comp_lst[1]
+            starCont_Mscale = starCont_Mscale_ref[finalmsk] .+ x_comp_lst[1]
         end
         Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
         
@@ -367,7 +380,7 @@ end
         x_comp_out = [nanify(x_comp_lst[1]./sqrt.(fvarvec[finalmsk]),finalmsk), nanify(x_comp_lst[1],finalmsk), 
             # nanify(x_comp_lst[2][skymsk_bright[finalmsk]],finalmsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
             nanify(x_comp_lst[2][skymsk_faint[finalmsk]].+meanLocSkyLines[finalmsk .& skymsk_faint],finalmsk .& skymsk_faint), 
-            nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4],finalmsk),
+            nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4].+starCont_Mscale_ref[finalmsk],finalmsk),
             x_comp_lst[6:end]..., nanify((fvec[finalmsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[finalmsk].+meanLocSkyLines[finalmsk]))./ x_comp_lst[4],finalmsk),finalmsk,V_subpix_refLSF[:,:,6]*x_comp_lst[7]
         ]
 
@@ -382,8 +395,8 @@ end
                 
         # prepare multiplicative factors for DIB prior
         x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,V_starlines_r))
-        starCont_Mscale = x_comp_lst[1]
-        starFull_Mscale = x_comp_lst[1].+x_comp_lst[2]
+        starCont_Mscale = starCont_Mscale_ref[finalmsk] .+ x_comp_lst[1]
+        starFull_Mscale = starCont_Mscale.+x_comp_lst[2]
         
         Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
         Ctotinv_cur, Ctotinv_fut = Ctotinv_fut, Ctotinv_cur; Vcomb_cur, Vcomb_fut = Vcomb_fut, Vcomb_cur # swap to updated covariance finally
@@ -432,7 +445,7 @@ end
             x_comp_out = [nanify(x_comp_lst[1]./sqrt.(fvarvec[finalmsk]),finalmsk), nanify(x_comp_lst[1],finalmsk),
                         # nanify(x_comp_lst[2][skymsk_bright[finalmsk]],finalmsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
                         nanify(x_comp_lst[2][skymsk_faint[finalmsk]].+meanLocSkyLines[finalmsk .& skymsk_faint],finalmsk .& skymsk_faint), 
-                        nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4],finalmsk),
+                        nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4].+starCont_Mscale_ref[finalmsk],finalmsk),
                         x_comp_lst[5:end]...]
 
             chi2res = x_comp_lst[1]'*(Ainv*x_comp_lst[1])
