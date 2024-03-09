@@ -53,6 +53,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     RV_err_step = 4
     DIB_pix_err_step = 3 # consider increasing to 4 (self consistency + LSF test)
     DIB_sig_err_step = 3
+    starCont_var = 0.1
 
     cache_dir = "../local_cache_starSub/"
     inject_cache_dir = prior_dir*"2024_03_08/inject_local_cache_15273only"
@@ -61,8 +62,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict = Dict{String,String}()
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
-    # prior_dict["runlists"] = prior_dir*"2024_03_08/inject_15273only_295/injection_input_lst_"
-    prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
+    prior_dict["runlists"] = prior_dir*"2024_03_08/inject_15273only_295/injection_input_lst_"
+    # prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
 
     # Sky Priors
     prior_dict["skycont"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_priors/APOGEE_skycont_svd_30_f"
@@ -297,7 +298,7 @@ end
         
         ## Adjust the starContinuum covariance to be 1% of the "starScale"
         starscalep5 = nanzeromedian(starCont_Mscale)
-        V_starCont_c = 0.01*abs(starscalep5)*V_starcont
+        V_starCont_c = starCont_var*abs(starscalep5)*V_starcont
         V_starCont_r = V_starCont_c[rvmsk,:]
 
         # now take out the skylines to be included in the scanning
@@ -353,7 +354,7 @@ end
         V_skyline_faint_r = V_skyline_faint_c[finalmsk,:]
         V_skyline_tot_r = V_skyline_faint_r
         V_locSky_r = V_locSky_c[finalmsk,:]
-        V_starCont_c = 0.01*abs(starscale1)*V_starcont
+        V_starCont_c = starCont_var*abs(starscale1)*V_starcont
         V_starCont_r = V_starCont_c[finalmsk,:]
 
         Vcomb_skylines = hcat(V_skyline_tot_r,V_locSky_r,V_starCont_r);
