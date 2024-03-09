@@ -54,7 +54,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     DIB_pix_err_step = 3 # consider increasing to 4 (self consistency + LSF test)
     DIB_sig_err_step = 3
 
-    cache_dir = "../local_cache_mean/"
+    cache_dir = "../local_cache_starSub/"
     inject_cache_dir = prior_dir*"2024_03_08/inject_local_cache_15273only"
 
     # Prior Dictionary
@@ -288,7 +288,7 @@ end
         # compute stellar continuum to modify stellar line prior
         Vcomb_skylines = hcat(V_skyline_tot_r,V_locSky_r,V_starCont_r);
         Ctotinv_skylines = LowRankMultMatIP([Ainv,Vcomb_skylines],wood_precomp_mult_mat([Ainv,Vcomb_skylines],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
-        x_comp_lst = deblend_components_all(Ctotinv_skylines, Xd_obs, (V_starCont_c, ))
+        x_comp_lst = deblend_components_all_asym(Ctotinv_skylines, Xd_obs, (V_starCont_r, ), (V_starCont_c, ))
 
         # Subtract off the starContinuum component
         starCont_Mscale_ref = x_comp_lst[1]
@@ -328,7 +328,7 @@ end
 
         # re-estiamte starScale before re-creating the priors with the new finalRV msk
         Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],rvmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
-        x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_c, ))
+        x_comp_lst = deblend_components_all_asym(Ctotinv_fut, Xd_obs, (V_starCont_r, ), (V_starCont_c, ))
 
         # Change data mask based on final inferred RV
         finalmsk = copy(simplemsk)
