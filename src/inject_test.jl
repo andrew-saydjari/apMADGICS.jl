@@ -45,7 +45,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 workers() git_branch; @passobj 1 workers() git_commit
 
 @everywhere begin
-    nsamp = 3*5_080
+    nsamp = 5_080
 
     adjfibindx = 295 # sky samples injections are made into, running simulated observed on this fiber
     fiberindx = if adjfibindx>300
@@ -68,8 +68,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
-    prior_dict["out_dir"] = prior_dir*"2024_03_08/inject_15273only_295/"
-    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_08/inject_local_cache_15273only/"
+    prior_dict["out_dir"] = prior_dir*"2024_03_08/inject_15273only_295_g1/"
+    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_08/inject_local_cache_15273only_g1/"
     prior_dict["local_cache"] = prior_dir*"2024_03_08/local_cache_inject/"
 
     prior_dict["past_run"] = prior_dir*"2024_02_21/outdir_wu_295_th/apMADGICS_out.h5" # used for StarScale distribution only
