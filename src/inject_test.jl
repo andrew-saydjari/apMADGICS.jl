@@ -33,7 +33,7 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
     include(src_dir*"src/prior_build/prior_utils.jl")
     
     using StatsBase, ProgressMeter
-    using SortFilters, Random, Distributions, Glob, DelimitedFiles, PoissonRandom
+    using SortFilters, Random, Distributions, Glob, DelimitedFiles, PoissonRandom, DustExtinction
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
@@ -54,12 +54,6 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
         adjfibindx
     end
 
-    RV_range_pix = (-68,68) # pixscale is ~4.14 km/s per pixel
-
-    skycont_only = false
-    no_sky = false
-    dibs_on = true
-
     dib_center_lambda_lst = [15273] #,15672]
     dib_ew_range = (-1.5,0)
     dib_sig_range = (0.7,3.7)
@@ -69,17 +63,19 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict = Dict{String,String}()
 
     prior_dict["out_dir"] = prior_dir*"2024_03_08/inject_15273only_295_real/"
-    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_08/inject_local_cache_15273only_real/"
+    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_08/inject_local_cache_15273only_295_real/"
     prior_dict["local_cache"] = prior_dir*"2024_03_08/local_cache_inject_real/"
 
     prior_dict["past_run"] = prior_dir*"2024_03_08/outdir_wu_295_LocMean/apMADGICS_out.h5" # use component decomp to only inject into star component
     prior_dict["past_runlst"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
     prior_dict["map2visit"] = prior_dir*"2024_03_05/outlists/summary/dr17_dr17_map2visit_1indx.h5"
     prior_dict["map2star"] = prior_dir*"2024_03_05/outlists/summary/dr17_dr17_map2star_1indx.h5"
-    dr_number = 17
+    release_dir,redux_ver,dr_number = "dr17","dr17",17
 
     prior_dict["LSF_mat_APO"] = prior_dir0*"2023_04_01/mat_lsf_out/sp_combolsfmat_norm_" # last made 2023_04_01 by AKS
     prior_dict["LSF_mat_LCO"] = prior_dir0*"2023_04_07/mat_lsf_out/sp_combolsfmat_norm_" # last made 2023_04_07 by AKS
+
+    prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jdat"
 
     rnd_seed = 695
 
@@ -169,7 +165,7 @@ end
     Teff_masks = (.!isnan.(TEFF));
     FE_masks = (FE_H_FLAG .== 0);
     apg_msk = TARG_mask .& STARFLAG_masks .& ASPCAP_masks .& Teff_masks .& FE_masks
-    println("Visits after TARG/STAR/ASPCAP/TEFF/FE masks: $(count(apg_msk)), $(100*count(apg_msk)/length(apg_msk))")
+    
     
     ## Query SFD
     sfd_map = SFD98Map()
@@ -178,14 +174,50 @@ end
 
     clean_msk = (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
     clean_msk .&= sfd_msk # SFD Mask (low-reddening)
-    println("Clean Visits for Injection Tests: $(count(clean_msk)), $(100*count(clean_msk)/length(clean_msk))")
-
+    
     obs_indices2use = findall(clean_msk)
 end
 
+println("Visits after TARG/STAR/ASPCAP/TEFF/FE masks: $(count(apg_msk)), $(100*count(apg_msk)/length(apg_msk))")
+println("Clean Visits for Injection Tests: $(count(clean_msk)), $(100*count(clean_msk)/length(clean_msk))")
+
 @everywhere begin
+    function precache(argtup; caching=true, inject_cache_dir="./inject_local_cache",cache_dir="./local_cache")
+        ival = argtup[1]
+        intup = argtup[2:end]
+        (release_dir,redux_ver,tele,field,plate,mjd,fiberindx) = intup
+
+        teleind = (tele[1:6] == "lco25m") ? 2 : 1
+        adjfibindx = (teleind-1)*300 + fiberindx
+        # Get Throughput Fluxing 
+        fluxingcache = cache_fluxname(tele,field,plate,mjd; cache_dir=cache_dir)
+        if !isfile(fluxingcache)
+            dirName = splitdir(fluxingcache)[1]
+            if !ispath(dirName)
+                mkpath(dirName)
+            end
+            getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd,cache_dir=cache_dir)
+        end
+        
+        starname_old = cache_starname(tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
+        if (isfile(starname_old) & caching)
+            fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(starname_old)
+            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit,ingest_bit = metaexport
+        else
+            fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,cache_dir=cache_dir)
+            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit,ingest_bit = metaexport
+            if caching
+                dirName = splitdir(starname_old)[1]
+                if !ispath(dirName)
+                    mkpath(dirName)
+                end
+                serialize(starname_old,[fvec, fvarvec, cntvec, chipmidtimes, metaexport])
+            end
+        end
+    end
+
     function take_draw(ovtup; caching=true, dib_center_lambda_lst=[15273], inject_cache_dir="./inject_local_cache",cache_dir="./local_cache")
-        argtup, star_indx, rv, ew, λ0, sigma, injectindx, injectfiber = ovtup
+        argtup, star_indx, ew, λ0, sigma, injectindx, injectfiber = ovtup
         ival = argtup[1]
         intup = argtup[2:end]
         (release_dir,redux_ver,tele,field,plate,mjd,fiberindx) = intup
@@ -235,7 +267,7 @@ end
                 dibcomp = Ksp*gauss1d_ew(ew[dib_ind],λ0[dib_ind],sigma[dib_ind],x_model)./nvecLSF
                 starcomp .*= (1 .+ dibcomp)
             end
-            starcomp .-= 1 # this is now the negative flux we should add the observation to make the simulated observation
+            starcomp .-= x_starContinuum[:,star_indx].*(1 .+ x_starLines[:,star_indx]) # this is now the negative flux we should add the observation to make the simulated observation
 
             outfvec = fvec.+starcomp
             rng = MersenneTwister(mjd+adjfibindx) # seed on mjd and fiber index so unique
@@ -280,11 +312,7 @@ dib_ew = []
 for dib_center_lambda in dib_center_lambda_lst
     push!(dib_sig,rand(rng,Uniform(dib_sig_range...),nsamp));
     push!(dib_lam,rand(rng,Uniform(dib_center_lambda*(1+dib_vel_range[1]/c),dib_center_lambda*(1+dib_vel_range[2]/c)),nsamp));
-    if dibs_on
-        push!(dib_ew,rand(rng,Uniform(dib_ew_range...),nsamp))
-    else
-        push!(dib_ew,zeros(nsamp))
-    end
+    push!(dib_ew,rand(rng,Uniform(dib_ew_range...),nsamp))
 end
 
 itarg = Iterators.zip(star_tup,star_indx,eachrow(hcat(dib_ew...)),eachrow(hcat(dib_lam...)),eachrow(hcat(dib_sig...)),injectindx,injectfiber);
@@ -305,6 +333,10 @@ for (dibind, dib_center_lambda) in enumerate(dib_center_lambda_lst)
     write(f,"dib_ew_$(dib_center_lambda)",dib_ew[dibind])
 end
 close(f)
+
+## Restack them locally
+@everywhere precache_partial(ovtup) = precache(ovtup,inject_cache_dir=prior_dict["inject_cache_dir"],cache_dir=prior_dict["local_cache"])
+@showprogress pmap(precache,ntuplst[obs_indices2use])
 
 ## Create an injection test series
 @everywhere take_draw_partial(ovtup) = take_draw(ovtup,dib_center_lambda_lst=dib_center_lambda_lst,inject_cache_dir=prior_dict["inject_cache_dir"],cache_dir=prior_dict["local_cache"])

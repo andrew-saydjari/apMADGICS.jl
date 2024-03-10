@@ -59,6 +59,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     skycont_only = false
     no_sky = false
     dibs_on = true
+    correlated_noise = true
 
     dib_center_lambda_lst = [15273] #,15672]
     dib_ew_range = (-1.5,0)
@@ -68,12 +69,14 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
-    prior_dict["out_dir"] = prior_dir*"2024_03_08/inject_15273only_295_g1/"
-    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_08/inject_local_cache_15273only_g1/"
-    prior_dict["local_cache"] = prior_dir*"2024_03_08/local_cache_inject/"
+    prior_dict["out_dir"] = prior_dir*"2024_03_08/inject_15273only_295_corr/"
+    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_08/inject_local_cache_15273only_295_corr/"
+    prior_dict["local_cache"] = prior_dir*"2024_03_08/local_cache_inject_corr/"
 
     prior_dict["past_run"] = prior_dir*"2024_02_21/outdir_wu_295_th/apMADGICS_out.h5" # used for StarScale distribution only
     prior_dict["korg_run_path"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_disk_KnackedKorg/"
+
+    prior_dict["sqrt_corr_kernels"] = prior_dir*"2024_03_09/sqrt_corr_kernel_"
 
     # Sky Sources
     prior_dict["sky_runlist"] = prior_dir*"2024_02_21/outlists/sky/dr17_dr17_sky_input_lst_plate_msked_"
@@ -128,6 +131,10 @@ end
     skyContSamples = skyContSamples_raw[:,msk_skyCont]
 
     err_correct_Dict = deserialize(prior_dict["chip_fluxdep_err_correction"])
+
+    sqrtMats = Dict{String,Matrix}()
+    sqrtMats["apo"] = deserialize(prior_dict["sqrt_corr_kernels"]*"APO.jdat")
+    sqrtMats["lco"] = deserialize(prior_dict["sqrt_corr_kernels"]*"LCO.jdat")
 end
 
 @everywhere begin
@@ -155,7 +162,7 @@ end
         return ShiftedArrays.circshift(lres_spec,rval)
     end
     
-    function take_draw(ovtup; skycont_only = false, no_sky = false, dibs_on=true, caching=true, dib_center_lambda_lst=[15273], inject_cache_dir="./inject_local_cache",cache_dir="./local_cache")
+    function take_draw(ovtup; skycont_only = false, no_sky = false, dibs_on=true, correlated_noise=false, caching=true, dib_center_lambda_lst=[15273], inject_cache_dir="./inject_local_cache",cache_dir="./local_cache")
         argtup, starCont_indx, skyCont_indx, starscale, fname, rv, ew, λ0, sigma, injectindx, injectfiber = ovtup
         ival = argtup[1]
         intup = argtup[2:end]
@@ -164,7 +171,7 @@ end
         teleind = (tele[1:6] == "lco25m") ? 2 : 1
         adjfibindx = (teleind-1)*300 + fiberindx
         gain = (tele[1:6] == "lco25m") ? 3.0 : 1.9
-        
+
         # Get Throughput Fluxing 
         fluxingcache = cache_fluxname(tele,field,plate,mjd; cache_dir=cache_dir)
         if !isfile(fluxingcache)
@@ -220,18 +227,16 @@ end
 
             # seed the Poisson draw
             rng = MersenneTwister(mjd+adjfibindx) # seed on mjd and fiber index so unique
-            if (no_sky | skycont_only)
-                if any(isnan.(starcomp))
-                    outfvec = NaN*ones(length(starcomp))
-                else
-                    outfvec = pois_rand.(rng,starcomp*gain)/gain
-                end
+            if any(isnan.(starcomp))
+                outfvec = NaN*ones(length(starcomp))
+            elseif (no_sky | skycont_only)
+                outfvec = pois_rand.(rng,starcomp*gain)/gain
+            elseif correlated_noise
+                sqrt_cov_ref = sqrtMats[tele[1:3]]
+                renorm = Diagonal(sqrt_nan.(starcomp./gain))
+                outfvec = fvec .+ starcomp .+ (renorm*sqrt_cov_ref)*randn(rng,length(fvec))
             else
-                if any(isnan.(starcomp))
-                    outfvec = NaN*ones(length(starcomp))
-                else
-                    outfvec = fvec .+ pois_rand.(rng,starcomp*gain)/gain
-                end
+                outfvec = fvec .+ pois_rand.(rng,starcomp*gain)/gain
             end
 
             outcntvec = cntvec
@@ -356,7 +361,7 @@ serialize(prior_dict["out_dir"]*"inject_skyCont_indx.jdat",skyCont_indx);
 println("All Star Models Used Converged: ", sum(converged_flag[korgindx,..]) == length(converged_flag[korgindx,..]))
 
 ## Create an injection test series
-@everywhere take_draw_partial(ovtup) = take_draw(ovtup,skycont_only=skycont_only,no_sky=no_sky,dibs_on=dibs_on,dib_center_lambda_lst=dib_center_lambda_lst,inject_cache_dir=prior_dict["inject_cache_dir"],cache_dir=prior_dict["local_cache"])
+@everywhere take_draw_partial(ovtup) = take_draw(ovtup,skycont_only=skycont_only,no_sky=no_sky,dibs_on=dibs_on,correlated_noise=correlated_noise,dib_center_lambda_lst=dib_center_lambda_lst,inject_cache_dir=prior_dict["inject_cache_dir"],cache_dir=prior_dict["local_cache"])
 pout = @showprogress pmap(take_draw_partial,itarg);
 
 ## Write out runlist needed to run the apMADGICS.jl on it
