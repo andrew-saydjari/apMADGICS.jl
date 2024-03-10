@@ -22,6 +22,7 @@ echo $SLURM_JOB_NODELIST
 # export JULIA_CPU_THREADS=1
 
 julia +1.10.0 inject_test.jl
+# julia +1.10.0 inject_model_test.jl
 
 # Clean up logs and Report Timing
 formatted_time=$(printf '%dd %dh:%dm:%ds\n' $(($SECONDS/86400)) $(($SECONDS%86400/3600)) $(($SECONDS%3600/60)) $(($SECONDS%60)))

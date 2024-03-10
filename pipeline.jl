@@ -53,7 +53,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     RV_err_step = 4
     DIB_pix_err_step = 3 # consider increasing to 4 (self consistency + LSF test)
     DIB_sig_err_step = 3
-    starCont_var = 0.1
+    # starCont_var = 0.1
 
     cache_dir = "../local_cache_starSub/"
     inject_cache_dir = prior_dir*"2024_03_08/inject_local_cache_15273only_g1"
@@ -291,15 +291,15 @@ end
         Ctotinv_skylines = LowRankMultMatIP([Ainv,Vcomb_skylines],wood_precomp_mult_mat([Ainv,Vcomb_skylines],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
         x_comp_lst = deblend_components_all_asym(Ctotinv_skylines, Xd_obs, (V_starCont_r, ), (V_starCont_c, ))
 
-        # Subtract off the starContinuum component
-        starCont_Mscale_ref = x_comp_lst[1]
-        starCont_Mscale = x_comp_lst[1][rvmsk]
-        Xd_obs = (fvec.-meanLocSky.-meanLocSkyLines.-starCont_Mscale_ref)[rvmsk];
+        # # Subtract off the starContinuum component
+        # starCont_Mscale_ref = x_comp_lst[1]
+        # starCont_Mscale = x_comp_lst[1][rvmsk]
+        # Xd_obs = (fvec.-meanLocSky.-meanLocSkyLines.-starCont_Mscale_ref)[rvmsk];
         
-        ## Adjust the starContinuum covariance to be 1% of the "starScale"
-        starscalep5 = nanzeromedian(starCont_Mscale)
-        V_starCont_c = starCont_var*abs(starscalep5)*V_starcont
-        V_starCont_r = V_starCont_c[rvmsk,:]
+        # ## Adjust the starContinuum covariance to be 1% of the "starScale"
+        # starscalep5 = nanzeromedian(starCont_Mscale)
+        # V_starCont_c = starCont_var*abs(starscalep5)*V_starcont
+        # V_starCont_r = V_starCont_c[rvmsk,:]
 
         # now take out the skylines to be included in the scanning
         Vcomb_cur = hcat(V_locSky_r,V_starCont_r);
@@ -338,9 +338,9 @@ end
             finalmsk .&= ShiftedArrays.circshift(msk_starCor,rvshift)
         end
 
-        starCont_Mscale_ref .+= x_comp_lst[1]
+        starCont_Mscale_ref = x_comp_lst[1]
         starCont_Mscale = starCont_Mscale_ref[finalmsk]
-        Xd_obs = (fvec.-meanLocSky.-meanLocSkyLines.-starCont_Mscale_ref)[finalmsk]
+        Xd_obs = (fvec.-meanLocSky.-meanLocSkyLines)[finalmsk]
         wave_obs = wavetarg[finalmsk]
 
         starscale1 = nanzeromedian(starCont_Mscale)
@@ -354,20 +354,20 @@ end
         V_skyline_faint_r = V_skyline_faint_c[finalmsk,:]
         V_skyline_tot_r = V_skyline_faint_r
         V_locSky_r = V_locSky_c[finalmsk,:]
-        V_starCont_c = starCont_var*abs(starscale1)*V_starcont
+        V_starCont_c = abs(starscale1)*V_starcont
         V_starCont_r = V_starCont_c[finalmsk,:]
 
         Vcomb_skylines = hcat(V_skyline_tot_r,V_locSky_r,V_starCont_r);
         Ctotinv_skylines = LowRankMultMatIP([Ainv,Vcomb_skylines],wood_precomp_mult_mat([Ainv,Vcomb_skylines],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
 
         x_comp_lst = deblend_components_all(Ctotinv_skylines, Xd_obs, (V_starCont_r,))
-        starCont_Mscale = starCont_Mscale_ref[finalmsk] .+ x_comp_lst[1]
+        starCont_Mscale = x_comp_lst[1]
 
         # update the Ctotinv to include the stellar line component (iterate to refine starCont_Mscale)
         for i=1:refine_iters
             Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
             x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r, ))
-            starCont_Mscale = starCont_Mscale_ref[finalmsk] .+ x_comp_lst[1]
+            starCont_Mscale = x_comp_lst[1]
         end
         Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
         
@@ -378,25 +378,30 @@ end
             (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_ru, V_starlines_c, I),
         )
         
-        x_comp_out = [nanify(x_comp_lst[1]./sqrt.(fvarvec[finalmsk]),finalmsk), nanify(x_comp_lst[1],finalmsk), 
-            # nanify(x_comp_lst[2][skymsk_bright[finalmsk]],finalmsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
-            nanify(x_comp_lst[2][skymsk_faint[finalmsk]].+meanLocSkyLines[finalmsk .& skymsk_faint],finalmsk .& skymsk_faint), 
-            nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4].+starCont_Mscale_ref[finalmsk],finalmsk),
-            x_comp_lst[6:end]..., nanify((fvec[finalmsk].-(x_comp_lst[2].+x_comp_lst[3].+meanLocSky[finalmsk].+meanLocSkyLines[finalmsk]))./ x_comp_lst[4],finalmsk),finalmsk,V_subpix_refLSF[:,:,6]*x_comp_lst[7]
-        ]
+        x_comp_out = []
+        push!(x_comp_out,nanify(x_comp_lst[1]./sqrt.(fvarvec[finalmsk]),finalmsk)) #z-scored residuals
+        push!(x_comp_out,nanify(x_comp_lst[1],finalmsk)) #residuals
+        # push!(x_comp_out,nanify(x_comp_lst[2][skymsk_bright[finalmsk]],finalmsk .& skymsk_bright)) #bright sky lines
+        push!(x_comp_out,nanify(x_comp_lst[2][skymsk_faint[finalmsk]].+meanLocSkyLines[finalmsk .& skymsk_faint],finalmsk .& skymsk_faint)) #faint sky lines
+        push!(x_comp_out,nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk)) #sky continuum
+        push!(x_comp_out,nanify(x_comp_lst[4],finalmsk)) #star continuum
+        push!(x_comp_out,x_comp_lst[6:end]...) # starLines, starlines coefficients, and totchi2
+        push!(x_comp_out,nanify((fvec[finalmsk].-(x_comp_out[3].+x_comp_out[4]))./x_comp_out[5],finalmsk)) #apVisit analog
+        push!(x_comp_out,finalmsk) # final mask
+        push!(x_comp_out,V_subpix_refLSF[:,:,6]*x_comp_lst[7]) # Restframe StarLine component with reference LSF
 
         skyscale1 = nanzeromedian(x_comp_out[4])
         dvec = (fvec .-(x_comp_out[2].+x_comp_out[3].+x_comp_out[4].+x_comp_out[5].*(1 .+ nanify(x_comp_lst[5],finalmsk))))./fvec;
         chi2res = x_comp_lst[1]'*(Ainv*x_comp_lst[1])
-        chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale1, fc=red_chi2_dict[tele[1:6]])
-        push!(out,(chi2res,chi2r_fc,nanzeroiqr(dvec),count(finalmsk),starscale1,skyscale1)) # 3
+        # chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale1, fc=red_chi2_dict[tele[1:6]])
+        push!(out,(chi2res,nanzeroiqr(dvec),count(finalmsk),starscale1,skyscale1)) # 3
         push!(out,x_comp_out) # 4
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
         push!(out,dflux_starlines) # 5
                 
         # prepare multiplicative factors for DIB prior
         x_comp_lst = deblend_components_all(Ctotinv_fut, Xd_obs, (V_starCont_r,V_starlines_r))
-        starCont_Mscale = starCont_Mscale_ref[finalmsk] .+ x_comp_lst[1]
+        starCont_Mscale = x_comp_lst[1]
         starFull_Mscale = starCont_Mscale.+x_comp_lst[2]
         
         Ctotinv_fut, Vcomb_fut, V_starlines_c, V_starlines_r, V_starlines_ru = update_Ctotinv_Vstarstarlines_asym(svalc,Ctotinv_skylines.matList[1],finalmsk,starCont_Mscale,Vcomb_skylines,V_subpix,V_subpix_refLSF)
@@ -442,16 +447,19 @@ end
                 (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_r, V_dibr),
                 (A, V_skyline_faint_r, V_locSky_r, V_starCont_r, V_starlines_c, V_dibc),
             )
-            # I am not sure that during production we really want to run and output full sets of components per DIB
-            x_comp_out = [nanify(x_comp_lst[1]./sqrt.(fvarvec[finalmsk]),finalmsk), nanify(x_comp_lst[1],finalmsk),
-                        # nanify(x_comp_lst[2][skymsk_bright[finalmsk]],finalmsk .& skymsk_bright), nanify(x_comp_lst[3][skymsk_faint[finalmsk]],finalmsk .& skymsk_faint), 
-                        nanify(x_comp_lst[2][skymsk_faint[finalmsk]].+meanLocSkyLines[finalmsk .& skymsk_faint],finalmsk .& skymsk_faint), 
-                        nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk), nanify(x_comp_lst[4].+starCont_Mscale_ref[finalmsk],finalmsk),
-                        x_comp_lst[5:end]...]
+
+            x_comp_out = []
+            push!(x_comp_out,nanify(x_comp_lst[1]./sqrt.(fvarvec[finalmsk]),finalmsk)) #z-scored residuals
+            push!(x_comp_out,nanify(x_comp_lst[1],finalmsk)) #residuals
+            # push!(x_comp_out,nanify(x_comp_lst[2][skymsk_bright[finalmsk]],finalmsk .& skymsk_bright)) #bright sky lines
+            push!(x_comp_out,nanify(x_comp_lst[2][skymsk_faint[finalmsk]].+meanLocSkyLines[finalmsk .& skymsk_faint],finalmsk .& skymsk_faint)) #faint sky lines
+            push!(x_comp_out,nanify(x_comp_lst[3].+meanLocSky[finalmsk],finalmsk)) #sky continuum
+            push!(x_comp_out,nanify(x_comp_lst[4],finalmsk)) #star continuum
+            push!(x_comp_out,x_comp_lst[5:end]...) # starLines, dib, and totchi2
 
             chi2res = x_comp_lst[1]'*(Ainv*x_comp_lst[1])
-            chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale1, fc=red_chi2_dict[tele[1:6]])
-            push!(out,(chi2res,chi2r_fc)) # 8
+            # chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale1, fc=red_chi2_dict[tele[1:6]])
+            push!(out,(chi2res,)) # 8
 
             push!(out,x_comp_out) # 9
         end
@@ -573,11 +581,11 @@ end
                 (x->x[RVind][1][7],                     "RV_pix_var"),
                                     
                 (x->x[RVchi][1],                        "RVchi2_residuals"),
-                (x->x[RVchi][2],                        "RVchi2_residuals_flux_scaled"),
-                (x->x[RVchi][3],                        "avg_flux_conservation"),
-                (x->x[RVchi][4],                        "final_pix_cnt"),
-                (x->x[RVchi][5],                        "starscale1"),
-                (x->x[RVchi][6],                        "skyscale1"),
+                # (x->x[RVchi][2],                        "RVchi2_residuals_flux_scaled"),
+                (x->x[RVchi][2],                        "avg_flux_conservation"),
+                (x->x[RVchi][3],                        "final_pix_cnt"),
+                (x->x[RVchi][4],                        "starscale1"),
+                (x->x[RVchi][5],                        "skyscale1"),
                                     
                 (x->x[RVind][2][1][3],                  "RV_p5delchi2_lvl1"),
                 (x->x[RVind][2][2][3],                  "RV_p5delchi2_lvl2"),
@@ -622,7 +630,7 @@ end
                 (x->x[EWind+dibsavesz*(dibindx-1)][2],                         "EW_dib_err_$(dibind)_$(dib)"),
                                     
                 (x->x[DIBchi+dibsavesz*(dibindx-1)][1],                        "DIBchi2_residuals_$(dibind)_$(dib)"),
-                (x->x[DIBchi+dibsavesz*(dibindx-1)][2],                        "DIBchi2_residuals_flux_scaled_$(dibind)_$(dib)"),
+                # (x->x[DIBchi+dibsavesz*(dibindx-1)][2],                        "DIBchi2_residuals_flux_scaled_$(dibind)_$(dib)"),
 
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][1],                        "x_residuals_z_v1_$(dibind)_$(dib)"),
                 (x->x[DIBcom+dibsavesz*(dibindx-1)][2],                        "x_residuals_v1_$(dibind)_$(dib)"),
