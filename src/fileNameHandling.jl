@@ -17,9 +17,9 @@ function cache_skynameSpec(tele,field,plate,mjd,fiberindx; telluric_div=false, c
     # end
     basedir = cache_dir
     if telluric_div
-        return join([basedir,mjd,lpad(adjfibindx,3,"0"),join(["skySpec","tellDiv",tele,field,plate,mjd,fiberindx],"_")],"/")*".jdat"
+        return join([basedir,mjd,lpad(adjfibindx,3,"0"),join(["skySpec","tellDiv",tele[1:6],field,plate,mjd,fiberindx],"_")],"/")*".jdat"
     else
-        return join([basedir,mjd,lpad(adjfibindx,3,"0"),join(["skySpec",tele,field,plate,mjd,fiberindx],"_")],"/")*".jdat"
+        return join([basedir,mjd,lpad(adjfibindx,3,"0"),join(["skySpec",tele[1:6],field,plate,mjd,fiberindx],"_")],"/")*".jdat"
     end
 end
 
