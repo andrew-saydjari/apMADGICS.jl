@@ -12,7 +12,7 @@
     @test cache_skyname(dtest[4:7]...) == "../local_cache/59817/sky_apo25m_101689_6455_59817.jdat"
 
     @test cache_skynameSpec(rtest[4:end]...) == "../local_cache/58656/450/skySpec_lco25m_000+04_10155_58656_150.jdat"
-    @test cache_skynameSpec(itest[4:end]...) == "../local_cache/58126/295/skySpec_apo25m0000010i_180+60_9667_58126_295.jdat"
+    @test cache_skynameSpec(itest[4:end]...) == "../local_cache/58126/295/skySpec_apo25m_180+60_9667_58126_295.jdat"
     @test cache_skynameSpec(dtest[4:end]...)== "../local_cache/59817/295/skySpec_apo25m_101689_6455_59817_295.jdat"
 
     @test cache_starname(rtest[4:end]...) == "../local_cache/58656/450/star_lco25m_000+04_10155_58656_150.jdat"
