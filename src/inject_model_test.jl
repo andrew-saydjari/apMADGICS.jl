@@ -47,7 +47,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     nsamp = 5_080
 
-    adjfibindx = 295 # sky samples injections are made into, running simulated observed on this fiber
+    adjfibindx = 335 # sky samples injections are made into, running simulated observed on this fiber
     fiberindx = if adjfibindx>300
         adjfibindx-300
     else
@@ -69,8 +69,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
-    prior_dict["out_dir"] = prior_dir*"2024_03_08/inject_15273only_295_corr/"
-    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_08/inject_local_cache_15273only_295_corr/"
+    prior_dict["out_dir"] = prior_dir*"2024_03_08/inject_15273only_335_corr/"
+    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_08/inject_local_cache_15273only_335_corr/"
     prior_dict["local_cache"] = prior_dir*"2024_03_08/local_cache_inject_corr/"
 
     prior_dict["past_run"] = prior_dir*"2024_02_21/outdir_wu_295_th/apMADGICS_out.h5" # used for StarScale distribution only
