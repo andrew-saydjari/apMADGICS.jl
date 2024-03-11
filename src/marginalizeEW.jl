@@ -1,7 +1,7 @@
 ## Marginalization Module (needs to wrap a bit more)
-# I think the 0.5 in the exponent needs to be removed because I am already working in chi2/2 units
+# I think the 0.5 in the exponent needs to be removed because I am already working in chi2/2 units, but that also requires a recal, revist this later
 function marginalize_flux_err(chi2lst,fluxlst,dfluxlst,refchi2val;margin_len=3601)
-    pweight = exp.((-chi2lst.+refchi2val))
+    pweight = exp.(0.5*(-chi2lst.+refchi2val))
     pweight ./= sum(filter(.!isnan,pweight))
 
     exval = vcat(fluxlst.-dfluxlst.*5, fluxlst.+dfluxlst.*5)
