@@ -134,7 +134,7 @@ end
 
     sqrtMats = Dict{String,Matrix}()
     sqrtMats["apo"] = deserialize(prior_dict["sqrt_corr_kernels"]*"APO.jdat")
-    sqrtMats["lco"] = deserialize(prior_dict["sqrt_corr_kernels"]*"LCO.jdat")
+    # sqrtMats["lco"] = deserialize(prior_dict["sqrt_corr_kernels"]*"LCO.jdat")
 end
 
 @everywhere begin
