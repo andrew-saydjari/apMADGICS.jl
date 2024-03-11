@@ -328,7 +328,7 @@ for (dibind, dib_center_lambda) in enumerate(dib_center_lambda_lst)
     starsCont_loc = dropdims(nanzeromedian(x_starContinuum[wavemsk,:],1),dims=1);
     starLines_loc = dropdims(nanzeromedian(x_starLines[wavemsk,:],1),dims=1);
     fluxstd_loc = dropdims(nanzeromedian(sqrt.(fluxerr2),1),dims=1);
-    push!(dib_snr,dib_snr_gt.(-dib_ew[dibind].*starsCont_loc[star_indx].*(1 .+starLines_loc[star_indx]),dib_lam[dibind],fluxstd_loc[star_indx]));
+    push!(dib_snr,dib_snr_gt.(-dib_ew[dibind].*starsCont_loc[star_indx].*(1 .+starLines_loc[star_indx]),dib_sig[dibind],fluxstd_loc[star_indx]));
 end
 
 ## Save Injection Parameters to Disk
@@ -346,6 +346,7 @@ for (dibind, dib_center_lambda) in enumerate(dib_center_lambda_lst)
     write(f,"dib_lam_$(dib_center_lambda)",dib_lam[dibind])
     write(f,"dib_ew_$(dib_center_lambda)",dib_ew[dibind])
     write(f,"dib_snr_$(dib_center_lambda)",dib_snr[dibind])
+    write(f,"dib_snr_star_$(dib_center_lambda)",dib_snr[dibind])
 end
 close(f)
 
