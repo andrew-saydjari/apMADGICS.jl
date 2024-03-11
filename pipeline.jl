@@ -50,19 +50,24 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     runlist_range = 295:295 #1:600 #295, 245, 335, 101
     batchsize = 10 #40
 
+    # Step Size for Chi2 Surface Error Bars
     RV_err_step = 4
     DIB_pix_err_step = 3 # consider increasing to 4 (self consistency + LSF test)
     DIB_sig_err_step = 3
+    # Flux marginalize region
+    sigMarg0 = -50//100:10//100:50//100
+    svalMarg0 = -0//10:1//10:0//10;
+
     # starCont_var = 0.1
 
     cache_dir = "../local_cache_realInj/"
-    inject_cache_dir = prior_dir*"2024_03_11/inject_local_cache_15273only_295_corr"
+    inject_cache_dir = prior_dir*"2024_03_11/inject_local_cache_15273only_295_diag"
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
-    prior_dict["runlists"] = prior_dir*"2024_03_11/inject_15273only_295_corr/injection_input_lst_"
+    prior_dict["runlists"] = prior_dir*"2024_03_11/inject_15273only_295_diag/injection_input_lst_"
     # prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
 
     # Sky Priors
@@ -138,10 +143,6 @@ end
     # lvltuple_2 = (lvl1d_2, lvl2d, lvl3d, lvl4d, lvl5d, lvl6d, lvl7d, lvl8d, lvl9d);
     # lvltuple_lst = [lvltuple, lvltuple_2, lvltuple, lvltuple_2]
     # tuple2dprint(lvltuple)
-
-    # Flux marginalize region
-    sigMarg0 = -50//100:10//100:50//100
-    svalMarg0 = -0//10:1//10:0//10;
 end
 
 @everywhere begin
