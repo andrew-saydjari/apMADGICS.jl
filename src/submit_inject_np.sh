@@ -21,7 +21,7 @@ echo $SLURM_JOB_NODELIST
 # export JULIA_NUM_THREADS=1
 # export JULIA_CPU_THREADS=1
 
-julia +1.10.0 inject_test.jl
+julia +1.10.2 inject_test.jl
 # julia +1.10.0 inject_model_test.jl
 
 # Clean up logs and Report Timing

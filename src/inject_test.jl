@@ -47,7 +47,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     nsamp = 5_080
 
-    adjfibindx = 335 # sky samples injections are made into, running simulated observed on this fiber
+    adjfibindx = 295 # sky samples injections are made into, running simulated observed on this fiber
     fiberindx = if adjfibindx>300
         adjfibindx-300
     else
@@ -62,9 +62,9 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
-    prior_dict["out_dir"] = prior_dir*"2024_03_08/inject_15273only_335_real/"
-    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_08/inject_local_cache_15273only_335_real/"
-    prior_dict["local_cache"] = prior_dir*"2024_03_08/local_cache_inject_real/"
+    prior_dict["out_dir"] = prior_dir*"2024_03_11/inject_15273only_295_real/"
+    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_11/inject_local_cache_15273only_295_real/"
+    prior_dict["local_cache"] = prior_dir*"2024_03_11/local_cache_inject_real/"
 
     prior_dict["past_run"] = prior_dir*"2024_03_08/outdir_wu_295_LocMean/apMADGICS_out.h5" # use component decomp to only inject into star component
     prior_dict["past_runlst"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
@@ -121,6 +121,7 @@ end
     # these are semi gross globals; they are used in the take_draw function
     x_starLines = reader(prior_dict["past_run"],"x_starLines_v0");
     x_starContinuum = reader(prior_dict["past_run"],"x_starContinuum_v0");
+    fluxerr2 = reader(prior_dict["past_run"],"fluxerr2");
 
     map2star_1indx = h5read(prior_dict["map2star"],"map2star_1indx")
     map2star_adjfibindx = h5read(prior_dict["map2star"],"adjfibindx")
@@ -182,6 +183,10 @@ println("Visits after TARG/STAR/ASPCAP/TEFF/FE masks: $(count(apg_msk)), $(100*c
 println("Clean Visits for Injection Tests: $(count(clean_msk)), $(100*count(clean_msk)/length(clean_msk))")
 
 @everywhere begin
+    function dib_snr_gt(EW_DIB,sigmaDIB,medStd)
+        return EW_DIB/(((4π*sigmaDIB^2)^(1/4))*medStd)
+    end
+
     function precache(argtup; caching=true, inject_cache_dir="./inject_local_cache",cache_dir="./local_cache")
         ival = argtup[1]
         intup = argtup[2:end]
@@ -317,6 +322,15 @@ end
 
 itarg = Iterators.zip(star_tup,star_indx,eachrow(hcat(dib_ew...)),eachrow(hcat(dib_lam...)),eachrow(hcat(dib_sig...)),injectindx,injectfiber);
 
+dib_snr = []
+for (dibind, dib_center_lambda) in enumerate(dib_center_lambda_lst)
+    wavemsk = (dib_center_lambda*(1+dib_vel_range[1]/c).< wavetarg .<dib_center_lambda*(1+dib_vel_range[2]/c))
+    starsCont_loc = dropdims(nanzeromedian(x_starContinuum[wavemsk,:],1),dims=1);
+    starLines_loc = dropdims(nanzeromedian(x_starLines[wavemsk,:],1),dims=1);
+    fluxstd_loc = dropdims(nanzeromedian(sqrt.(fluxerr2),1),dims=1);
+    push!(dib_snr,dib_snr_gt.(-dib_ew[dibind].*starsCont_loc[star_indx].*(1 .+starLines_loc[star_indx]),dib_lam[dibind],fluxstd_loc[star_indx]));
+end
+
 ## Save Injection Parameters to Disk
 fname = prior_dict["out_dir"]*"inject_params.h5"
 dirName = splitdir(fname)[1]
@@ -331,12 +345,13 @@ for (dibind, dib_center_lambda) in enumerate(dib_center_lambda_lst)
     write(f,"dib_sig_$(dib_center_lambda)",dib_sig[dibind])
     write(f,"dib_lam_$(dib_center_lambda)",dib_lam[dibind])
     write(f,"dib_ew_$(dib_center_lambda)",dib_ew[dibind])
+    write(f,"dib_snr_$(dib_center_lambda)",dib_snr[dibind])
 end
 close(f)
 
 ## Restack them locally
 @everywhere precache_partial(ovtup) = precache(ovtup,inject_cache_dir=prior_dict["inject_cache_dir"],cache_dir=prior_dict["local_cache"])
-@showprogress pmap(precache,ntuplst[obs_indices2use])
+@showprogress pmap(precache_partial,ntuplst[obs_indices2use])
 
 ## Create an injection test series
 @everywhere take_draw_partial(ovtup) = take_draw(ovtup,dib_center_lambda_lst=dib_center_lambda_lst,inject_cache_dir=prior_dict["inject_cache_dir"],cache_dir=prior_dict["local_cache"])
