@@ -56,13 +56,13 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # starCont_var = 0.1
 
     cache_dir = "../local_cache_realInj/"
-    inject_cache_dir = prior_dir*"2024_03_11/inject_local_cache_15273only_295_real"
+    inject_cache_dir = prior_dir*"2024_03_11/inject_local_cache_15273only_295_corr"
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
-    prior_dict["runlists"] = prior_dir*"2024_03_11/inject_15273only_295_real/injection_input_lst_"
+    prior_dict["runlists"] = prior_dir*"2024_03_11/inject_15273only_295_corr/injection_input_lst_"
     # prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
 
     # Sky Priors
