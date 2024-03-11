@@ -13,5 +13,5 @@ coverage:
 # verify_drp and src/prior builds are one offs, but we could support them someday
 ignore:
   - "src/prior_build"
-  - "wave.jl"
-  - "verify_drp.jl"
+  - "src/wave.jl"
+  - "src/verify_drp.jl"
