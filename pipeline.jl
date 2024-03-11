@@ -50,7 +50,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     runlist_range = 295:295 #1:600 #295, 245, 335, 101
     batchsize = 10 #40
 
-    renormDiag = 3.1 ## This needs to move into a meta file, and needs to beb handled on the injections somehow
+    renormDiag = 4.3 ## This needs to move into a meta file, and needs to beb handled on the injections somehow
 
     RV_err_step = 4
     DIB_pix_err_step = 3 # consider increasing to 4 (self consistency + LSF test)
