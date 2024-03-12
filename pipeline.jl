@@ -47,7 +47,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     refine_iters = 5
     ddstaronly = false
-    runlist_range = 335:335 #1:600 #295, 245, 335, 101
+    runlist_range = 1:600 #1:600 #295, 245, 335, 101
     batchsize = 10 #40
 
     # Step Size for Chi2 Surface Error Bars
@@ -58,17 +58,15 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     sigMarg0 = -50//100:10//100:50//100
     svalMarg0 = -0//10:1//10:0//10;
 
-    # starCont_var = 0.1
-
-    cache_dir = "../local_cache_run/"
-    inject_cache_dir = prior_dir*"2024_03_11/inject_local_cache_15273only_335_real"
+    cache_dir = "../local_cache/"
+    inject_cache_dir = prior_dir*"2024_03_11/inject_local_cache_15672only_295_real"
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
-    prior_dict["runlists"] = prior_dir*"2024_03_11/inject_15273only_335_real/injection_input_lst_"
-    # prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
+    # prior_dict["runlists"] = prior_dir*"2024_03_11/inject_15672only_295_real/injection_input_lst_"
+    prior_dict["runlists"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
 
     # Sky Priors
     prior_dict["skycont"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_priors/APOGEE_skycont_svd_30_f"

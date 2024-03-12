@@ -47,7 +47,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     nsamp = 5_080
 
-    adjfibindx = 335 # sky samples injections are made into, running simulated observed on this fiber
+    adjfibindx = 295 # sky samples injections are made into, running simulated observed on this fiber
     fiberindx = if adjfibindx>300
         adjfibindx-300
     else
@@ -61,7 +61,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     dibs_on = true
     correlated_noise = true
 
-    dib_center_lambda_lst = [15273] #,15672]
+    dib_center_lambda_lst = [15672] #,15672] #15273
     dib_ew_range = (-1.5,0)
     dib_sig_range = (0.7,3.7)
     dib_vel_range = (-450, 450) # km/s
@@ -69,11 +69,11 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
-    prior_dict["out_dir"] = prior_dir*"2024_03_11/inject_15273only_335_corr/"
-    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_11/inject_local_cache_15273only_335_corr/"
-    prior_dict["local_cache"] = prior_dir*"2024_03_11/local_cache_inject_corr/"
+    prior_dict["out_dir"] = prior_dir*"2024_03_11/inject_15672only_295_corr/"
+    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_11/inject_local_cache_15672only_295_corr/"
+    prior_dict["local_cache"] = prior_dir*"2024_03_11/local_cache_inject_15672/"
 
-    prior_dict["past_run"] = prior_dir*"2024_03_08/outdir_wu_335_LocMean/apMADGICS_out.h5" # used for StarScale distribution only
+    prior_dict["past_run"] = prior_dir*"2024_03_08/outdir_wu_295_LocMean/apMADGICS_out.h5" # used for StarScale distribution only
     prior_dict["korg_run_path"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_disk_KnackedKorg/"
 
     prior_dict["sqrt_corr_kernels"] = prior_dir*"2024_03_11/sqrt_corr_kernel_"

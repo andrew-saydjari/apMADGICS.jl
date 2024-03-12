@@ -47,14 +47,14 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     nsamp = 5_080
 
-    adjfibindx = 335 # sky samples injections are made into, running simulated observed on this fiber
+    adjfibindx = 295 # sky samples injections are made into, running simulated observed on this fiber
     fiberindx = if adjfibindx>300
         adjfibindx-300
     else
         adjfibindx
     end
 
-    dib_center_lambda_lst = [15273] #,15672]
+    dib_center_lambda_lst = [15672] #,15672] # 15273
     dib_ew_range = (-1.5,0)
     dib_sig_range = (0.7,3.7)
     dib_vel_range = (-450, 450) # km/s
@@ -62,11 +62,11 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
-    prior_dict["out_dir"] = prior_dir*"2024_03_11/inject_15273only_335_real/"
-    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_11/inject_local_cache_15273only_335_real/"
+    prior_dict["out_dir"] = prior_dir*"2024_03_11/inject_15672only_295_real/"
+    prior_dict["inject_cache_dir"] = prior_dir*"2024_03_11/inject_local_cache_15672only_295_real/"
     prior_dict["local_cache"] = prior_dir*"2024_03_11/local_cache_inject_real/"
 
-    prior_dict["past_run"] = prior_dir*"2024_03_08/outdir_wu_335_LocMean/apMADGICS_out.h5" # use component decomp to only inject into star component
+    prior_dict["past_run"] = prior_dir*"2024_03_08/outdir_wu_295_LocMean/apMADGICS_out.h5" # use component decomp to only inject into star component
     prior_dict["past_runlst"] = prior_dir*"2024_01_19/outlists/dr17_dr17_star_input_lst_msked_"
     prior_dict["map2visit"] = prior_dir*"2024_03_05/outlists/summary/dr17_dr17_map2visit_1indx.h5"
     prior_dict["map2star"] = prior_dir*"2024_03_05/outlists/summary/dr17_dr17_map2star_1indx.h5"
