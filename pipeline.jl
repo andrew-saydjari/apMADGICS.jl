@@ -6,7 +6,7 @@ using InteractiveUtils; versioninfo()
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 using BLISBLAS
-using Distributed, SlurmClusterManager, Suppressor, DataFrames
+using Distributed, SlurmClusterManager, Suppressor, DataFrames, Random
 addprocs(SlurmManager(),exeflags=["--project=./"])
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
 println("Running Main on ", gethostname())
@@ -686,7 +686,8 @@ nwork = length(workers())
 println("Batches to Do: $lenargs, number of workers: $nwork")
 flush(stdout)
 
-@showprogress pmap(multi_spectra_batch,ittot)
+rng = MersenneTwister(2024)
+@showprogress pmap(multi_spectra_batch,shuffle(rng,collect(ittot)))
 rmprocs(workers())
 
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t0)); println("Total script runtime: $dt"); t_then = t_now; flush(stdout)
