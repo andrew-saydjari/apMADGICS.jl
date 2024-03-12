@@ -19,8 +19,12 @@ function slicer(lindx::Nothing,rindx::Int,widx)
     return (rindx-widx):rindx
 end
 function clamp_range(x,lbnd,ubnd)
-    minrng, maxrng = extrema(x)
-    return maximum([lbnd,minrng]):minimum([maxrng,ubnd])
+    if isempty(x)
+        return x
+    else
+        minrng, maxrng = extrema(x)
+        return maximum([lbnd,minrng]):minimum([maxrng,ubnd])
+    end
 end
 
 # passing Vcomb_0 is new to some of the codes, we need to revisit having to pass these intups
