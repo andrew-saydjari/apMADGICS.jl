@@ -1,5 +1,5 @@
 ## Marginalization Module (needs to wrap a bit more)
-
+# I think the 0.5 in the exponent needs to be removed because I am already working in chi2/2 units, but that also requires a recal, revist this later
 function marginalize_flux_err(chi2lst,fluxlst,dfluxlst,refchi2val;margin_len=3601)
     pweight = exp.(0.5*(-chi2lst.+refchi2val))
     pweight ./= sum(filter(.!isnan,pweight))
@@ -30,6 +30,8 @@ end
 # can fix this on the next pass...
 # should we be doing multiplicative refinement inside this loop?
 # need to make deblend and posterior asym component ordering consistent
+
+# could easily pass a factor just to this function to fix EW marginalization
 function sample_chi2_flux_dflux(samp_lst,intup;waveaxis=wavetarg,delLogSpace=delLog)
     lenit = length(samp_lst)
     chi2lst = zeros(lenit)
