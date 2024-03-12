@@ -59,6 +59,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     svalMarg0 = -0//10:1//10:0//10;
 
     cache_dir = "../local_cache/"
+    out_dir="../outdir/"
     inject_cache_dir = prior_dir*"2024_03_11/inject_local_cache_15672only_295_real"
 
     # Prior Dictionary
@@ -469,7 +470,7 @@ end
 end
 
 @everywhere begin
-    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=ddstaronly)
+    function multi_spectra_batch(indsubset; out_dir=out_dir, ddstaronly=ddstaronly)
         ### Set up
         out = []
         startind = indsubset[1][1]
@@ -658,6 +659,7 @@ end
             end
         end
         GC.gc()
+        return 0
     end
 
     function extractor(x,elemap,elename,savename)
@@ -687,7 +689,8 @@ println("Batches to Do: $lenargs, number of workers: $nwork")
 flush(stdout)
 
 rng = MersenneTwister(2024)
-@showprogress pmap(multi_spectra_batch,shuffle(rng,collect(ittot)))
+pout = @showprogress pmap(multi_spectra_batch,ittot,on_error=ex->2)
+serialize(out_dir*"pout_apMADGICS.jdat",pout)
 rmprocs(workers())
 
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t0)); println("Total script runtime: $dt"); t_then = t_now; flush(stdout)

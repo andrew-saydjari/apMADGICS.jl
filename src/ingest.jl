@@ -68,7 +68,7 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
                 fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
                 starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit,ingest_bit = metaexport
             catch
-                println(skycacheSpec)
+                # println(skycacheSpec) # these files all seem fine, some transient read collisions
                 fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
                 starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit,ingest_bit = metaexport
             end
