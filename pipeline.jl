@@ -6,7 +6,7 @@ using InteractiveUtils; versioninfo()
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 using BLISBLAS
-using Distributed, SlurmClusterManager, Suppressor, DataFrames
+using Distributed, SlurmClusterManager, Suppressor, DataFrames, Random
 addprocs(SlurmManager(),exeflags=["--project=./"])
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
 println("Running Main on ", gethostname())
@@ -59,6 +59,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     svalMarg0 = -0//10:1//10:0//10;
 
     cache_dir = "../local_cache/"
+    out_dir="../outdir/"
     inject_cache_dir = prior_dir*"2024_03_11/inject_local_cache_15672only_295_real"
 
     # Prior Dictionary
@@ -469,7 +470,7 @@ end
 end
 
 @everywhere begin
-    function multi_spectra_batch(indsubset; out_dir="../outdir", ddstaronly=ddstaronly)
+    function multi_spectra_batch(indsubset; out_dir=out_dir, ddstaronly=ddstaronly)
         ### Set up
         out = []
         startind = indsubset[1][1]
@@ -571,6 +572,7 @@ end
                 (x->x[metai][10],                       "ingestBit"),
                 (x->x[metai][11],                       "flux"),
                 (x->x[metai][12],                       "fluxerr2"),
+                (x->Int.(x[metai][13]),                 "simplemsk"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
@@ -658,6 +660,7 @@ end
             end
         end
         GC.gc()
+        return 0
     end
 
     function extractor(x,elemap,elename,savename)
@@ -686,7 +689,9 @@ nwork = length(workers())
 println("Batches to Do: $lenargs, number of workers: $nwork")
 flush(stdout)
 
-@showprogress pmap(multi_spectra_batch,ittot)
+rng = MersenneTwister(2024)
+pout = @showprogress pmap(multi_spectra_batch,ittot,on_error=ex->2)
+serialize(out_dir*"pout_apMADGICS.jdat",pout)
 rmprocs(workers())
 
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t0)); println("Total script runtime: $dt"); t_then = t_now; flush(stdout)

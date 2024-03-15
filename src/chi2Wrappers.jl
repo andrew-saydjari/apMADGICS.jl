@@ -18,6 +18,14 @@ end
 function slicer(lindx::Nothing,rindx::Int,widx)
     return (rindx-widx):rindx
 end
+function clamp_range(x,lbnd,ubnd)
+    if isempty(x)
+        return x
+    else
+        minrng, maxrng = extrema(x)
+        return maximum([lbnd,minrng]):minimum([maxrng,ubnd])
+    end
+end
 
 # passing Vcomb_0 is new to some of the codes, we need to revisit having to pass these intups
 function chi2_wrapper2d(svals,intup;sigslice=4)
@@ -32,8 +40,9 @@ function chi2_wrapper2d(svals,intup;sigslice=4)
     lindx = findfirst(wave_obs .>= (new_center*10^(sval1*6e-6) - sigslice*sval2))
     rindx = findlast(wave_obs .<= (new_center*10^(sval1*6e-6) + sigslice*sval2))
     widx = round(Int,sigslice*sval2/0.22) # this is a hardcoded approximate pixel size in Angstroms
-    slrng = slicer(lindx,rindx,widx)
+    slrng0 = slicer(lindx,rindx,widx)
     pre_Vslice .= view(ShiftedArrays.circshift(view(V_new,:,:,sigindx,tval),(rval,0)),simplemsk,:)
+    slrng = clamp_range(slrng0,1,size(pre_Vslice,1))
     pre_Vslice .*= Dscale 
     return woodbury_update_inv_tst_sub(
         Ctotinv,

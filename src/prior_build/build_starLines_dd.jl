@@ -74,12 +74,12 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
-    prior_dict["past_run"] = prior_dir*"2023_09_26/outdir_wu_th/apMADGICS_out.h5" # update for the new run
-    prior_dict["map2visit"] = prior_dir*"2024_02_21/summary/dr17_dr17_map2visit_1indx.h5"
-    prior_dict["map2star"] = prior_dir*"2024_02_21/summary/dr17_dr17_map2star_1indx.h5"
+    prior_dict["past_run"] = prior_dir*"2024_03_12/outdir_wu_th/apMADGICS_out.h5" # update for the new run
+    prior_dict["map2visit"] = prior_dir*"2024_03_05/outlists/summary/dr17_dr17_map2visit_1indx.h5"
+    prior_dict["map2star"] = prior_dir*"2024_03_05/outlists/summary/dr17_dr17_map2star_1indx.h5"
 
     prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f"
-    prior_dict["out_dir"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd/"
+    prior_dict["out_dir"] = prior_dir*"2024_03_12/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd/"
 end
 
 @everywhere begin
@@ -95,16 +95,16 @@ end
     RV_pixoff_final = reader(prior_dict["past_run"],"RV_pixoff_final")
 
     keyval = "x_residuals_z_v0"
-    savename_sub = chop(savename,tail=3)*"_"*keyval*".h5"
+    savename_sub = chop(prior_dict["past_run"],tail=3)*"_"*keyval*".h5"
     f = h5open(savename_sub)
     keyvalres = "x_residuals_v0"
-    savename_sub_res = chop(savename,tail=3)*"_"*keyvalres*".h5"
+    savename_sub_res = chop(prior_dict["past_run"],tail=3)*"_"*keyvalres*".h5"
     g = h5open(savename_sub_res)
     keyvalref = "x_starContinuum_v0"
-    savename_sub_ref = chop(savename,tail=3)*"_"*keyvalref*".h5"
+    savename_sub_ref = chop(prior_dict["past_run"],tail=3)*"_"*keyvalref*".h5"
     h = h5open(savename_sub_ref)
     keyvallineCof = "x_starLineCof_v0"
-    savename_sub_starLineCof = chop(savename,tail=3)*"_"*keyvallineCof*".h5"
+    savename_sub_starLineCof = chop(prior_dict["past_run"],tail=3)*"_"*keyvallineCof*".h5"
     m = h5open(savename_sub_starLineCof)
 
     function finalize_xnorm(intup,RV_pixoff_final,pf,V_starbasis)
@@ -251,12 +251,13 @@ sfd_msk = (sfd_reddening.<sfd_cut)
 
 ## MADGICS Cuts
 avg_flux_conservation = reader(prior_dict["past_run"],"avg_flux_conservation")
+adjfiberindx_vec = reader(prior_dict["past_run"],"adjfiberindx")
 msk_flux_conserve = (avg_flux_conservation .< flux_conserve_cut);
 RV_minchi2_final = reader(prior_dict["past_run"],"RV_minchi2_final")
 snr_proxy = sqrt.(-RV_minchi2_final);
 msk_MADGICS_snr = (snr_proxy .> snr_proxy_cut); 
 
-clean_msk = (adjfiberindx.<=300) 
+clean_msk = (adjfiberindx_vec.<=300) 
 clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
 clean_msk .&= sfd_msk # SFD Mask (low-reddening)
 clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr) # Remove StarConts that failed to converge well and low SNR model detections
@@ -265,7 +266,7 @@ println("Clean APO Visits for DD Model Training: $(count(clean_msk)), $(100*coun
 clean_inds = findall(clean_msk);
 h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo",clean_inds)
 
-clean_msk = (adjfiberindx.>300) 
+clean_msk = (adjfiberindx_vec.>300) 
 clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
 clean_msk .&= sfd_msk # SFD Mask (low-reddening)
 clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr) # Remove StarConts that failed to converge well and low SNR model detections
