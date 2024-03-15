@@ -7,7 +7,7 @@ Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 using BLISBLAS
 using Distributed, SlurmClusterManager, Suppressor, DataFrames, Random
-addprocs(SlurmManager(),exeflags=["--project=./"])
+addprocs(SlurmManager(),exeflags=["--project=./","--gcthreads=6,1"])
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
 println("Running Main on ", gethostname())
 
@@ -35,7 +35,7 @@ println("Running Main on ", gethostname())
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
-# Task-Affinity CPU Locking in multinode SlurmContext
+# Task-Affinity CPU Locking in multinode SlurmContext (# not clear if this causes issues in 1.10.2)
 slurm_cpu_lock()
 println(BLAS.get_config()); flush(stdout)
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("CPU locking took $dt"); t_then = t_now; flush(stdout)
@@ -572,7 +572,7 @@ end
                 (x->x[metai][10],                       "ingestBit"),
                 (x->x[metai][11],                       "flux"),
                 (x->x[metai][12],                       "fluxerr2"),
-                (x->Int.(x[metai][13]),                 "simplemsk"),
+                # (x->Int.(x[metai][13]),                 "simplemsk"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
@@ -652,26 +652,27 @@ end
                     "pipeline"=>"apMADGICS.jl",
                     "git_branch"=>git_branch,   
                     "git_commit"=>git_commit,
-            )           
-            h5write(savename,"hdr","This is only a header")
-            h5writeattr(savename,"hdr",hdr_dict)        
+            )
+            f = h5open(savename,"w")
+            write(f,"hdr","This is only a header")
+            write_attribute(f,"hdr",hdr_dict)        
             for elelst in extractlst
-                extractor(out,elelst[1],elelst[2],savename)
+                extractor(out,elelst[1],elelst[2],savename,f)
             end
+            close(f)
         end
         GC.gc()
         return 0
     end
 
-    function extractor(x,elemap,elename,savename)
+    function extractor(x,elemap,elename,f)
         len = length(x)
         exobj = elemap(x[1])
         outmat = zeros(eltype(exobj),size(exobj)...,len)
         for i=1:len
-            flush(stdout)
             outmat[.. ,i] .= elemap(x[i])
         end
-        h5write(savename,elename,outmat)
+        write(f,elename,outmat)
     end
 end
 
