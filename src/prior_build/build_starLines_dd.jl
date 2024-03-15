@@ -75,8 +75,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict = Dict{String,String}()
 
     prior_dict["past_run"] = prior_dir*"2024_03_12/outdir_wu_th/apMADGICS_out.h5" # update for the new run
-    prior_dict["map2visit"] = prior_dir*"2024_03_05/summary/dr17_dr17_map2visit_1indx.h5"
-    prior_dict["map2star"] = prior_dir*"2024_03_05/summary/dr17_dr17_map2star_1indx.h5"
+    prior_dict["map2visit"] = prior_dir*"2024_03_05/outlists/summary/dr17_dr17_map2visit_1indx.h5"
+    prior_dict["map2star"] = prior_dir*"2024_03_05/outlists/summary/dr17_dr17_map2star_1indx.h5"
 
     prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f"
     prior_dict["out_dir"] = prior_dir*"2024_03_12/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd/"
@@ -251,12 +251,13 @@ sfd_msk = (sfd_reddening.<sfd_cut)
 
 ## MADGICS Cuts
 avg_flux_conservation = reader(prior_dict["past_run"],"avg_flux_conservation")
+adjfiberindx_vec = reader(prior_dict["past_run"],"adjfiberindx")
 msk_flux_conserve = (avg_flux_conservation .< flux_conserve_cut);
 RV_minchi2_final = reader(prior_dict["past_run"],"RV_minchi2_final")
 snr_proxy = sqrt.(-RV_minchi2_final);
 msk_MADGICS_snr = (snr_proxy .> snr_proxy_cut); 
 
-clean_msk = (adjfiberindx.<=300) 
+clean_msk = (adjfiberindx_vec.<=300) 
 clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
 clean_msk .&= sfd_msk # SFD Mask (low-reddening)
 clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr) # Remove StarConts that failed to converge well and low SNR model detections
@@ -265,7 +266,7 @@ println("Clean APO Visits for DD Model Training: $(count(clean_msk)), $(100*coun
 clean_inds = findall(clean_msk);
 h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo",clean_inds)
 
-clean_msk = (adjfiberindx.>300) 
+clean_msk = (adjfiberindx_vec.>300) 
 clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
 clean_msk .&= sfd_msk # SFD Mask (low-reddening)
 clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr) # Remove StarConts that failed to converge well and low SNR model detections
