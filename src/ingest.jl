@@ -64,14 +64,8 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
     for (findx,fiberind) in enumerate(skyinds)
         skycacheSpec = cache_skynameSpec(tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
         if (isfile(skycacheSpec) & caching)
-            try
-                fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
-                starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit,ingest_bit = metaexport
-            catch
-                # println(skycacheSpec) # these files all seem fine, some transient read collisions
-                fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
-                starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit,ingest_bit = metaexport
-            end
+            fvec, fvarvec, cntvec, chipmidtimes, metaexport = deserialize(skycacheSpec)
+            starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit,ingest_bit = metaexport
         else
             fvec, fvarvec, cntvec, chipmidtimes, metaexport = stack_out(release_dir,redux_ver,tele,field,plate,mjd,fiberind,cache_dir=cache_dir)
             starscale,framecnts,a_relFlux,b_relFlux,c_relFlux,cartVisit,ingest_bit = metaexport
