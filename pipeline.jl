@@ -36,7 +36,7 @@ end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
 # Task-Affinity CPU Locking in multinode SlurmContext (# not clear if this causes issues in 1.10.2)
-slurm_cpu_lock()
+# slurm_cpu_lock()
 println(BLAS.get_config()); flush(stdout)
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("CPU locking took $dt"); t_then = t_now; flush(stdout)
 
