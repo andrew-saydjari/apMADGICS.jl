@@ -74,12 +74,12 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
-    prior_dict["past_run"] = prior_dir*"2023_09_26/outdir_wu_th/apMADGICS_out.h5" # update for the new run
-    prior_dict["map2visit"] = prior_dir*"2024_02_21/summary/dr17_dr17_map2visit_1indx.h5"
-    prior_dict["map2star"] = prior_dir*"2024_02_21/summary/dr17_dr17_map2star_1indx.h5"
+    prior_dict["past_run"] = prior_dir*"2024_03_12/outdir_wu_th/apMADGICS_out.h5" # update for the new run
+    prior_dict["map2visit"] = prior_dir*"2024_03_05/summary/dr17_dr17_map2visit_1indx.h5"
+    prior_dict["map2star"] = prior_dir*"2024_03_05/summary/dr17_dr17_map2star_1indx.h5"
 
     prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f"
-    prior_dict["out_dir"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd/"
+    prior_dict["out_dir"] = prior_dir*"2024_03_12/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd/"
 end
 
 @everywhere begin
@@ -95,16 +95,16 @@ end
     RV_pixoff_final = reader(prior_dict["past_run"],"RV_pixoff_final")
 
     keyval = "x_residuals_z_v0"
-    savename_sub = chop(savename,tail=3)*"_"*keyval*".h5"
+    savename_sub = chop(prior_dict["past_run"],tail=3)*"_"*keyval*".h5"
     f = h5open(savename_sub)
     keyvalres = "x_residuals_v0"
-    savename_sub_res = chop(savename,tail=3)*"_"*keyvalres*".h5"
+    savename_sub_res = chop(prior_dict["past_run"],tail=3)*"_"*keyvalres*".h5"
     g = h5open(savename_sub_res)
     keyvalref = "x_starContinuum_v0"
-    savename_sub_ref = chop(savename,tail=3)*"_"*keyvalref*".h5"
+    savename_sub_ref = chop(prior_dict["past_run"],tail=3)*"_"*keyvalref*".h5"
     h = h5open(savename_sub_ref)
     keyvallineCof = "x_starLineCof_v0"
-    savename_sub_starLineCof = chop(savename,tail=3)*"_"*keyvallineCof*".h5"
+    savename_sub_starLineCof = chop(prior_dict["past_run"],tail=3)*"_"*keyvallineCof*".h5"
     m = h5open(savename_sub_starLineCof)
 
     function finalize_xnorm(intup,RV_pixoff_final,pf,V_starbasis)

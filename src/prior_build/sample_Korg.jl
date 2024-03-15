@@ -75,7 +75,8 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 
 rng = MersenneTwister(368)
 # Draw from DR17 Distribution
-f = FITS("/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/aspcap/dr17/turbo20/allStar-dr17-turbo20.fits")
+# f = FITS("/uufs/chpc.utah.edu/common/home/sdss/dr17/apogee/spectro/aspcap/dr17/turbo20/allStar-dr17-turbo20.fits") somewhat of a bug to have used turbo20 in first release, just not as entirely self consistent as I would have liked
+f = FITS(summary_file_by_dr("dr17","dr17",17,"allStar"))
 TEFF = read(f[2],"TEFF")
 LOGG = read(f[2],"LOGG")
 M_H = read(f[2],"M_H")

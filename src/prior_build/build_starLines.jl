@@ -47,8 +47,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
 @everywhere begin
     nsub_out = 50
-    # normPercent = 94 #nothing turns it off
-    normPercent = nothing #94 #nothing turns it off
+    normPercent = 94 #nothing turns it off
+    # normPercent = nothing #94 #nothing turns it off
 
     nsub_rnd1 = 60
     rnd1size = 800

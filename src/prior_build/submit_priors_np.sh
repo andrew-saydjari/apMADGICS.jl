@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=sdss-np
 #SBATCH --partition=sdss-shared-np
-#SBATCH --nodes=2
+#SBATCH --nodes=4
 #SBATCH --ntasks-per-node=64
 
 #SBATCH --mem=0 #requesting all of the memory on the node
@@ -32,9 +32,9 @@ echo $SLURM_JOB_NODELIST
 # julia +1.10.0 sample_Korg.jl # 966.4 core-h, 2.5h on 6 nodes, 34.8 core-s/spec, 100% cpu usage
 # julia +1.10.0 build_starLines.jl # 40 core-h, 40 min on 1 node, 50% cpu usage
 # ----- indep -----
-julia +1.10.0 build_DIB.jl # 145 core-h, 2.3 h on 1 node, 100% cpu usage
+# julia +1.10.0 build_DIB.jl # 145 core-h, 2.3 h on 1 node, 100% cpu usage
 # ----- second pass -----
-# julia +1.10.0 build_starLines_dd.jl # try on 3 nodes? new parallelism strategy to try to mitigate time
+julia +1.10.0 build_starLines_dd.jl # try on 4 nodes? new parallelism strategy to try to mitigate time
 
 
 # Clean up logs and Report Timing
