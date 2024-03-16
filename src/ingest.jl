@@ -43,7 +43,7 @@ function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_d
     end
 end
 
-function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skymsk,V_skyline_bright,V_skyline_faint,V_skycont;skyZcut=10,caching=false,cache_dir="../local_cache")
+function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skymsk,V_skyline_bright,V_skyline_faint,V_skycont;sky_obs_thresh=5,skyZcut=10,caching=false,cache_dir="../local_cache")
     ### Find all of the Sky Fibers
     vname = build_visitpath(release_dir,redux_ver,tele,field,plate,mjd,fiberindx)
     # do we want to move away from relying on the apPlateFile? 
@@ -92,11 +92,12 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
     skyZ = (skyScale.-skyMed)./skyIQR;
     msk = (abs.(skyZ).<skyZcut)
 
+    msk_local_skyLines = dropdims(sum(.!isnanorzero.(outLines[:,msk]),dims=2),dims=2).>sky_obs_thresh
     meanLocSky = dropdims(nanzeromean(outcont[:,msk],2),dims=2);
     meanLocSkyLines = dropdims(nanzeromean(outLines[:,msk],2),dims=2);
     VLocSky = (outcont[:,msk].-meanLocSky)./sqrt(count(msk));
     VLocSkyLines = (outLines[:,msk].-meanLocSkyLines)./sqrt(count(msk));
-    return meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines
+    return meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines, msk_local_skyLines
 end
 
 function sky_decomp(outvec,outvar,simplemsk,V_skyline_bright,V_skyline_faint,V_skycont)   

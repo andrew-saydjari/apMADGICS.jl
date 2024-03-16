@@ -185,15 +185,15 @@ end
         # Get Sky Prior
         skycache = cache_skyname(tele,field,plate,mjd,cache_dir=cache_dir)
         if (isfile(skycache) & sky_caching)
-            meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines = deserialize(skycache)
+            meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines, msk_local_skyLines = deserialize(skycache)
         else
-            meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines = getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skymsk,V_skyline_bright,V_skyline_faint,V_skycont,caching=caching,cache_dir=cache_dir)
+            meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines, msk_local_skyLines = getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skymsk,V_skyline_bright,V_skyline_faint,V_skycont,caching=caching,cache_dir=cache_dir)
             if sky_caching
                 dirName = splitdir(skycache)[1]
                 if !ispath(dirName)
                     mkpath(dirName)
                 end
-                serialize(skycache,[meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines])
+                serialize(skycache,[meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines, msk_local_skyLines])
             end
         end
         skyscale0 = nanzeromedian(meanLocSky)
@@ -218,7 +218,7 @@ end
                 serialize(starcache,[fvec, fvarvec, cntvec, chipmidtimes, metaexport])
             end
         end
-        simplemsk = (cntvec.==framecnts) .& skymsk;
+        simplemsk = (cntvec.==framecnts) .& skymsk .& msk_local_skyLines;
         
         push!(out,(count(simplemsk), starscale, skyscale0, framecnts, chipmidtimes, a_relFlux, b_relFlux, c_relFlux, cartVisit, ingest_bit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk),count(isnan.(fvec[simplemsk])),count(isnan.(fvarvec[simplemsk])),simplemsk)) # 1
 
