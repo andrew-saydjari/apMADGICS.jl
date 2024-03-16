@@ -47,7 +47,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     refine_iters = 5
     ddstaronly = false
-    runlist_range = 295:296 #295, 245, 335, 101
+    runlist_range = 1:600 #295, 245, 335, 101
     batchsize = 10 #40
 
     # Step Size for Chi2 Surface Error Bars
@@ -167,7 +167,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup, prior_vec; caching=true, sky_caching=false, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=true, ddstaronly=false, cache_dir=cache_dir, inject_cache_dir=inject_cache_dir)
+    function pipeline_single_spectra(argtup, prior_vec; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=true, ddstaronly=false, cache_dir=cache_dir, inject_cache_dir=inject_cache_dir)
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
         V_skycont,chebmsk_exp,V_skyline_bright,V_skyline_faint,skymsk_bright,skymsk_faint,skymsk,V_starcont,V_subpix_refLSF, V_subpix, msk_starCor, V_dib_lst, V_dib_soft_lst, V_dib_noLSF_soft_lst = prior_vec
         out = []
@@ -672,9 +672,9 @@ nwork = length(workers())
 println("Batches to Do: $lenargs, number of workers: $nwork")
 flush(stdout)
 
-pout = @showprogress pmap(multi_spectra_batch,ittot)
-# pout = @showprogress pmap(multi_spectra_batch,ittot,on_error=ex->2)
-# writedlm(out_dir*"pout_apMADGICS.txt",pout)
+# pout = @showprogress pmap(multi_spectra_batch,ittot)
+pout = @showprogress pmap(multi_spectra_batch,ittot,on_error=ex->2)
+writedlm(out_dir*"pout_apMADGICS.txt",pout)
 rmprocs(workers())
 
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t0)); println("Total script runtime: $dt"); t_then = t_now; flush(stdout)
