@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=sdss-np
 #SBATCH --partition=sdss-shared-np
-#SBATCH --nodes=4
+#SBATCH --nodes=8
 #SBATCH --ntasks-per-node=64
 
 #SBATCH --mem=0 #requesting all of the memory on the node
@@ -14,6 +14,8 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=7155301634@vtext.com
 # ------------------------------------------------------------------------------
+
+echo $SLURM_JOB_NODELIST
 
 julia +1.10.2 pipeline.jl
 

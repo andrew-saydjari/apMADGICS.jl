@@ -6,7 +6,7 @@ using InteractiveUtils; versioninfo()
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 using BLISBLAS
-using Distributed, SlurmClusterManager, Suppressor, DataFrames, Random
+using Distributed, SlurmClusterManager, Suppressor, DataFrames, DelimitedFiles
 addprocs(SlurmManager(),exeflags=["--project=./"])
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
 println("Running Main on ", gethostname())
@@ -15,7 +15,7 @@ println("Running Main on ", gethostname())
     using BLISBLAS
     using LinearAlgebra
     BLAS.set_num_threads(1)
-    using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays
+    using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, JLD2, FileIO
     using Interpolations, SparseArrays, ParallelDataTransfer, AstroTime, Suppressor
     using ThreadPinning
 
@@ -35,11 +35,11 @@ println("Running Main on ", gethostname())
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
-# Task-Affinity CPU Locking in multinode SlurmContext
-slurm_cpu_lock()
-println(BLAS.get_config()); flush(stdout)
-t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("CPU locking took $dt"); t_then = t_now; flush(stdout)
+# Task-Affinity CPU Locking in multinode SlurmContext (# not clear if this causes issues in 1.10.2)
+# slurm_cpu_lock()
+# t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("CPU locking took $dt"); t_then = t_now; flush(stdout)
 
+println(BLAS.get_config()); flush(stdout)
 using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 workers() git_branch; @passobj 1 workers() git_commit
 
 # These global allocations for the injest are messy... but we plan on changing the ingest
@@ -47,8 +47,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     refine_iters = 5
     ddstaronly = false
-    runlist_range = 1:600 #1:600 #295, 245, 335, 101
-    batchsize = 10 #40
+    runlist_range = 1:600 #295, 245, 335, 101
+    batchsize = 40
 
     # Step Size for Chi2 Surface Error Bars
     RV_err_step = 4
@@ -67,7 +67,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
     # prior_dict["runlists"] = prior_dir*"2024_03_11/inject_15672only_295_real/injection_input_lst_"
-    prior_dict["runlists"] = prior_dir*"2024_03_05/outlists/star/dr17_dr17_star_input_lst_msked_"
+    prior_dict["runlists"] = prior_dir*"2024_03_15/outlists/star/dr17_dr17_star_input_lst_msked_" # repackaged for cross platform/version from 2024_03_05
 
     # Sky Priors
     prior_dict["skycont"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_priors/APOGEE_skycont_svd_30_f"
@@ -98,8 +98,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     dib_ind_prior[4] = 2
 
     # Data for Detector Cals (not really a prior, but an input the results depend on in detail)
-    prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jdat"
-    prior_dict["red_chi2_dict"] = src_dir*"data/red_chi2_dict.jdat"
+    prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jld2"
 end
 
 # it would be great to move this into a parameter file that is read for each run
@@ -145,30 +144,9 @@ end
 end
 
 @everywhere begin
-    # Load the Global Priors
-    # nothing to do on size here, if anything expand
-    # global V_dib_noLSF_lst = []
-    # for dib in dib_waves
-    #     local f = h5open(prior_dict["DIB_noLSF_$(dib)"])
-    #     push!(V_dib_noLSF_lst, read(f["Vmat"]))
-    #     close(f)
-    # end
-
-    global V_dib_noLSF_soft_lst = []
-    for dib in dib_waves
-        local f = h5open(prior_dict["DIB_noLSF_soft_$(dib)"])
-        push!(V_dib_noLSF_soft_lst, read(f["Vmat"]))
-        close(f)
-    end
-
-    alpha = 1;
-    f = h5open(prior_dict["starLines_refLSF"])
-    global V_subpix_refLSF = alpha*read(f["Vmat"])
-    close(f)
-
     # I should revisit the error bars in the context of chi2 versus frame number trends
-    global err_correct_Dict = deserialize(prior_dict["chip_fluxdep_err_correction"])
-    global red_chi2_dict = deserialize(prior_dict["red_chi2_dict"])
+    # This is the main global, along with those other prealloc arrays at the end of the begin block
+    global err_correct_Dict = load(prior_dict["chip_fluxdep_err_correction"])
 
     wavetarg = 10 .^range((start=4.179-125*6.0e-6),step=6.0e-6,length=8575+125)
     minw, maxw = extrema(wavetarg)
@@ -189,8 +167,9 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=true, ddstaronly=false, cache_dir=cache_dir, inject_cache_dir=inject_cache_dir)
+    function pipeline_single_spectra(argtup, prior_vec; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=true, ddstaronly=false, cache_dir=cache_dir, inject_cache_dir=inject_cache_dir)
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
+        V_skycont,chebmsk_exp,V_skyline_bright,V_skyline_faint,skymsk_bright,skymsk_faint,skymsk,V_starcont,V_subpix_refLSF, V_subpix, msk_starCor, V_dib_lst, V_dib_soft_lst, V_dib_noLSF_soft_lst = prior_vec
         out = []
 
         # Get Throughput Fluxing 
@@ -206,15 +185,15 @@ end
         # Get Sky Prior
         skycache = cache_skyname(tele,field,plate,mjd,cache_dir=cache_dir)
         if (isfile(skycache) & sky_caching)
-            meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines = deserialize(skycache)
+            meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines, msk_local_skyLines = deserialize(skycache)
         else
-            meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines = getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skymsk,V_skyline_bright,V_skyline_faint,V_skycont,caching=sky_caching,cache_dir=cache_dir)
+            meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines, msk_local_skyLines = getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skymsk,V_skyline_bright,V_skyline_faint,V_skycont,caching=caching,cache_dir=cache_dir)
             if sky_caching
                 dirName = splitdir(skycache)[1]
                 if !ispath(dirName)
                     mkpath(dirName)
                 end
-                serialize(skycache,[meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines])
+                serialize(skycache,[meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines, msk_local_skyLines])
             end
         end
         skyscale0 = nanzeromedian(meanLocSky)
@@ -239,9 +218,9 @@ end
                 serialize(starcache,[fvec, fvarvec, cntvec, chipmidtimes, metaexport])
             end
         end
-        simplemsk = (cntvec.==framecnts) .& skymsk;
+        simplemsk = (cntvec.==framecnts) .& skymsk .& msk_local_skyLines;
         
-        push!(out,(count(simplemsk), starscale, skyscale0, framecnts, chipmidtimes, a_relFlux, b_relFlux, c_relFlux, cartVisit, ingest_bit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
+        push!(out,(count(simplemsk), starscale, skyscale0, framecnts, chipmidtimes, a_relFlux, b_relFlux, c_relFlux, cartVisit, ingest_bit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk),count(isnan.(fvec[simplemsk])),count(isnan.(fvarvec[simplemsk])),simplemsk)) # 1
 
         if skyCont_off
             meanLocSky.=0
@@ -291,7 +270,6 @@ end
         Ctotinv_skylines = LowRankMultMatIP([Ainv,Vcomb_skylines],wood_precomp_mult_mat([Ainv,Vcomb_skylines],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
         x_comp_lst = deblend_components_all_asym(Ctotinv_skylines, Xd_obs, (V_starCont_r, ), (V_starCont_c, ))
 
-        # # Subtract off the starContinuum component
         # starCont_Mscale_ref = x_comp_lst[1]
         starCont_Mscale = x_comp_lst[1][rvmsk]
         # Xd_obs = (fvec.-meanLocSky.-meanLocSkyLines.-starCont_Mscale_ref)[rvmsk];
@@ -393,7 +371,6 @@ end
         skyscale1 = nanzeromedian(x_comp_out[4])
         dvec = (fvec .-(x_comp_out[2].+x_comp_out[3].+x_comp_out[4].+x_comp_out[5].*(1 .+ nanify(x_comp_lst[5],finalmsk))))./fvec;
         chi2res = x_comp_lst[1]'*(Ainv*x_comp_lst[1])
-        # chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale1, fc=red_chi2_dict[tele[1:6]])
         push!(out,(chi2res,nanzeroiqr(dvec),count(finalmsk),starscale1,skyscale1)) # 3
         push!(out,x_comp_out) # 4
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
@@ -459,7 +436,6 @@ end
             push!(x_comp_out,x_comp_lst[6:end]...) # starLines, dib, and totchi2
 
             chi2res = x_comp_lst[1]'*(Ainv*x_comp_lst[1])
-            # chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale1, fc=red_chi2_dict[tele[1:6]])
             push!(out,(chi2res,)) # 8
 
             push!(out,x_comp_out) # 9
@@ -474,7 +450,7 @@ end
         ### Set up
         out = []
         startind = indsubset[1][1]
-        global tele = indsubset[1][4]
+        tele = indsubset[1][4]
         fiberindx = indsubset[1][end]
         teleind = (tele[1:6] == "lco25m") ? 2 : 1
         adjfibindx = (teleind-1)*300 + fiberindx
@@ -486,69 +462,74 @@ end
             mkpath(dirName)
         end
         if !isfile(savename)
-            prior_load_needed = if @isdefined loaded_adjfibindx
-                if adjfibindx != loaded_adjfibindx
-                    true
-                else
-                    false
-                end
+            # We are loading the priors EVERY time, so there is no benefit to ordering
+            # This is not optimal, but reduces scope confusion
+            # These first two could be globals, but load them here for consistency
+            V_dib_noLSF_soft_lst = []
+            for dib in dib_waves
+                local f = h5open(prior_dict["DIB_noLSF_soft_$(dib)"])
+                push!(V_dib_noLSF_soft_lst, read(f["Vmat"]))
+                close(f)
+            end
+        
+            f = h5open(prior_dict["starLines_refLSF"])
+            V_subpix_refLSF = read(f["Vmat"])
+            close(f)
+
+            ### Need to load the priors here
+            f = h5open(prior_dict["skycont"]*lpad(adjfibindx,3,"0")*".h5")
+            V_skycont = read(f["Vmat"])
+            chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
+            close(f)
+
+            f = h5open(prior_dict["skyLines_bright"]*lpad(adjfibindx,3,"0")*".h5")
+            V_skyline_bright = read(f["Vmat"])
+            submsk_bright = convert.(Bool,read(f["submsk"]))
+            close(f)
+
+            f = h5open(prior_dict["skyLines_faint"]*lpad(adjfibindx,3,"0")*".h5")
+            V_skyline_faint = read(f["Vmat"])
+            submsk_faint = convert.(Bool,read(f["submsk"]))
+            close(f)
+
+            skymsk_bright = chebmsk_exp .& submsk_bright #
+            skymsk_faint = chebmsk_exp .& submsk_faint
+            # global skymsk = chebmsk_exp .& (submsk_bright .| submsk_faint)
+            skymsk = chebmsk_exp .& submsk_faint # completely masking all bright lines b/c detector response is nonlinear;
+
+            f = h5open(prior_dict["starCont"]*lpad(adjfibindx,3,"0")*".h5")
+            V_starcont = read(f["Vmat"])
+            close(f)
+
+            f = h5open(prior_dict["starLines_LSF"]*lpad(adjfibindx,3,"0")*".h5")
+            V_subpix = read(f["Vmat"])
+            if ddstaronly
+                V_subpix_refLSF = V_subpix
+                msk_starCor = convert.(Bool,read(f["msk_starCor"]))
             else
-                true
+                msk_starCor = ones(Bool,length(chebmsk_exp))
             end
-            if prior_load_needed
-                ### Need to load the priors here
-                f = h5open(prior_dict["skycont"]*lpad(adjfibindx,3,"0")*".h5")
-                global V_skycont = read(f["Vmat"])
-                global chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
+            close(f)
+
+            V_dib_lst = []
+            for dib in dib_waves
+                local f = h5open(prior_dict["DIB_LSF_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
+                push!(V_dib_lst,read(f["Vmat"]))
                 close(f)
-
-                f = h5open(prior_dict["skyLines_bright"]*lpad(adjfibindx,3,"0")*".h5")
-                global V_skyline_bright = read(f["Vmat"])
-                submsk_bright = convert.(Bool,read(f["submsk"]))
-                close(f)
-
-                f = h5open(prior_dict["skyLines_faint"]*lpad(adjfibindx,3,"0")*".h5")
-                global V_skyline_faint = read(f["Vmat"])
-                submsk_faint = convert.(Bool,read(f["submsk"]))
-                close(f)
-
-                global skymsk_bright = chebmsk_exp .& submsk_bright
-                global skymsk_faint = chebmsk_exp .& submsk_faint
-                # global skymsk = chebmsk_exp .& (submsk_bright .| submsk_faint) #
-                global skymsk = chebmsk_exp .& submsk_faint # completely masking all bright lines b/c detector response is nonlinear;
-
-                f = h5open(prior_dict["starCont"]*lpad(adjfibindx,3,"0")*".h5")
-                global V_starcont = read(f["Vmat"])
-                close(f)
-
-                f = h5open(prior_dict["starLines_LSF"]*lpad(adjfibindx,3,"0")*".h5")
-                global V_subpix = alpha*read(f["Vmat"])
-                if ddstaronly
-                    global V_subpix_refLSF = V_subpix
-                    global msk_starCor = convert.(Bool,read(f["msk_starCor"]))
-                end
-                close(f)
-
-                global V_dib_lst = []
-                for dib in dib_waves
-                    local f = h5open(prior_dict["DIB_LSF_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
-                    push!(V_dib_lst,read(f["Vmat"]))
-                    close(f)
-                end
-
-                global V_dib_soft_lst = []
-                for dib in dib_waves
-                    local f = h5open(prior_dict["DIB_LSF_soft_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
-                    push!(V_dib_soft_lst,read(f["Vmat"]))
-                    close(f)
-                end
-                GC.gc()
             end
-            global loaded_adjfibindx = adjfibindx
+
+            V_dib_soft_lst = []
+            for dib in dib_waves
+                local f = h5open(prior_dict["DIB_LSF_soft_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
+                push!(V_dib_soft_lst,read(f["Vmat"]))
+                close(f)
+            end
             
             ### Single spectrum loop
+            prior_vec = (V_skycont,chebmsk_exp,V_skyline_bright,V_skyline_faint,skymsk_bright,skymsk_faint,skymsk,V_starcont,V_subpix_refLSF,V_subpix,msk_starCor,V_dib_lst, V_dib_soft_lst,V_dib_noLSF_soft_lst)
+            pipeline_single_spectra_bind(argtup) = pipeline_single_spectra(argtup, prior_vec; ddstaronly=ddstaronly)
             for (ind,indval) in enumerate(indsubset)
-                push!(out,pipeline_single_spectra(indval; ddstaronly=ddstaronly))
+                push!(out,pipeline_single_spectra_bind(indval))
             end
 
             ### Save Exporting
@@ -572,7 +553,9 @@ end
                 (x->x[metai][10],                       "ingestBit"),
                 (x->x[metai][11],                       "flux"),
                 (x->x[metai][12],                       "fluxerr2"),
-                (x->Int.(x[metai][13]),                 "simplemsk"),
+                (x->x[metai][13],                       "flux_nans"),
+                (x->x[metai][14],                       "fluxerr2_nans"),
+                (x->convert(Vector{Int},x[metai][15]),  "simplemsk"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
@@ -659,7 +642,6 @@ end
                 extractor(out,elelst[1],elelst[2],savename)
             end
         end
-        GC.gc()
         return 0
     end
 
@@ -679,7 +661,8 @@ iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
 
 for adjfibindx in runlist_range
-    subiter = deserialize(prior_dict["runlists"]*lpad(adjfibindx,3,"0")*".jdat")
+    subDic = load(prior_dict["runlists"]*lpad(adjfibindx,3,"0")*".jld2")
+    subiter = Iterators.zip(subDic["runindx"],subDic["release_dir"],subDic["redux_ver"],subDic["tele"],subDic["field"],subDic["plate"],subDic["mjd"],subDic["fiberindx"])
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end
@@ -689,9 +672,9 @@ nwork = length(workers())
 println("Batches to Do: $lenargs, number of workers: $nwork")
 flush(stdout)
 
-rng = MersenneTwister(2024)
+# pout = @showprogress pmap(multi_spectra_batch,ittot)
 pout = @showprogress pmap(multi_spectra_batch,ittot,on_error=ex->2)
-serialize(out_dir*"pout_apMADGICS.jdat",pout)
+writedlm(out_dir*"pout_apMADGICS.txt",pout)
 rmprocs(workers())
 
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t0)); println("Total script runtime: $dt"); t_then = t_now; flush(stdout)

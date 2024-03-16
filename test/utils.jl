@@ -101,11 +101,11 @@
     @test y[msk] == [1.1, 3.7, 5.8]
     @test all(isnan.(y[.!msk]))
 
-    # cpu_lock test (rough)
-    if Sys.islinux()
-        using ThreadPinning, DataFrames, Distributed
-        slurm_cpu_lock()
-    end
+    # # cpu_lock test (rough)
+    # if Sys.islinux()
+    #     using ThreadPinning, DataFrames, Distributed
+    #     slurm_cpu_lock()
+    # end
 
     z = v2z(10)
     v = z2v(z)

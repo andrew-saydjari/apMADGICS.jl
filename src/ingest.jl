@@ -43,7 +43,7 @@ function getAndWrite_fluxing(release_dir,redux_ver,tele,field,plate,mjd; cache_d
     end
 end
 
-function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skymsk,V_skyline_bright,V_skyline_faint,V_skycont;skyZcut=10,caching=false,cache_dir="../local_cache")
+function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skymsk,V_skyline_bright,V_skyline_faint,V_skycont;sky_obs_thresh=5,skyZcut=10,caching=false,cache_dir="../local_cache")
     ### Find all of the Sky Fibers
     vname = build_visitpath(release_dir,redux_ver,tele,field,plate,mjd,fiberindx)
     # do we want to move away from relying on the apPlateFile? 
@@ -78,12 +78,12 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
             end
         end
 
-        simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
-        contvec = sky_decomp(fvec, fvarvec, simplemsk, V_skyline_bright, V_skyline_faint, V_skycont)
+        simplemsk = (cntvec.==maximum(cntvec));
+        contvec = sky_decomp(fvec, fvarvec, simplemsk .& skymsk, V_skyline_bright, V_skyline_faint, V_skycont)
         # do we want to save the other components to disk? I am not sure we do.
         # using sky - skycont as the skyline prior will parition a bit more noise into the skylines, but I worry about marginalizing over moon position
         outcont[:,findx] .= contvec
-        outLines[skymsk,findx] .= (fvec.-contvec)[skymsk]
+        outLines[simplemsk,findx] .= (fvec.-contvec)[simplemsk]
     end
 
     skyScale = dropdims(nanzeromedian(outcont,1),dims=1);
@@ -92,11 +92,12 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
     skyZ = (skyScale.-skyMed)./skyIQR;
     msk = (abs.(skyZ).<skyZcut)
 
+    msk_local_skyLines = dropdims(sum(.!isnanorzero.(outLines[:,msk]),dims=2),dims=2).>sky_obs_thresh
     meanLocSky = dropdims(nanzeromean(outcont[:,msk],2),dims=2);
     meanLocSkyLines = dropdims(nanzeromean(outLines[:,msk],2),dims=2);
     VLocSky = (outcont[:,msk].-meanLocSky)./sqrt(count(msk));
     VLocSkyLines = (outLines[:,msk].-meanLocSkyLines)./sqrt(count(msk));
-    return meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines
+    return meanLocSky, VLocSky, meanLocSkyLines, VLocSkyLines, msk_local_skyLines
 end
 
 function sky_decomp(outvec,outvar,simplemsk,V_skyline_bright,V_skyline_faint,V_skycont)   

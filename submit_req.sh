@@ -16,6 +16,8 @@
 #SBATCH --mail-user=7155301634@vtext.com
 # ------------------------------------------------------------------------------
 
+echo $SLURM_JOB_NODELIST
+
 julia +1.10.2 pipeline.jl
 
 # Clean up logs and Report Timing
