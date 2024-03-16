@@ -67,7 +67,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
     # prior_dict["runlists"] = prior_dir*"2024_03_11/inject_15672only_295_real/injection_input_lst_"
-    prior_dict["runlists"] = prior_dir*"2024_03_05/outlists/star/dr17_dr17_star_input_lst_msked_"
+    prior_dict["runlists"] = prior_dir*"2024_03_15/outlists/star/dr17_dr17_star_input_lst_msked_" # repackaged for cross platform/version from 2024_03_05
 
     # Sky Priors
     prior_dict["skycont"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_priors/APOGEE_skycont_svd_30_f"
@@ -463,78 +463,68 @@ end
             mkpath(dirName)
         end
         if !isfile(savename)
-            prior_load_needed = if @isdefined loaded_adjfibindx
-                if adjfibindx != loaded_adjfibindx
-                    true
-                else
-                    false
-                end
+            # We are loading the priors EVERY time, so there is no benefit to ordering
+            # This is not optimal, but reduces scope confusion
+            # These first two could be globals, but load them here for consistency
+            V_dib_noLSF_soft_lst = []
+            for dib in dib_waves
+                local f = h5open(prior_dict["DIB_noLSF_soft_$(dib)"])
+                push!(V_dib_noLSF_soft_lst, read(f["Vmat"]))
+                close(f)
+            end
+        
+            f = h5open(prior_dict["starLines_refLSF"])
+            V_subpix_refLSF = read(f["Vmat"])
+            close(f)
+
+            ### Need to load the priors here
+            f = h5open(prior_dict["skycont"]*lpad(adjfibindx,3,"0")*".h5")
+            V_skycont = read(f["Vmat"])
+            chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
+            close(f)
+
+            f = h5open(prior_dict["skyLines_bright"]*lpad(adjfibindx,3,"0")*".h5")
+            V_skyline_bright = read(f["Vmat"])
+            submsk_bright = convert.(Bool,read(f["submsk"]))
+            close(f)
+
+            f = h5open(prior_dict["skyLines_faint"]*lpad(adjfibindx,3,"0")*".h5")
+            V_skyline_faint = read(f["Vmat"])
+            submsk_faint = convert.(Bool,read(f["submsk"]))
+            close(f)
+
+            skymsk_bright = chebmsk_exp .& submsk_bright #
+            skymsk_faint = chebmsk_exp .& submsk_faint
+            # global skymsk = chebmsk_exp .& (submsk_bright .| submsk_faint)
+            skymsk = chebmsk_exp .& submsk_faint # completely masking all bright lines b/c detector response is nonlinear;
+
+            f = h5open(prior_dict["starCont"]*lpad(adjfibindx,3,"0")*".h5")
+            V_starcont = read(f["Vmat"])
+            close(f)
+
+            f = h5open(prior_dict["starLines_LSF"]*lpad(adjfibindx,3,"0")*".h5")
+            V_subpix = read(f["Vmat"])
+            if ddstaronly
+                V_subpix_refLSF = V_subpix
+                msk_starCor = convert.(Bool,read(f["msk_starCor"]))
             else
-                true
+                msk_starCor = ones(Bool,length(chebmsk_exp))
             end
-            if prior_load_needed
-                # These first two could be globals, but load them here for consistency
-                V_dib_noLSF_soft_lst = []
-                for dib in dib_waves
-                    local f = h5open(prior_dict["DIB_noLSF_soft_$(dib)"])
-                    push!(V_dib_noLSF_soft_lst, read(f["Vmat"]))
-                    close(f)
-                end
-            
-                f = h5open(prior_dict["starLines_refLSF"])
-                V_subpix_refLSF = read(f["Vmat"])
+            close(f)
+
+            V_dib_lst = []
+            for dib in dib_waves
+                local f = h5open(prior_dict["DIB_LSF_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
+                push!(V_dib_lst,read(f["Vmat"]))
                 close(f)
-
-                ### Need to load the priors here
-                f = h5open(prior_dict["skycont"]*lpad(adjfibindx,3,"0")*".h5")
-                V_skycont = read(f["Vmat"])
-                chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
-                close(f)
-
-                f = h5open(prior_dict["skyLines_bright"]*lpad(adjfibindx,3,"0")*".h5")
-                V_skyline_bright = read(f["Vmat"])
-                submsk_bright = convert.(Bool,read(f["submsk"]))
-                close(f)
-
-                f = h5open(prior_dict["skyLines_faint"]*lpad(adjfibindx,3,"0")*".h5")
-                V_skyline_faint = read(f["Vmat"])
-                submsk_faint = convert.(Bool,read(f["submsk"]))
-                close(f)
-
-                skymsk_bright = chebmsk_exp .& submsk_bright #
-                skymsk_faint = chebmsk_exp .& submsk_faint
-                # global skymsk = chebmsk_exp .& (submsk_bright .| submsk_faint)
-                skymsk = chebmsk_exp .& submsk_faint # completely masking all bright lines b/c detector response is nonlinear;
-
-                f = h5open(prior_dict["starCont"]*lpad(adjfibindx,3,"0")*".h5")
-                V_starcont = read(f["Vmat"])
-                close(f)
-
-                f = h5open(prior_dict["starLines_LSF"]*lpad(adjfibindx,3,"0")*".h5")
-                V_subpix = read(f["Vmat"])
-                if ddstaronly
-                    V_subpix_refLSF = V_subpix
-                    msk_starCor = convert.(Bool,read(f["msk_starCor"]))
-                else
-                    msk_starCor = ones(Bool,length(chebmsk_exp))
-                end
-                close(f)
-
-                V_dib_lst = []
-                for dib in dib_waves
-                    local f = h5open(prior_dict["DIB_LSF_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
-                    push!(V_dib_lst,read(f["Vmat"]))
-                    close(f)
-                end
-
-                V_dib_soft_lst = []
-                for dib in dib_waves
-                    local f = h5open(prior_dict["DIB_LSF_soft_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
-                    push!(V_dib_soft_lst,read(f["Vmat"]))
-                    close(f)
-                end
             end
-            global loaded_adjfibindx = adjfibindx
+
+            V_dib_soft_lst = []
+            for dib in dib_waves
+                local f = h5open(prior_dict["DIB_LSF_soft_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
+                push!(V_dib_soft_lst,read(f["Vmat"]))
+                close(f)
+            end
             
             ### Single spectrum loop
             prior_vec = (V_skycont,chebmsk_exp,V_skyline_bright,V_skyline_faint,skymsk_bright,skymsk_faint,skymsk,V_starcont,V_subpix_refLSF,V_subpix,msk_starCor,V_dib_lst, V_dib_soft_lst,V_dib_noLSF_soft_lst)
@@ -670,7 +660,8 @@ iterlst = []
 Base.length(f::Iterators.Flatten) = sum(length, f.it)
 
 for adjfibindx in runlist_range
-    subiter = deserialize(prior_dict["runlists"]*lpad(adjfibindx,3,"0")*".jdat")
+    subDic = load(prior_dict["runlists"]*lpad(adjfibindx,3,"0")*".jld2")
+    subiter = Iterators.zip(subDic["release_dir"],subDic["redux_ver"],subDic["tele"],subDic["field"],subDic["plate"],subDic["mjd"],subDic["fiberindx"])
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end
