@@ -462,7 +462,7 @@ end
         ### Set up
         out = []
         startind = indsubset[1][1]
-        global tele = indsubset[1][4]
+        tele = indsubset[1][4]
         fiberindx = indsubset[1][end]
         teleind = (tele[1:6] == "lco25m") ? 2 : 1
         adjfibindx = (teleind-1)*300 + fiberindx
@@ -486,45 +486,45 @@ end
             if prior_load_needed
                 ### Need to load the priors here
                 f = h5open(prior_dict["skycont"]*lpad(adjfibindx,3,"0")*".h5")
-                global V_skycont = read(f["Vmat"])
-                global chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
+                V_skycont = read(f["Vmat"]) #
+                chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"])) #
                 close(f)
 
                 f = h5open(prior_dict["skyLines_bright"]*lpad(adjfibindx,3,"0")*".h5")
-                global V_skyline_bright = read(f["Vmat"])
+                V_skyline_bright = read(f["Vmat"]) #
                 submsk_bright = convert.(Bool,read(f["submsk"]))
                 close(f)
 
                 f = h5open(prior_dict["skyLines_faint"]*lpad(adjfibindx,3,"0")*".h5")
-                global V_skyline_faint = read(f["Vmat"])
+                V_skyline_faint = read(f["Vmat"]) #
                 submsk_faint = convert.(Bool,read(f["submsk"]))
                 close(f)
 
-                global skymsk_bright = chebmsk_exp .& submsk_bright
-                global skymsk_faint = chebmsk_exp .& submsk_faint
+                skymsk_bright = chebmsk_exp .& submsk_bright #
+                skymsk_faint = chebmsk_exp .& submsk_faint #
                 # global skymsk = chebmsk_exp .& (submsk_bright .| submsk_faint) #
-                global skymsk = chebmsk_exp .& submsk_faint # completely masking all bright lines b/c detector response is nonlinear;
+                skymsk = chebmsk_exp .& submsk_faint # completely masking all bright lines b/c detector response is nonlinear; #
 
                 f = h5open(prior_dict["starCont"]*lpad(adjfibindx,3,"0")*".h5")
-                global V_starcont = read(f["Vmat"])
+                V_starcont = read(f["Vmat"]) #
                 close(f)
 
                 f = h5open(prior_dict["starLines_LSF"]*lpad(adjfibindx,3,"0")*".h5")
-                global V_subpix = alpha*read(f["Vmat"])
+                V_subpix = alpha*read(f["Vmat"]) #
                 if ddstaronly
-                    global V_subpix_refLSF = V_subpix
-                    global msk_starCor = convert.(Bool,read(f["msk_starCor"]))
+                    V_subpix_refLSF = V_subpix #
+                    msk_starCor = convert.(Bool,read(f["msk_starCor"])) #
                 end
                 close(f)
 
-                global V_dib_lst = []
+                V_dib_lst = [] #
                 for dib in dib_waves
                     local f = h5open(prior_dict["DIB_LSF_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
                     push!(V_dib_lst,read(f["Vmat"]))
                     close(f)
                 end
 
-                global V_dib_soft_lst = []
+                V_dib_soft_lst = [] #
                 for dib in dib_waves
                     local f = h5open(prior_dict["DIB_LSF_soft_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
                     push!(V_dib_soft_lst,read(f["Vmat"]))
@@ -646,6 +646,7 @@ end
                 extractor(out,elelst[1],elelst[2],savename)
             end
         end
+        return 0
     end
 
     function extractor(x,elemap,elename,savename)
