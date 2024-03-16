@@ -7,7 +7,7 @@ Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 using BLISBLAS
 using Distributed, SlurmClusterManager, Suppressor, DataFrames, Random
-addprocs(SlurmManager(),exeflags=["--project=./","--gcthreads=6,1"])
+addprocs(SlurmManager(),exeflags=["--project=./","--gcthreads=2,1","--threads=2,1",])
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
 println("Running Main on ", gethostname())
 
@@ -37,9 +37,9 @@ t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); prin
 
 # Task-Affinity CPU Locking in multinode SlurmContext (# not clear if this causes issues in 1.10.2)
 # slurm_cpu_lock()
-println(BLAS.get_config()); flush(stdout)
-t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("CPU locking took $dt"); t_then = t_now; flush(stdout)
+# t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("CPU locking took $dt"); t_then = t_now; flush(stdout)
 
+println(BLAS.get_config()); flush(stdout)
 using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 workers() git_branch; @passobj 1 workers() git_commit
 
 # These global allocations for the injest are messy... but we plan on changing the ingest
@@ -47,7 +47,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     refine_iters = 5
     ddstaronly = false
-    runlist_range = 295:295 #1:600 #295, 245, 335, 101
+    runlist_range = 1:600 #295, 245, 335, 101
     batchsize = 10 #40
 
     # Step Size for Chi2 Surface Error Bars
@@ -680,7 +680,6 @@ nwork = length(workers())
 println("Batches to Do: $lenargs, number of workers: $nwork")
 flush(stdout)
 
-rng = MersenneTwister(2024)
 pout = @showprogress pmap(multi_spectra_batch,ittot,on_error=ex->2)
 serialize(out_dir*"pout_apMADGICS.jdat",pout)
 rmprocs(workers())
