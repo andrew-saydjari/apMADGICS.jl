@@ -144,18 +144,6 @@ end
 end
 
 @everywhere begin
-    # Load the Global Priors
-    global V_dib_noLSF_soft_lst = []
-    for dib in dib_waves
-        local f = h5open(prior_dict["DIB_noLSF_soft_$(dib)"])
-        push!(V_dib_noLSF_soft_lst, read(f["Vmat"]))
-        close(f)
-    end
-
-    f = h5open(prior_dict["starLines_refLSF"])
-    global V_subpix_refLSF = read(f["Vmat"])
-    close(f)
-
     # I should revisit the error bars in the context of chi2 versus frame number trends
     # This is the main global, along with those other prealloc arrays at the end of the begin block
     global err_correct_Dict = load(prior_dict["chip_fluxdep_err_correction"])
@@ -485,6 +473,18 @@ end
                 true
             end
             if prior_load_needed
+                # These first two could be globals, but load them here for consistency
+                V_dib_noLSF_soft_lst = []
+                for dib in dib_waves
+                    local f = h5open(prior_dict["DIB_noLSF_soft_$(dib)"])
+                    push!(V_dib_noLSF_soft_lst, read(f["Vmat"]))
+                    close(f)
+                end
+            
+                f = h5open(prior_dict["starLines_refLSF"])
+                V_subpix_refLSF = read(f["Vmat"])
+                close(f)
+
                 ### Need to load the priors here
                 f = h5open(prior_dict["skycont"]*lpad(adjfibindx,3,"0")*".h5")
                 V_skycont = read(f["Vmat"])
@@ -515,6 +515,8 @@ end
                 if ddstaronly
                     V_subpix_refLSF = V_subpix
                     msk_starCor = convert.(Bool,read(f["msk_starCor"]))
+                else
+                    msk_starCor = ones(Bool,length(chebmsk_exp))
                 end
                 close(f)
 
