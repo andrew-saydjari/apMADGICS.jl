@@ -98,7 +98,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     dib_ind_prior[4] = 2
 
     # Data for Detector Cals (not really a prior, but an input the results depend on in detail)
-    prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jdl2"
+    prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jld2"
 end
 
 # it would be great to move this into a parameter file that is read for each run
