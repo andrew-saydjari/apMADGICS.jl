@@ -17,7 +17,7 @@
 
 echo $SLURM_JOB_NODELIST
 
-julia +1.8.2 pipeline.jl
+julia +1.10.2 pipeline.jl
 
 # Clean up logs and Report Timing
 formatted_time=$(printf '%dd %dh:%dm:%ds\n' $(($SECONDS/86400)) $(($SECONDS%86400/3600)) $(($SECONDS%3600/60)) $(($SECONDS%60)))
