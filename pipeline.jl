@@ -167,7 +167,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup, prior_vec; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=true, ddstaronly=false, cache_dir=cache_dir, inject_cache_dir=inject_cache_dir)
+    function pipeline_single_spectra(argtup, prior_vec; caching=true, sky_caching=false, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=true, ddstaronly=false, cache_dir=cache_dir, inject_cache_dir=inject_cache_dir)
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
         V_skycont,chebmsk_exp,V_skyline_bright,V_skyline_faint,skymsk_bright,skymsk_faint,skymsk,V_starcont,V_subpix_refLSF, V_subpix, msk_starCor, V_dib_lst, V_dib_soft_lst, V_dib_noLSF_soft_lst = prior_vec
         out = []
