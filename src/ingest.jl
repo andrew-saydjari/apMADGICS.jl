@@ -78,12 +78,12 @@ function getSky4visit(release_dir,redux_ver,tele,field,plate,mjd,fiberindx,skyms
             end
         end
 
-        simplemsk = (cntvec.==maximum(cntvec)) .& skymsk;
-        contvec = sky_decomp(fvec, fvarvec, simplemsk, V_skyline_bright, V_skyline_faint, V_skycont)
+        simplemsk = (cntvec.==maximum(cntvec));
+        contvec = sky_decomp(fvec, fvarvec, simplemsk .& skymsk, V_skyline_bright, V_skyline_faint, V_skycont)
         # do we want to save the other components to disk? I am not sure we do.
         # using sky - skycont as the skyline prior will parition a bit more noise into the skylines, but I worry about marginalizing over moon position
         outcont[:,findx] .= contvec
-        outLines[skymsk,findx] .= (fvec.-contvec)[skymsk]
+        outLines[simplemsk,findx] .= (fvec.-contvec)[simplemsk]
     end
 
     skyScale = dropdims(nanzeromedian(outcont,1),dims=1);
