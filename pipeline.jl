@@ -146,14 +146,6 @@ end
 
 @everywhere begin
     # Load the Global Priors
-    # nothing to do on size here, if anything expand
-    # global V_dib_noLSF_lst = []
-    # for dib in dib_waves
-    #     local f = h5open(prior_dict["DIB_noLSF_$(dib)"])
-    #     push!(V_dib_noLSF_lst, read(f["Vmat"]))
-    #     close(f)
-    # end
-
     global V_dib_noLSF_soft_lst = []
     for dib in dib_waves
         local f = h5open(prior_dict["DIB_noLSF_soft_$(dib)"])
@@ -652,27 +644,25 @@ end
                     "pipeline"=>"apMADGICS.jl",
                     "git_branch"=>git_branch,   
                     "git_commit"=>git_commit,
-            )
-            f = h5open(savename,"w")
-            write(f,"hdr","This is only a header")
-            write_attribute(f,"hdr",hdr_dict)        
+            )           
+            h5write(savename,"hdr","This is only a header")
+            h5writeattr(savename,"hdr",hdr_dict)        
             for elelst in extractlst
-                extractor(out,elelst[1],elelst[2],savename,f)
+                extractor(out,elelst[1],elelst[2],savename)
             end
-            close(f)
         end
         GC.gc()
-        return 0
     end
 
-    function extractor(x,elemap,elename,f)
+    function extractor(x,elemap,elename,savename)
         len = length(x)
         exobj = elemap(x[1])
         outmat = zeros(eltype(exobj),size(exobj)...,len)
         for i=1:len
+            flush(stdout)
             outmat[.. ,i] .= elemap(x[i])
         end
-        write(f,elename,outmat)
+        h5write(savename,elename,outmat)
     end
 end
 
