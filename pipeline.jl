@@ -152,12 +152,12 @@ end
         close(f)
     end
 
-    alpha = 1;
     f = h5open(prior_dict["starLines_refLSF"])
-    global V_subpix_refLSF = alpha*read(f["Vmat"])
+    global V_subpix_refLSF = read(f["Vmat"])
     close(f)
 
     # I should revisit the error bars in the context of chi2 versus frame number trends
+    # This is the main global, along with those other prealloc arrays at the end of the begin block
     global err_correct_Dict = load(prior_dict["chip_fluxdep_err_correction"])
 
     wavetarg = 10 .^range((start=4.179-125*6.0e-6),step=6.0e-6,length=8575+125)
@@ -179,8 +179,9 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=true, ddstaronly=false, cache_dir=cache_dir, inject_cache_dir=inject_cache_dir)
+    function pipeline_single_spectra(argtup, prior_vec; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=true, ddstaronly=false, cache_dir=cache_dir, inject_cache_dir=inject_cache_dir)
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
+        V_skycont,chebmsk_exp,V_skyline_bright,V_skyline_faint,skymsk_bright,skymsk_faint,skymsk,V_starcont,V_subpix_refLSF, V_subpix, msk_starCor, V_dib_lst, V_dib_soft_lst, V_dib_noLSF_soft_lst = prior_vec
         out = []
 
         # Get Throughput Fluxing 
@@ -486,45 +487,45 @@ end
             if prior_load_needed
                 ### Need to load the priors here
                 f = h5open(prior_dict["skycont"]*lpad(adjfibindx,3,"0")*".h5")
-                V_skycont = read(f["Vmat"]) #
-                chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"])) #
+                V_skycont = read(f["Vmat"])
+                chebmsk_exp = convert.(Bool,read(f["chebmsk_exp"]))
                 close(f)
 
                 f = h5open(prior_dict["skyLines_bright"]*lpad(adjfibindx,3,"0")*".h5")
-                V_skyline_bright = read(f["Vmat"]) #
+                V_skyline_bright = read(f["Vmat"])
                 submsk_bright = convert.(Bool,read(f["submsk"]))
                 close(f)
 
                 f = h5open(prior_dict["skyLines_faint"]*lpad(adjfibindx,3,"0")*".h5")
-                V_skyline_faint = read(f["Vmat"]) #
+                V_skyline_faint = read(f["Vmat"])
                 submsk_faint = convert.(Bool,read(f["submsk"]))
                 close(f)
 
                 skymsk_bright = chebmsk_exp .& submsk_bright #
-                skymsk_faint = chebmsk_exp .& submsk_faint #
-                # global skymsk = chebmsk_exp .& (submsk_bright .| submsk_faint) #
-                skymsk = chebmsk_exp .& submsk_faint # completely masking all bright lines b/c detector response is nonlinear; #
+                skymsk_faint = chebmsk_exp .& submsk_faint
+                # global skymsk = chebmsk_exp .& (submsk_bright .| submsk_faint)
+                skymsk = chebmsk_exp .& submsk_faint # completely masking all bright lines b/c detector response is nonlinear;
 
                 f = h5open(prior_dict["starCont"]*lpad(adjfibindx,3,"0")*".h5")
-                V_starcont = read(f["Vmat"]) #
+                V_starcont = read(f["Vmat"])
                 close(f)
 
                 f = h5open(prior_dict["starLines_LSF"]*lpad(adjfibindx,3,"0")*".h5")
-                V_subpix = alpha*read(f["Vmat"]) #
+                V_subpix = read(f["Vmat"])
                 if ddstaronly
-                    V_subpix_refLSF = V_subpix #
-                    msk_starCor = convert.(Bool,read(f["msk_starCor"])) #
+                    V_subpix_refLSF = V_subpix
+                    msk_starCor = convert.(Bool,read(f["msk_starCor"]))
                 end
                 close(f)
 
-                V_dib_lst = [] #
+                V_dib_lst = []
                 for dib in dib_waves
                     local f = h5open(prior_dict["DIB_LSF_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
                     push!(V_dib_lst,read(f["Vmat"]))
                     close(f)
                 end
 
-                V_dib_soft_lst = [] #
+                V_dib_soft_lst = []
                 for dib in dib_waves
                     local f = h5open(prior_dict["DIB_LSF_soft_$(dib)"]*lpad(adjfibindx,3,"0")*".h5")
                     push!(V_dib_soft_lst,read(f["Vmat"]))
@@ -534,8 +535,10 @@ end
             global loaded_adjfibindx = adjfibindx
             
             ### Single spectrum loop
+            prior_vec = (V_skycont,chebmsk_exp,V_skyline_bright,V_skyline_faint,skymsk_bright,skymsk_faint,skymsk,V_starcont,V_subpix_refLSF,V_subpix,msk_starCor,V_dib_lst, V_dib_soft_lst,V_dib_noLSF_soft_lst)
+            pipeline_single_spectra_bind(argtup) = pipeline_single_spectra(argtup, prior_vec; ddstaronly=ddstaronly)
             for (ind,indval) in enumerate(indsubset)
-                push!(out,pipeline_single_spectra(indval; ddstaronly=ddstaronly))
+                push!(out,pipeline_single_spectra_bind(indval))
             end
 
             ### Save Exporting
@@ -675,8 +678,9 @@ nwork = length(workers())
 println("Batches to Do: $lenargs, number of workers: $nwork")
 flush(stdout)
 
-pout = @showprogress pmap(multi_spectra_batch,ittot,on_error=ex->2)
-writedlm(out_dir*"pout_apMADGICS.txt",pout)
+pout = @showprogress pmap(multi_spectra_batch,ittot)
+# pout = @showprogress pmap(multi_spectra_batch,ittot,on_error=ex->2)
+# writedlm(out_dir*"pout_apMADGICS.txt",pout)
 rmprocs(workers())
 
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t0)); println("Total script runtime: $dt"); t_then = t_now; flush(stdout)
