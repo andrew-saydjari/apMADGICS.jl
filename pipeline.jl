@@ -15,7 +15,7 @@ println("Running Main on ", gethostname())
     using BLISBLAS
     using LinearAlgebra
     BLAS.set_num_threads(1)
-    using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays
+    using FITSIO, Serialization, HDF5, LowRankOps, EllipsisNotation, ShiftedArrays, JLD2, FileIO
     using Interpolations, SparseArrays, ParallelDataTransfer, AstroTime, Suppressor
     using ThreadPinning
 
@@ -47,7 +47,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     refine_iters = 5
     ddstaronly = false
-    runlist_range = 294:295 #295, 245, 335, 101
+    runlist_range = 295:296 #295, 245, 335, 101
     batchsize = 10 #40
 
     # Step Size for Chi2 Surface Error Bars
@@ -98,7 +98,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     dib_ind_prior[4] = 2
 
     # Data for Detector Cals (not really a prior, but an input the results depend on in detail)
-    prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jdat"
+    prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jdl2"
 end
 
 # it would be great to move this into a parameter file that is read for each run
@@ -158,7 +158,7 @@ end
     close(f)
 
     # I should revisit the error bars in the context of chi2 versus frame number trends
-    global err_correct_Dict = deserialize(prior_dict["chip_fluxdep_err_correction"])
+    global err_correct_Dict = load(prior_dict["chip_fluxdep_err_correction"])
 
     wavetarg = 10 .^range((start=4.179-125*6.0e-6),step=6.0e-6,length=8575+125)
     minw, maxw = extrema(wavetarg)
@@ -530,7 +530,6 @@ end
                     push!(V_dib_soft_lst,read(f["Vmat"]))
                     close(f)
                 end
-                GC.gc()
             end
             global loaded_adjfibindx = adjfibindx
             
@@ -647,7 +646,6 @@ end
                 extractor(out,elelst[1],elelst[2],savename)
             end
         end
-        GC.gc()
     end
 
     function extractor(x,elemap,elename,savename)
