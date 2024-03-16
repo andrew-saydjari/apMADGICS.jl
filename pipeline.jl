@@ -661,7 +661,7 @@ Base.length(f::Iterators.Flatten) = sum(length, f.it)
 
 for adjfibindx in runlist_range
     subDic = load(prior_dict["runlists"]*lpad(adjfibindx,3,"0")*".jld2")
-    subiter = Iterators.zip(subDic["release_dir"],subDic["redux_ver"],subDic["tele"],subDic["field"],subDic["plate"],subDic["mjd"],subDic["fiberindx"])
+    subiter = Iterators.zip(subDic["runindx"],subDic["release_dir"],subDic["redux_ver"],subDic["tele"],subDic["field"],subDic["plate"],subDic["mjd"],subDic["fiberindx"])
     subiterpart = Iterators.partition(subiter,batchsize)
     push!(iterlst,subiterpart)
 end
