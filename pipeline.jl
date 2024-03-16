@@ -47,7 +47,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     refine_iters = 5
     ddstaronly = false
-    runlist_range = 295:296 #295, 245, 335, 101
+    runlist_range = 296:297 #295, 245, 335, 101
     batchsize = 10 #40
 
     # Step Size for Chi2 Surface Error Bars
@@ -220,7 +220,7 @@ end
         end
         simplemsk = (cntvec.==framecnts) .& skymsk;
         
-        push!(out,(count(simplemsk), starscale, skyscale0, framecnts, chipmidtimes, a_relFlux, b_relFlux, c_relFlux, cartVisit, ingest_bit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk),count(isnan.(fvec[simplemsk])),count(isnan.(fvarvec[simplemsk])))) # 1
+        push!(out,(count(simplemsk), starscale, skyscale0, framecnts, chipmidtimes, a_relFlux, b_relFlux, c_relFlux, cartVisit, ingest_bit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk),count(isnan.(fvec[simplemsk])),count(isnan.(fvarvec[simplemsk])),simplemsk)) # 1
 
         if skyCont_off
             meanLocSky.=0
@@ -555,7 +555,7 @@ end
                 (x->x[metai][12],                       "fluxerr2"),
                 (x->x[metai][13],                       "flux_nans"),
                 (x->x[metai][14],                       "fluxerr2_nans"),
-                # (x->convert(Vector{Int},x[metai][15]),  "simplemsk"),
+                (x->convert(Vector{Int},x[metai][15]),  "simplemsk"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
