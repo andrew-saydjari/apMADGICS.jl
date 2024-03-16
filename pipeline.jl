@@ -6,8 +6,8 @@ using InteractiveUtils; versioninfo()
 Pkg.activate("./"); Pkg.instantiate(); Pkg.precompile()
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Package activation took $dt"); t_then = t_now; flush(stdout)
 using BLISBLAS
-using Distributed, SlurmClusterManager, Suppressor, DataFrames, Random
-addprocs(SlurmManager(),exeflags=["--project=./","--gcthreads=2,1","--threads=2,1",])
+using Distributed, SlurmClusterManager, Suppressor, DataFrames, DelimitedFiles
+addprocs(SlurmManager(),exeflags=["--project=./"])
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
 println("Running Main on ", gethostname())
 
@@ -47,7 +47,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     refine_iters = 5
     ddstaronly = false
-    runlist_range = 295:296 #295, 245, 335, 101
+    runlist_range = 294:295 #295, 245, 335, 101
     batchsize = 10 #40
 
     # Step Size for Chi2 Surface Error Bars
@@ -99,7 +99,6 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
     # Data for Detector Cals (not really a prior, but an input the results depend on in detail)
     prior_dict["chip_fluxdep_err_correction"] = src_dir*"data/chip_fluxdep_err_correction.jdat"
-    prior_dict["red_chi2_dict"] = src_dir*"data/red_chi2_dict.jdat"
 end
 
 # it would be great to move this into a parameter file that is read for each run
@@ -160,7 +159,6 @@ end
 
     # I should revisit the error bars in the context of chi2 versus frame number trends
     global err_correct_Dict = deserialize(prior_dict["chip_fluxdep_err_correction"])
-    global red_chi2_dict = deserialize(prior_dict["red_chi2_dict"])
 
     wavetarg = 10 .^range((start=4.179-125*6.0e-6),step=6.0e-6,length=8575+125)
     minw, maxw = extrema(wavetarg)
@@ -385,7 +383,6 @@ end
         skyscale1 = nanzeromedian(x_comp_out[4])
         dvec = (fvec .-(x_comp_out[2].+x_comp_out[3].+x_comp_out[4].+x_comp_out[5].*(1 .+ nanify(x_comp_lst[5],finalmsk))))./fvec;
         chi2res = x_comp_lst[1]'*(Ainv*x_comp_lst[1])
-        # chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale1, fc=red_chi2_dict[tele[1:6]])
         push!(out,(chi2res,nanzeroiqr(dvec),count(finalmsk),starscale1,skyscale1)) # 3
         push!(out,x_comp_out) # 4
         dflux_starlines = sqrt_nan.(get_diag_posterior_from_prior_asym(Ctotinv_fut, V_starlines_c, V_starlines_r))
@@ -451,7 +448,6 @@ end
             push!(x_comp_out,x_comp_lst[6:end]...) # starLines, dib, and totchi2
 
             chi2res = x_comp_lst[1]'*(Ainv*x_comp_lst[1])
-            # chi2r_fc = chi2red_fluxscale(chi2res./count(finalmsk), starscale1, fc=red_chi2_dict[tele[1:6]])
             push!(out,(chi2res,)) # 8
 
             push!(out,x_comp_out) # 9
@@ -681,7 +677,7 @@ println("Batches to Do: $lenargs, number of workers: $nwork")
 flush(stdout)
 
 pout = @showprogress pmap(multi_spectra_batch,ittot,on_error=ex->2)
-serialize(out_dir*"pout_apMADGICS.jdat",pout)
+writedlm(out_dir*"pout_apMADGICS.txt",pout)
 rmprocs(workers())
 
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t0)); println("Total script runtime: $dt"); t_then = t_now; flush(stdout)
