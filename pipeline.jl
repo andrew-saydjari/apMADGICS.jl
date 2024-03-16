@@ -167,7 +167,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup, prior_vec; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=false, ddstaronly=false, cache_dir=cache_dir, inject_cache_dir=inject_cache_dir)
+    function pipeline_single_spectra(argtup, prior_vec; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=true, ddstaronly=false, cache_dir=cache_dir, inject_cache_dir=inject_cache_dir)
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
         V_skycont,chebmsk_exp,V_skyline_bright,V_skyline_faint,skymsk_bright,skymsk_faint,skymsk,V_starcont,V_subpix_refLSF, V_subpix, msk_starCor, V_dib_lst, V_dib_soft_lst, V_dib_noLSF_soft_lst = prior_vec
         out = []
@@ -220,7 +220,7 @@ end
         end
         simplemsk = (cntvec.==framecnts) .& skymsk;
         
-        push!(out,(count(simplemsk), starscale, skyscale0, framecnts, chipmidtimes, a_relFlux, b_relFlux, c_relFlux, cartVisit, ingest_bit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk))) # 1
+        push!(out,(count(simplemsk), starscale, skyscale0, framecnts, chipmidtimes, a_relFlux, b_relFlux, c_relFlux, cartVisit, ingest_bit, nanify(fvec[simplemsk],simplemsk), nanify(fvarvec[simplemsk],simplemsk),count(isnan.(fvec[simplemsk])),count(isnan.(fvarvec[simplemsk])))) # 1
 
         if skyCont_off
             meanLocSky.=0
@@ -270,7 +270,6 @@ end
         Ctotinv_skylines = LowRankMultMatIP([Ainv,Vcomb_skylines],wood_precomp_mult_mat([Ainv,Vcomb_skylines],(size(Ainv,1),size(V_subpix,2))),wood_fxn_mult,wood_fxn_mult_mat!);
         x_comp_lst = deblend_components_all_asym(Ctotinv_skylines, Xd_obs, (V_starCont_r, ), (V_starCont_c, ))
 
-        # # Subtract off the starContinuum component
         # starCont_Mscale_ref = x_comp_lst[1]
         starCont_Mscale = x_comp_lst[1][rvmsk]
         # Xd_obs = (fvec.-meanLocSky.-meanLocSkyLines.-starCont_Mscale_ref)[rvmsk];
@@ -554,7 +553,9 @@ end
                 (x->x[metai][10],                       "ingestBit"),
                 (x->x[metai][11],                       "flux"),
                 (x->x[metai][12],                       "fluxerr2"),
-                # (x->Int.(x[metai][13]),                 "simplemsk"),
+                (x->x[metai][13],                       "flux_nans"),
+                (x->x[metai][14],                       "fluxerr2_nans"),
+                # (x->convert(Vector{Int},x[metai][15]),  "simplemsk"),
                 (x->adjfibindx,                         "adjfiberindx"),
 
                 (x->Float64.(x[RVind][1][1]),           "RV_pixoff_final"),
