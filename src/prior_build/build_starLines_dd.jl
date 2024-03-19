@@ -48,7 +48,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
 @everywhere begin
     nsub_out = 50
-    fracdatcut = 0.4
+    fracdatcut = 0.85
+    datmskexpand = 20
 
     release_dir = "dr17"
     redux_ver = "dr17"
@@ -69,8 +70,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     +2^32+2^33+2^34+2^35+2^36+2^40+2^41
     # TEFF_WARN (0), LOGG_WARN (1), M_H_WARN (3), ALPHA_M_WARN (4), C_M_WARN (5), CHI2_WARN (8), ROTATION_WARN (10), SN_WARN (11), SPEC_HOLE_WARN (12), ATMOS_HOLE_WARN (13), TEFF_BAD (16), LOGG_BAD (17), VMICRO_BAD (18), M_H_BAD (19), ALPHA_M_BAD (20), C_M_BAD (21), N_M_BAD (22), STAR_BAD (23), CHI2_BAD (24), ROTATION_BAD (26), SN_BAD (27), SPEC_HOLE_BAD (28), ATMOS_HOLE_BAD (29), VSINI_BAD (30), NO_ASPCAP_RESULT (31), MISSING_APSTAR (32), NO_GRID (33), BAD_FRAC_LOWSNR (34), BAD_FRAC_BADPIX (35), FERRE_FAIL (36), PROBLEM_TARGET (40), MULTIPLE_SUSPECT (41)  
 
-    tstinds = [295, 335]
-    offrng = -5//10:(1//10):(4//10)
+    offrng = (-5//10):(1//10):(4//10)
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
@@ -87,6 +87,8 @@ end
     wavetarg = 10 .^range((4.179-125*6.0e-6),step=6.0e-6,length=8575+125) #first argument is start, revert fix to enable 1.6 compat
     minw, maxw = extrema(wavetarg);
     x_model = 15000:(1//100):17000;
+
+    offrng_flt = Float64.(offrng) # Lanczos interpolation wants the type to be Float, not Rational (probably my fault in Interpolations.jl)
 
     Vsubpix = zeros(length(wavetarg),nsub_out,length(offrng));
     pixmskMat = zeros(Bool,length(wavetarg),nsub_out,length(offrng));
@@ -159,7 +161,7 @@ end
             end
 
             nodat = dropdims(sum(iszero.(ynormMat),dims=2),dims=2)./size(ynormMat,2);
-            msk_starCor = (nodat.<fracdatcut);
+            msk_starCor = expand_msk(nodat.<fracdatcut,rad=datmskexpand);
 
             xdat = xnormMat[msk_starCor,:]
             ydat = ynormMat[msk_starCor,:]
@@ -180,7 +182,7 @@ end
             fill!(pixmskMat,0)
             fltmsk = convert.(Float64,msk_starCor);
 
-            for (sindx, shift) in enumerate(offrng)
+            for (sindx, shift) in enumerate(offrng_flt)
                 for eigind in 1:nsub_out
                     Vsubpix[:,eigind,sindx] .= (shiftHelper(EVEC[:,eigind],-shift)).*sqrt.(SF.S[eigind]);
                     shiftmsk = shiftHelper(fltmsk,-shift);
@@ -279,8 +281,8 @@ if !isfile(prior_dict["out_dir"]*"clean_inds.h5")
 end
 
 ## make strip dd precursors and write out
-clean_inds_apo = h5read(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo")
-clean_inds_lco = h5read(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_lco")
+@everywhere clean_inds_apo = h5read(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo")
+@everywhere clean_inds_lco = h5read(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_lco")
 
 @everywhere grab_star_spec_partial(indx2run) = grab_star_spec(indx2run,RV_pixoff_final,f,g,h,m)
 
@@ -334,7 +336,7 @@ end
 @everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","ynormMat")
 GC.gc()
 @everywhere solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_lco)
-@showprogress pmap(solve_star_ddmodel_fiber_partial,301:600) #obvi SVD speed up if we switch to MKL... do we really want two BLAS deps for this repo?
+@showprogress pmap(solve_star_ddmodel_fiber_partial,301:600) #obvi SVD speed up if we switch to MKL... do we really want two LA deps for this repo?
 
 # Run APO (might need to write a workers per node handler script because we cannot load them all into memory at once)
 @everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","ynormMat")
@@ -342,8 +344,8 @@ GC.gc()
 @everywhere solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_apo)
 @showprogress pmap(solve_star_ddmodel_fiber_partial,1:300) # tried switching the pmap outside, watch RAM
 
-## check continuous connected components number in the msk_starCor (really only need to check 1 APO and 1 LCO)
-for tstind in tstinds
+## check continuous connected components number in the msk_starCor
+for tstind in 1:600
     zero_ranges = find_zero_ranges(V_subpix[:,1,1])
     println("Fiber $tstind has $(length(zero_ranges)) continuous connected zero components (should be 4).")
 end
