@@ -50,7 +50,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     nsub_out = 50
     fracdatcut = 0.85
     datmskexpand = 20
-    num_workers_per_node = 23 # Total RAM divided by approximately size of strip_dd_precursors_apo.h5
+    num_workers_per_node = 12 # Total RAM divided by approximately size of strip_dd_precursors_apo.h5
 
     release_dir = "dr17"
     redux_ver = "dr17"
@@ -166,8 +166,10 @@ end
 
             xdat = xnormMat[msk_starCor,:]
             ydat = ynormMat[msk_starCor,:]
+            xnormMat = nothing; GC.gc()
             Ccor = xdat*xdat'
             Ccor ./= (ydat*ydat');
+            xdat = nothing; ydat = nothing; GC.gc()
 
             SF = svd(Ccor);
             EVEC = zeros(length(wavetarg),size(SF.U,2))
