@@ -279,7 +279,7 @@ h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_lco",clean_inds)
 clean_inds_apo = h5read(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo")
 clean_inds_lco = h5read(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_lco")
 
-grab_star_spec_partial(indx2run) = grab_star_spec(indx2run,RV_pixoff_final,f,g,h,m)
+@everywhere grab_star_spec_partial(indx2run) = grab_star_spec(indx2run,RV_pixoff_final,f,g,h,m)
 
 # Run APO
 pout = @showprogress pmap(grab_star_spec_partial,clean_inds_apo);
