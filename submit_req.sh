@@ -2,7 +2,7 @@
 #SBATCH --account=sdss-np-fast
 #SBATCH --partition=sdss-np
 #SBATCH --qos=sdss-np-req
-#SBATCH --nodes=3
+#SBATCH --nodes=1
 #SBATCH --ntasks-per-node=64
 
 #SBATCH --mem=0 #requesting all of the memory on the node

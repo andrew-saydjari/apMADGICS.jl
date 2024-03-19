@@ -58,16 +58,16 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     sigMarg0 = -50//100:10//100:50//100
     svalMarg0 = -0//10:1//10:0//10;
 
-    cache_dir = "../local_cache/"
+    cache_dir = "../local_cache_inject/"
     out_dir="../outdir/"
-    inject_cache_dir = prior_dir*"2024_03_11/inject_local_cache_15672only_295_real"
+    inject_cache_dir = prior_dir*"2024_03_11/inject_local_cache_15273only_295_real"
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
-    # prior_dict["runlists"] = prior_dir*"2024_03_11/inject_15672only_295_real/injection_input_lst_"
-    prior_dict["runlists"] = prior_dir*"2024_03_15/outlists/star/dr17_dr17_star_input_lst_msked_" # repackaged for cross platform/version from 2024_03_05
+    prior_dict["runlists"] = prior_dir*"2024_03_11/inject_15273only_295_real/injection_input_lst_"
+    # prior_dict["runlists"] = prior_dir*"2024_03_15/outlists/star/dr17_dr17_star_input_lst_msked_" # repackaged for cross platform/version from 2024_03_05
 
     # Sky Priors
     prior_dict["skycont"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_priors/APOGEE_skycont_svd_30_f"
