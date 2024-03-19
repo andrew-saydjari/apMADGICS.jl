@@ -50,6 +50,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     nsub_out = 50
     fracdatcut = 0.85
     datmskexpand = 20
+    num_workers_per_node = 23 # Total RAM divided by approximately size of strip_dd_precursors_apo.h5
 
     release_dir = "dr17"
     redux_ver = "dr17"
@@ -338,7 +339,9 @@ GC.gc()
 @everywhere solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_lco)
 @showprogress pmap(solve_star_ddmodel_fiber_partial,301:600) #obvi SVD speed up if we switch to MKL... do we really want two LA deps for this repo?
 
-# Run APO (might need to write a workers per node handler script because we cannot load them all into memory at once)
+SLURM_prune_workers_per_node(num_workers_per_node) # Total RAM divided by approximately size of strip_dd_precursors_apo.h5
+
+# Run APO
 @everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","ynormMat")
 GC.gc()
 @everywhere solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_apo)
