@@ -353,7 +353,7 @@ GC.gc()
 ## check continuous connected components number in the msk_starCor
 for tstind in 1:600
     fname_subpix = prior_dict["out_dir"]*"APOGEE_starCor_svd_"*string(nsub_out)*"_subpix_f"*lpad(tstind,3,"0")*".h5" 
-    Vsubpix = h5read(fname_subpix,"Vmat")
-    zero_ranges = find_zero_ranges(V_subpix[:,1,1])
+    Vsubpix_loc = h5read(fname_subpix,"Vmat")
+    zero_ranges = find_zero_ranges(Vsubpix_loc[:,1,1])
     println("Fiber $tstind has $(length(zero_ranges)) continuous connected zero components (should be 4).")
 end

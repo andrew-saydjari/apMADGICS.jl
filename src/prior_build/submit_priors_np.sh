@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=sdss-np
 #SBATCH --partition=sdss-shared-np
-#SBATCH --nodes=4
+#SBATCH --nodes=1
 #SBATCH --ntasks-per-node=64
 
 #SBATCH --mem=0 #requesting all of the memory on the node
@@ -34,7 +34,7 @@ echo $SLURM_JOB_NODELIST
 # ----- indep -----
 # julia +1.10.0 build_DIB.jl # 145 core-h, 2.3 h on 1 node, 100% cpu usage
 # ----- second pass -----
-julia +1.10.2 build_starLines_dd.jl # 300 core-h, 2.1 h on 4 nodes, 35% cpu usage APO/100% cpu usage LCO (core-h are low, but problem is memory usage is high)
+julia +1.10.2 build_starLines_dd.jl # 300 core-h, 2.8 h on 4 nodes, 35% cpu usage APO/100% cpu usage LCO (core-h are low, but problem is memory usage is high)
 
 
 # Clean up logs and Report Timing
