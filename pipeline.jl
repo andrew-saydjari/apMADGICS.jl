@@ -9,7 +9,7 @@ using BLISBLAS
 using Distributed, SlurmClusterManager, Suppressor, DataFrames, DelimitedFiles
 addprocs(SlurmManager(),exeflags=["--project=./"])
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
-println("Running Main on ", gethostname())
+println("Running Main on ", gethostname()); flush(stdout)
 
 @everywhere begin
     using BLISBLAS

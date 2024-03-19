@@ -10,6 +10,7 @@ using BLISBLAS
 using Distributed, SlurmClusterManager, Suppressor, DataFrames
 addprocs(SlurmManager(),exeflags=["--project=../../"])
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
+println("Running Main on ", gethostname()); flush(stdout)
 
 @everywhere begin
     using BLISBLAS
@@ -204,76 +205,78 @@ end
 
 ## Make clean inds and write out (add some flagging with our new metrics)
 
-# handle making and reading map2star/map2visit
-# (what to do if those things are not done?, would need to change cuts, later version question)
-map2star = h5read(prior_dict["map2star"],"map2star_1indx")
-map2visit = h5read(prior_dict["map2visit"],"map2visit_1indx");
+if !isfile(prior_dict["out_dir"]*"clean_inds.h5")
+    # handle making and reading map2star/map2visit
+    # (what to do if those things are not done?, would need to change cuts, later version question)
+    map2star = h5read(prior_dict["map2star"],"map2star_1indx")
+    map2visit = h5read(prior_dict["map2visit"],"map2visit_1indx");
 
-f = FITS(summary_file_by_dr(release_dir,redux_ver,dr_number,"allVisit"))
-GLON = read(f[2],"GLON")[map2visit]
-GLAT = read(f[2],"GLAT")[map2visit]
-VREL = read(f[2],"VREL")[map2visit];
-SNR = read(f[2],"SNR")[map2visit];
-STARFLAG = read(f[2],"STARFLAG")[map2visit]
-STARFLAGS = read(f[2],"STARFLAGS")[map2visit];
-close(f)
+    f = FITS(summary_file_by_dr(release_dir,redux_ver,dr_number,"allVisit"))
+    GLON = read(f[2],"GLON")[map2visit]
+    GLAT = read(f[2],"GLAT")[map2visit]
+    VREL = read(f[2],"VREL")[map2visit];
+    SNR = read(f[2],"SNR")[map2visit];
+    STARFLAG = read(f[2],"STARFLAG")[map2visit]
+    STARFLAGS = read(f[2],"STARFLAGS")[map2visit];
+    close(f)
 
-f = FITS(summary_file_by_dr(release_dir,redux_ver,dr_number,"allStar"))
-EXTRATARG = read(f[2],"EXTRATARG")[map2star]
-ASPCAPFLAG = read(f[2],"ASPCAPFLAG")[map2star]
-FE_H_FLAG = read(f[2],"FE_H_FLAG")[map2star]
+    f = FITS(summary_file_by_dr(release_dir,redux_ver,dr_number,"allStar"))
+    EXTRATARG = read(f[2],"EXTRATARG")[map2star]
+    ASPCAPFLAG = read(f[2],"ASPCAPFLAG")[map2star]
+    FE_H_FLAG = read(f[2],"FE_H_FLAG")[map2star]
 
-TEFF = read(f[2],"TEFF")[map2star]
-LOGG = read(f[2],"LOGG")[map2star]
-X_H = read(f[2],"X_H")[map2star]
-M_H = read(f[2],"M_H")[map2star]
-VMICRO = read(f[2],"VMICRO")[map2star]
-VSINI = read(f[2],"VSINI")[map2star]
-ALPHA_M = read(f[2],"ALPHA_M")[map2star];
-close(f)
+    TEFF = read(f[2],"TEFF")[map2star]
+    LOGG = read(f[2],"LOGG")[map2star]
+    X_H = read(f[2],"X_H")[map2star]
+    M_H = read(f[2],"M_H")[map2star]
+    VMICRO = read(f[2],"VMICRO")[map2star]
+    VSINI = read(f[2],"VSINI")[map2star]
+    ALPHA_M = read(f[2],"ALPHA_M")[map2star];
+    close(f)
 
-## This biases our DD model towards things that FERRE did well on, we should roll this back at some point
-## To roll it back, we need to convince ourselves that we can handle the outliers well. v0.10
-## I should visualize the Kiel diagram density changes with and without this cut.
-## SNR similarly is a stellar type bias
-TARG_mask = .!(EXTRATARG .& bad_extratarg_bits.!=0);
-STARFLAG_masks = .!(STARFLAG .& bad_starflag_bits.!=0);
-ASPCAP_masks = .!(ASPCAPFLAG .& bad_aspcap_bits.!=0);
-Teff_masks = (.!isnan.(TEFF));
-FE_masks = (FE_H_FLAG .== 0);
-apg_msk = TARG_mask .& STARFLAG_masks .& ASPCAP_masks .& Teff_masks .& FE_masks
-println("Visits after TARG/STAR/ASPCAP/TEFF/FE masks: $(count(apg_msk)), $(100*count(apg_msk)/length(apg_msk))")
+    ## This biases our DD model towards things that FERRE did well on, we should roll this back at some point
+    ## To roll it back, we need to convince ourselves that we can handle the outliers well. v0.10
+    ## I should visualize the Kiel diagram density changes with and without this cut.
+    ## SNR similarly is a stellar type bias
+    TARG_mask = .!(EXTRATARG .& bad_extratarg_bits.!=0);
+    STARFLAG_masks = .!(STARFLAG .& bad_starflag_bits.!=0);
+    ASPCAP_masks = .!(ASPCAPFLAG .& bad_aspcap_bits.!=0);
+    Teff_masks = (.!isnan.(TEFF));
+    FE_masks = (FE_H_FLAG .== 0);
+    apg_msk = TARG_mask .& STARFLAG_masks .& ASPCAP_masks .& Teff_masks .& FE_masks
+    println("Visits after TARG/STAR/ASPCAP/TEFF/FE masks: $(count(apg_msk)), $(100*count(apg_msk)/length(apg_msk))"); flush(stdout)
 
-## Query SFD
-sfd_map = SFD98Map()
-sfd_reddening = sfd_map.(deg2rad.(GLON),deg2rad.(GLAT))
-sfd_msk = (sfd_reddening.<sfd_cut)
+    ## Query SFD
+    sfd_map = SFD98Map()
+    sfd_reddening = sfd_map.(deg2rad.(GLON),deg2rad.(GLAT))
+    sfd_msk = (sfd_reddening.<sfd_cut)
 
-## MADGICS Cuts
-avg_flux_conservation = reader(prior_dict["past_run"],"avg_flux_conservation")
-adjfiberindx_vec = reader(prior_dict["past_run"],"adjfiberindx")
-msk_flux_conserve = (avg_flux_conservation .< flux_conserve_cut);
-RV_minchi2_final = reader(prior_dict["past_run"],"RV_minchi2_final")
-snr_proxy = sqrt.(-RV_minchi2_final);
-msk_MADGICS_snr = (snr_proxy .> snr_proxy_cut); 
+    ## MADGICS Cuts
+    avg_flux_conservation = reader(prior_dict["past_run"],"avg_flux_conservation")
+    adjfiberindx_vec = reader(prior_dict["past_run"],"adjfiberindx")
+    msk_flux_conserve = (avg_flux_conservation .< flux_conserve_cut);
+    RV_minchi2_final = reader(prior_dict["past_run"],"RV_minchi2_final")
+    snr_proxy = sqrt.(-RV_minchi2_final);
+    msk_MADGICS_snr = (snr_proxy .> snr_proxy_cut); 
 
-clean_msk = (adjfiberindx_vec.<=300) 
-clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
-clean_msk .&= sfd_msk # SFD Mask (low-reddening)
-clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr) # Remove StarConts that failed to converge well and low SNR model detections
-# clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) .& ## add back moon avoidance only if we see deviation in the theory work up near zero
-println("Clean APO Visits for DD Model Training: $(count(clean_msk)), $(100*count(clean_msk)/length(clean_msk))")
-clean_inds = findall(clean_msk);
-h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo",clean_inds)
+    clean_msk = (adjfiberindx_vec.<=300) 
+    clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
+    clean_msk .&= sfd_msk # SFD Mask (low-reddening)
+    clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr) # Remove StarConts that failed to converge well and low SNR model detections
+    # clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) .& ## add back moon avoidance only if we see deviation in the theory work up near zero
+    println("Clean APO Visits for DD Model Training: $(count(clean_msk)), $(100*count(clean_msk)/count(adjfiberindx_vec.<=300))"); flush(stdout)
+    clean_inds = findall(clean_msk);
+    h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo",clean_inds)
 
-clean_msk = (adjfiberindx_vec.>300) 
-clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
-clean_msk .&= sfd_msk # SFD Mask (low-reddening)
-clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr) # Remove StarConts that failed to converge well and low SNR model detections
-# clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) .& ## add back moon avoidance only if we see deviation in the theory work up near zero
-println("Clean LCO Visits for DD Model Training: $(count(clean_msk)), $(100*count(clean_msk)/length(clean_msk))")
-clean_inds = findall(clean_msk);
-h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_lco",clean_inds)
+    clean_msk = (adjfiberindx_vec.>300) 
+    clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
+    clean_msk .&= sfd_msk # SFD Mask (low-reddening)
+    clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr) # Remove StarConts that failed to converge well and low SNR model detections
+    # clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) .& ## add back moon avoidance only if we see deviation in the theory work up near zero
+    println("Clean LCO Visits for DD Model Training: $(count(clean_msk)), $(100*count(clean_msk)/count(adjfiberindx_vec.>300))"); flush(stdout)
+    clean_inds = findall(clean_msk);
+    h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_lco",clean_inds)
+end
 
 ## make strip dd precursors and write out
 clean_inds_apo = h5read(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo")
@@ -281,50 +284,55 @@ clean_inds_lco = h5read(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_lco")
 
 @everywhere grab_star_spec_partial(indx2run) = grab_star_spec(indx2run,RV_pixoff_final,f,g,h,m)
 
-# Run APO
-pout = @showprogress pmap(grab_star_spec_partial,clean_inds_apo);
-
-x1normMat = zeros(length(wavetarg),length(pout))
-x2normMat = zeros(size(pout[1][2],1),length(pout))
-ynormMat = zeros(length(wavetarg),length(pout))
-for (subindx, subout) in enumerate(pout)
-    x1normMat[:,subindx] .= subout[1]
-    x2normMat[:,subindx] .= subout[2]
-    ynormMat[:,subindx] .= subout[3]
-end
-
-h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","x1normMat",x1normMat)
-h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","x2normMat",x2normMat)
-h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","ynormMat",ynormMat)
-
 # Run LCO
-pout = @showprogress pmap(grab_star_spec_partial,clean_inds_lco);
+if !isfile(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5")
+    pout = @showprogress pmap(grab_star_spec_partial,clean_inds_lco);
 
-x1normMat = zeros(length(wavetarg),length(pout))
-x2normMat = zeros(size(pout[1][2],1),length(pout))
-ynormMat = zeros(length(wavetarg),length(pout))
-for (subindx, subout) in enumerate(pout)
-    x1normMat[:,subindx] .= subout[1]
-    x2normMat[:,subindx] .= subout[2]
-    ynormMat[:,subindx] .= subout[3]
+    x1normMat = zeros(length(wavetarg),length(pout))
+    x2normMat = zeros(size(pout[1][2],1),length(pout))
+    ynormMat = zeros(length(wavetarg),length(pout))
+    for (subindx, subout) in enumerate(pout)
+        x1normMat[:,subindx] .= subout[1]
+        x2normMat[:,subindx] .= subout[2]
+        ynormMat[:,subindx] .= subout[3]
+    end
+
+    h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","x1normMat",x1normMat)
+    h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","x2normMat",x2normMat)
+    h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","ynormMat",ynormMat)
 end
 
-h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","x1normMat",x1normMat)
-h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","x2normMat",x2normMat)
-h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","ynormMat",ynormMat)
+# Run APO
+if !isfile(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5")
+    pout = @showprogress pmap(grab_star_spec_partial,clean_inds_apo);
+
+    x1normMat = zeros(length(wavetarg),length(pout))
+    x2normMat = zeros(size(pout[1][2],1),length(pout))
+    ynormMat = zeros(length(wavetarg),length(pout))
+    for (subindx, subout) in enumerate(pout)
+        x1normMat[:,subindx] .= subout[1]
+        x2normMat[:,subindx] .= subout[2]
+        ynormMat[:,subindx] .= subout[3]
+    end
+
+    h5write(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","x1normMat",x1normMat)
+    h5write(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","x2normMat",x2normMat)
+    h5write(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","ynormMat",ynormMat)
+end
 
 ## Solve DD Model for StarLine Components (I split this part into 3 scripts 2 APO, 1 LCO because of how slow it was last time)
-
-# Run APO
-@everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","ynormMat")
-solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_apo)
-@showprogress pmap(solve_star_ddmodel_fiber_partial,1:300) # tried switching the pmap outside, watch RAM
 
 # Run LCO
 @everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","ynormMat")
 GC.gc()
 solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_lco)
 @showprogress pmap(solve_star_ddmodel_fiber_partial,301:600) #obvi SVD speed up if we switch to MKL... do we really want two BLAS deps for this repo?
+
+# Run APO (might need to write a workers per node handler script because we cannot load them all into memory at once)
+@everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","ynormMat")
+GC.gc()
+solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_apo)
+@showprogress pmap(solve_star_ddmodel_fiber_partial,1:300) # tried switching the pmap outside, watch RAM
 
 ## check continuous connected components number in the msk_starCor (really only need to check 1 APO and 1 LCO)
 for tstind in tstinds
