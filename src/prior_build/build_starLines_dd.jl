@@ -300,6 +300,10 @@ if !isfile(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5")
     h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","x1normMat",x1normMat)
     h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","x2normMat",x2normMat)
     h5write(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","ynormMat",ynormMat)
+    x1normMat = nothing
+    x2normMat = nothing
+    ynormMat = nothing
+    GC.gc()
 end
 
 # Run APO
@@ -318,6 +322,10 @@ if !isfile(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5")
     h5write(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","x1normMat",x1normMat)
     h5write(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","x2normMat",x2normMat)
     h5write(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","ynormMat",ynormMat)
+    x1normMat = nothing
+    x2normMat = nothing
+    ynormMat = nothing
+    GC.gc()
 end
 
 ## Solve DD Model for StarLine Components (I split this part into 3 scripts 2 APO, 1 LCO because of how slow it was last time)
@@ -325,13 +333,13 @@ end
 # Run LCO
 @everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","ynormMat")
 GC.gc()
-solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_lco)
+@everywhere solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_lco)
 @showprogress pmap(solve_star_ddmodel_fiber_partial,301:600) #obvi SVD speed up if we switch to MKL... do we really want two BLAS deps for this repo?
 
 # Run APO (might need to write a workers per node handler script because we cannot load them all into memory at once)
 @everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","ynormMat")
 GC.gc()
-solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_apo)
+@everywhere solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_apo)
 @showprogress pmap(solve_star_ddmodel_fiber_partial,1:300) # tried switching the pmap outside, watch RAM
 
 ## check continuous connected components number in the msk_starCor (really only need to check 1 APO and 1 LCO)
