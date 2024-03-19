@@ -74,12 +74,12 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
-    prior_dict["past_run"] = prior_dir*"2024_03_12/outdir_wu_th/apMADGICS_out.h5" # update for the new run
+    prior_dict["past_run"] = prior_dir*"2024_03_16/outdir_wu_th/apMADGICS_out.h5" # update for the new run
     prior_dict["map2visit"] = prior_dir*"2024_03_05/outlists/summary/dr17_dr17_map2visit_1indx.h5"
     prior_dict["map2star"] = prior_dir*"2024_03_05/outlists/summary/dr17_dr17_map2star_1indx.h5"
 
     prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f"
-    prior_dict["out_dir"] = prior_dir*"2024_03_12/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd/"
+    prior_dict["out_dir"] = prior_dir*"2024_03_16/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd/"
 end
 
 @everywhere begin

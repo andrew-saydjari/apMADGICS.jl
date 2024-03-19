@@ -34,7 +34,7 @@ echo $SLURM_JOB_NODELIST
 # ----- indep -----
 # julia +1.10.0 build_DIB.jl # 145 core-h, 2.3 h on 1 node, 100% cpu usage
 # ----- second pass -----
-julia +1.10.0 build_starLines_dd.jl # try on 4 nodes? new parallelism strategy to try to mitigate time
+julia +1.10.2 build_starLines_dd.jl # try on 4 nodes? new parallelism strategy to try to mitigate time
 
 
 # Clean up logs and Report Timing
