@@ -138,22 +138,22 @@ end
 @everywhere begin
     function solve_star_ddmodel_fiber(adjfibindx,clean_inds)
 
-        f = h5open(prior_dict["starLines_LSF"]*lpad(adjfibindx,3,"0")*".h5")
-        V_starbasis = read(f["Vmat"])
-        close(f)
-
         fname = prior_dict["out_dir"]*"APOGEE_starCor_svd_"*string(nsub_out)*"_f"*lpad(adjfibindx,3,"0")*".h5"
         fname_subpix = prior_dict["out_dir"]*"APOGEE_starCor_svd_"*string(nsub_out)*"_subpix_f"*lpad(adjfibindx,3,"0")*".h5" 
 
-        pfhand = if (adjfibindx .<=300)
-            h5open(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","r")
-        else
-            h5open(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","r")
-        end
-
-        finalize_xnorm_partial(indx2run) = finalize_xnorm(indx2run,RV_pixoff_final,pfhand,V_starbasis[:,:,6])
-
         if (!isfile(fname) & !isfile(fname_subpix))
+            f = h5open(prior_dict["starLines_LSF"]*lpad(adjfibindx,3,"0")*".h5")
+            V_starbasis = read(f["Vmat"])
+            close(f)
+
+            pfhand = if (adjfibindx .<=300)
+                h5open(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","r")
+            else
+                h5open(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","r")
+            end
+
+            finalize_xnorm_partial(indx2run) = finalize_xnorm(indx2run,RV_pixoff_final,pfhand,V_starbasis[:,:,6])
+
             pout = map(finalize_xnorm_partial,enumerate(clean_inds));
 
             xnormMat = zeros(length(wavetarg),length(pout))
@@ -203,8 +203,9 @@ end
 
             h5write(fname_subpix,"Vmat",Vsubpix)
             h5write(fname_subpix,"msk_starCor",convert.(Int,final_msk))
+
+            close(pfhand)
         end
-        close(pfhand)
     end
 end
 
@@ -351,6 +352,8 @@ GC.gc()
 
 ## check continuous connected components number in the msk_starCor
 for tstind in 1:600
+    fname_subpix = prior_dict["out_dir"]*"APOGEE_starCor_svd_"*string(nsub_out)*"_subpix_f"*lpad(tstind,3,"0")*".h5" 
+    Vsubpix = h5read(fname_subpix,"Vmat")
     zero_ranges = find_zero_ranges(V_subpix[:,1,1])
     println("Fiber $tstind has $(length(zero_ranges)) continuous connected zero components (should be 4).")
 end

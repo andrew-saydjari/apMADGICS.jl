@@ -46,8 +46,8 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 # relatively soon... so don't worry for now.
 @everywhere begin
     refine_iters = 5
-    ddstaronly = false
-    runlist_range = 1:600 #295, 245, 335, 101
+    ddstaronly = true
+    runlist_range = 295:295 #1:600 # 295, 245, 335, 101
     batchsize = 50
 
     # Step Size for Chi2 Surface Error Bars
@@ -75,11 +75,10 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict["skyLines_faint"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_priors/APOGEE_skyline_faint_GSPICE_svd_120_f"
 
     # Star Priors
-    # prior_dict["starCont"] = prior_dir*"2023_07_22/star_priors/APOGEE_starcont_svd_60_f"
     prior_dict["starCont"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/star_priors/APOGEE_starcont_svd_60_f"
     prior_dict["starLines_refLSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_th_22500.h5"
-    # prior_dict["starLines_LSF"] = prior_dir*"2023_09_26/star_priors/APOGEE_starCor_svd_50_subpix_f"
-    prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f"
+    prior_dict["starLines_LSF"] = prior_dir*"2024_03_16/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd/APOGEE_starCor_svd_50_subpix_f" # DD Version
+    # prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f" # TH Version
 
     # DIB Priors
     dib_waves = [15273, 15672]
