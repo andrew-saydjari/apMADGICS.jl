@@ -671,8 +671,8 @@ nwork = length(workers())
 println("Batches to Do: $lenargs, number of workers: $nwork")
 flush(stdout)
 
-# pout = @showprogress pmap(multi_spectra_batch,ittot)
-pout = @showprogress pmap(multi_spectra_batch,ittot,on_error=ex->2)
+pout = @showprogress pmap(multi_spectra_batch,ittot)
+# pout = @showprogress pmap(multi_spectra_batch,ittot,on_error=ex->2)
 writedlm(out_dir*"pout_apMADGICS.txt",pout)
 rmprocs(workers())
 
