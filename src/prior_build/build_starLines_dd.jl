@@ -128,7 +128,8 @@ end
         end
     end
 
-    function grab_star_spec(findx,RV_pixoff_final,f,g,h,m)
+    function grab_star_spec(intup,RV_pixoff_final,f,g,h,m)
+        (findx, is_tell) = intup
         svald = RV_pixoff_final[findx]
         
         sig = g[keyvalres][:,findx]./f[keyval][:,findx]
@@ -139,7 +140,11 @@ end
         
         subspec_ref = replace(h[keyvalref][:,findx]./(sig.^2),NaN=>0)
         ynorm = shiftHelper(subspec_ref,svald)
-        return x1norm, x2norm_noshift, ynorm
+        if is_tell
+            return x1norm, x2norm_noshift, ones(length(ynorm))
+        else
+            return x1norm, x2norm_noshift, ynorm
+        end
     end
 end
 
@@ -349,7 +354,7 @@ end
 
 # Run LCO
 if !isfile(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5")
-    pout = @showprogress pmap(grab_star_spec_partial,clean_inds_lco);
+    pout = @showprogress pmap(grab_star_spec_partial,Iterators.zip(clean_inds_lco,is_tell_lco));
 
     x1normMat = zeros(length(wavetarg),length(pout))
     x2normMat = zeros(size(pout[1][2],1),length(pout))
@@ -371,7 +376,7 @@ end
 
 # Run APO
 if !isfile(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5")
-    pout = @showprogress pmap(grab_star_spec_partial,clean_inds_apo);
+    pout = @showprogress pmap(grab_star_spec_partial,Iterators.zip(clean_inds_apo,is_tell_apo));
 
     x1normMat = zeros(length(wavetarg),length(pout))
     x2normMat = zeros(size(pout[1][2],1),length(pout))
