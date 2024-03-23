@@ -221,6 +221,12 @@ end
 ## Make clean inds and write out (add some flagging with our new metrics)
 
 if !isfile(prior_dict["out_dir"]*"clean_inds.h5")
+
+    dirName = splitdir(prior_dict["out_dir"]*"clean_inds.h5")[1]
+    if !ispath(dirName)
+        mkpath(dirName)
+    end
+
     # handle making and reading map2star/map2visit
     # (what to do if those things are not done?, would need to change cuts, later version question)
     map2star = h5read(prior_dict["map2star"],"map2star_1indx")
@@ -298,7 +304,7 @@ if !isfile(prior_dict["out_dir"]*"clean_inds.h5")
     clean_tell_msk .&= (msk_flux_conserve .& msk_MADGICS_snr .& msk_MADGICS_RV) # Remove StarConts that failed to converge well and low SNR model detections
     clean_tell_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) ## helps ensure minimal moon and skyline contamination in the DD model
     println("Clean Tell APO Visits for DD Model Training: $(count(clean_tell_msk)), $(100*count(clean_tell_msk)/count(adjfiberindx_vec.<=300))"); flush(stdout)
-    tell_num_samples = rount(Int,tell_frac*count(clean_tell_msk))
+    tell_num_samples = round(Int,tell_frac*count(clean_msk))
     clean_tell_inds = rand(rng,findall(clean_tell_msk),tell_num_samples);
     println("Number of Tell APO Visits for DD Model Training: $(length(clean_tell_inds)), $(100*length(clean_tell_inds)/count(adjfiberindx_vec.<=300))"); flush(stdout)
 
@@ -322,7 +328,7 @@ if !isfile(prior_dict["out_dir"]*"clean_inds.h5")
     clean_tell_msk .&= (msk_flux_conserve .& msk_MADGICS_snr .& msk_MADGICS_RV) # Remove StarConts that failed to converge well and low SNR model detections
     clean_tell_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) ## helps ensure minimal moon and skyline contamination in the DD model
     println("Clean Tell LCO Visits for DD Model Training: $(count(clean_tell_msk)), $(100*count(clean_tell_msk)/count(adjfiberindx_vec.>300))"); flush(stdout)
-    tell_num_samples = rount(Int,tell_frac*count(clean_tell_msk))
+    tell_num_samples = round(Int,tell_frac*count(clean_msk))
     clean_tell_inds = rand(rng,findall(clean_tell_msk),tell_num_samples);
     println("Number of Tell LCO Visits for DD Model Training: $(length(clean_tell_inds)), $(100*length(clean_tell_inds)/count(adjfiberindx_vec.>300))"); flush(stdout)
 
