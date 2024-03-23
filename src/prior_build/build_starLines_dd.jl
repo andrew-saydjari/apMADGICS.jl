@@ -35,7 +35,7 @@ println("Running Main on ", gethostname()); flush(stdout)
     include(src_dir*"src/prior_build/prior_utils.jl")
     
     using StatsBase, ProgressMeter
-    using SortFilters, Random, KrylovKit, KryburyCompress, Glob, DelimitedFiles, DustExtinction
+    using SortFilters, Random, KrylovKit, KryburyCompress, Glob, DelimitedFiles, DustExtinction, Random
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
@@ -49,6 +49,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 @everywhere begin
     nsub_out = 50
     fracdatcut = 0.85
+    tell_frac = 0.01
     datmskexpand = 20
     num_workers_per_node = 12 # Total RAM divided by approximately size of strip_dd_precursors_apo.h5
 
@@ -60,13 +61,14 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     flux_conserve_cut = 1e-3
     snr_proxy_cut = 30
     sfd_cut = 0.05
+    seed = 2563
 
     # See https://www.sdss4.org/dr17/irspec/apogee-bitmasks/
-    bad_extratarg_bits = 2^1+2^3 #COMISSIONING (1), APO1M (3)
-    # Had to pass: TELLURIC (2) for sampling hot stars
-    bad_starflag_bits = 2^0+2^1+2^3+2^4+2^12+2^13+2^16+2^18+2^19+2^21+2^22+2^23+2^25 
-    #BAD_PIXELS (0), COMMISSIONING (1), VERY_BRIGHT_NEIGHBOR (3), LOW_SNR (4), PERSIST_JUMP_POS (12), PERSIST_JUMP_NEG (13), SUSPECT_RV_COMBINATION (16), BAD_RV_COMBINATION (18), RV_REJECT (19), MULTIPLE_SUSPECT (21), RV_FAIL (22), SUSPECT_ROTATION (23), MTPFLUX_LT_50 (25)
-    # Had to pass: SUSPECT_BROAD_LINES (17), RV_SUSPECT (20) for sampling hot stars
+    bad_extratarg_bits = 2^1+2^2+2^3 #COMISSIONING (1), TELLURIC (2), APO1M (3)
+    vbad_extratarg_bits = 2^1+2^3 # drops 2
+    bad_starflag_bits = 2^0+2^1+2^3+2^4+2^12+2^13+2^16+2^17+2^18+2^19+2^20+2^21+2^22+2^23+2^25
+    vbad_starflag_bits = 2^0+2^1+2^3+2^4+2^12+2^13+2^16+2^18+2^19+2^21+2^22+2^23+2^25  # drops 17 and 20
+    #BAD_PIXELS (0), COMMISSIONING (1), VERY_BRIGHT_NEIGHBOR (3), LOW_SNR (4), PERSIST_JUMP_POS (12), PERSIST_JUMP_NEG (13), SUSPECT_RV_COMBINATION (16), SUSPECT_BROAD_LINES (17), BAD_RV_COMBINATION (18), RV_REJECT (19), RV_SUSPECT (20), MULTIPLE_SUSPECT (21), RV_FAIL (22), SUSPECT_ROTATION (23), MTPFLUX_LT_50 (25)
     bad_aspcap_bits = 2^0+2^1+2^3+2^4+2^5+2^8+2^10
     +2^11+2^12+2^13+2^16+2^17+2^18+2^19+2^20+2^21
     +2^22+2^23+2^24+2^26+2^27+2^28+2^29+2^30+2^31
@@ -74,6 +76,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     # TEFF_WARN (0), LOGG_WARN (1), M_H_WARN (3), ALPHA_M_WARN (4), C_M_WARN (5), CHI2_WARN (8), ROTATION_WARN (10), SN_WARN (11), SPEC_HOLE_WARN (12), ATMOS_HOLE_WARN (13), TEFF_BAD (16), LOGG_BAD (17), VMICRO_BAD (18), M_H_BAD (19), ALPHA_M_BAD (20), C_M_BAD (21), N_M_BAD (22), STAR_BAD (23), CHI2_BAD (24), ROTATION_BAD (26), SN_BAD (27), SPEC_HOLE_BAD (28), ATMOS_HOLE_BAD (29), VSINI_BAD (30), NO_ASPCAP_RESULT (31), MISSING_APSTAR (32), NO_GRID (33), BAD_FRAC_LOWSNR (34), BAD_FRAC_BADPIX (35), FERRE_FAIL (36), PROBLEM_TARGET (40), MULTIPLE_SUSPECT (41)  
 
     offrng = (-5//10):(1//10):(4//10)
+    rng = MersenneTwister(seed)
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
@@ -114,11 +117,15 @@ end
     m = h5open(savename_sub_starLineCof)
 
     function finalize_xnorm(intup,RV_pixoff_final,pf,V_starbasis)
-        (indx, findx) = intup
+        (indx, (findx, is_tell)) = intup
         svald = RV_pixoff_final[findx]
         rval = indInt(svald)
         tval = indTenth(svald)
-        return pf["x1normMat"][:,indx] .+ (V_starbasis*pf["x2normMat"][:,indx]).*pf["ynormMat"][:,indx]
+        if is_tell
+            return (V_starbasis*pf["x2normMat"][:,indx]).*pf["ynormMat"][:,indx]
+        else
+            return pf["x1normMat"][:,indx] .+ (V_starbasis*pf["x2normMat"][:,indx]).*pf["ynormMat"][:,indx]
+        end
     end
 
     function grab_star_spec(findx,RV_pixoff_final,f,g,h,m)
@@ -231,7 +238,7 @@ if !isfile(prior_dict["out_dir"]*"clean_inds.h5")
     f = FITS(summary_file_by_dr(release_dir,redux_ver,dr_number,"allStar"))
     EXTRATARG = read(f[2],"EXTRATARG")[map2star]
     ASPCAPFLAG = read(f[2],"ASPCAPFLAG")[map2star]
-    # FE_H_FLAG = read(f[2],"FE_H_FLAG")[map2star]
+    FE_H_FLAG = read(f[2],"FE_H_FLAG")[map2star]
 
     TEFF = read(f[2],"TEFF")[map2star]
     LOGG = read(f[2],"LOGG")[map2star]
@@ -250,9 +257,16 @@ if !isfile(prior_dict["out_dir"]*"clean_inds.h5")
     STARFLAG_masks = .!(STARFLAG .& bad_starflag_bits.!=0);
     ASPCAP_masks = .!(ASPCAPFLAG .& bad_aspcap_bits.!=0);
     Teff_masks = (.!isnan.(TEFF));
-    # FE_masks = (FE_H_FLAG .== 0);
-    apg_msk = TARG_mask .& STARFLAG_masks .& ASPCAP_masks .& Teff_masks # .& FE_masks
+    FE_masks = (FE_H_FLAG .== 0);
+    apg_msk = TARG_mask .& STARFLAG_masks .& ASPCAP_masks .& Teff_masks .& FE_masks
     println("Visits after TARG/STAR/ASPCAP/TEFF/FE masks: $(count(apg_msk)), $(100*count(apg_msk)/length(apg_msk))"); flush(stdout)
+
+    TARG_mask = ((EXTRATARG .& 2^2) .!= 0) .& (.!(EXTRATARG .& vbad_extratarg_bits.!=0));
+    STARFLAG_masks = .!(STARFLAG .& vbad_starflag_bits.!=0);
+    ASPCAP_masks = .!(ASPCAPFLAG .& bad_aspcap_bits.!=0);
+    Teff_masks = (.!isnan.(TEFF));
+    tell_apg_msk = TARG_mask .& STARFLAG_masks .& ASPCAP_masks .& Teff_masks
+    println("Tell Visits after TARG/STAR/ASPCAP/TEFF masks: $(count(tell_apg_msk)), $(100*count(tell_apg_msk)/length(tell_apg_msk))"); flush(stdout)
 
     ## Query SFD
     sfd_map = SFD98Map()
@@ -274,24 +288,56 @@ if !isfile(prior_dict["out_dir"]*"clean_inds.h5")
     clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
     clean_msk .&= sfd_msk # SFD Mask (low-reddening)
     clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr .& msk_MADGICS_RV) # Remove StarConts that failed to converge well and low SNR model detections
-    clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) ## add back moon avoidance only if we see deviation in the theory work up near zero
+    clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) ## helps ensure minimal moon and skyline contamination in the DD model
     println("Clean APO Visits for DD Model Training: $(count(clean_msk)), $(100*count(clean_msk)/count(adjfiberindx_vec.<=300))"); flush(stdout)
     clean_inds = findall(clean_msk);
-    h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo",clean_inds)
+
+    clean_tell_msk = (adjfiberindx_vec.<=300) 
+    clean_tell_msk .&= (tell_apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
+    clean_tell_msk .&= sfd_msk # SFD Mask (low-reddening)
+    clean_tell_msk .&= (msk_flux_conserve .& msk_MADGICS_snr .& msk_MADGICS_RV) # Remove StarConts that failed to converge well and low SNR model detections
+    clean_tell_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) ## helps ensure minimal moon and skyline contamination in the DD model
+    println("Clean Tell APO Visits for DD Model Training: $(count(clean_tell_msk)), $(100*count(clean_tell_msk)/count(adjfiberindx_vec.<=300))"); flush(stdout)
+    tell_num_samples = rount(Int,tell_frac*count(clean_tell_msk))
+    clean_tell_inds = rand(rng,findall(clean_tell_msk),tell_num_samples);
+    println("Number of Tell APO Visits for DD Model Training: $(length(clean_tell_inds)), $(100*length(clean_tell_inds)/count(adjfiberindx_vec.<=300))"); flush(stdout)
+
+    clean_total_inds = vcat(clean_inds,clean_tell_inds)
+    is_tell_vec = vcat(zeros(Int,length(clean_inds)),ones(Int,length(clean_tell_inds)))
+
+    h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo",clean_total_inds)
+    h5write(prior_dict["out_dir"]*"clean_inds.h5","is_tell_vec_apo",is_tell_vec)
 
     clean_msk = (adjfiberindx_vec.>300) 
     clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
     clean_msk .&= sfd_msk # SFD Mask (low-reddening)
     clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr .& msk_MADGICS_RV) # Remove StarConts that failed to converge well and low SNR model detections
-    clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) ## add back moon avoidance only if we see deviation in the theory work up near zero
+    clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) ## helps ensure minimal moon and skyline contamination in the DD model
     println("Clean LCO Visits for DD Model Training: $(count(clean_msk)), $(100*count(clean_msk)/count(adjfiberindx_vec.>300))"); flush(stdout)
     clean_inds = findall(clean_msk);
-    h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_lco",clean_inds)
+
+    clean_tell_msk = (adjfiberindx_vec.>300) 
+    clean_tell_msk .&= (tell_apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
+    clean_tell_msk .&= sfd_msk # SFD Mask (low-reddening)
+    clean_tell_msk .&= (msk_flux_conserve .& msk_MADGICS_snr .& msk_MADGICS_RV) # Remove StarConts that failed to converge well and low SNR model detections
+    clean_tell_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) ## helps ensure minimal moon and skyline contamination in the DD model
+    println("Clean Tell LCO Visits for DD Model Training: $(count(clean_tell_msk)), $(100*count(clean_tell_msk)/count(adjfiberindx_vec.>300))"); flush(stdout)
+    tell_num_samples = rount(Int,tell_frac*count(clean_tell_msk))
+    clean_tell_inds = rand(rng,findall(clean_tell_msk),tell_num_samples);
+    println("Number of Tell LCO Visits for DD Model Training: $(length(clean_tell_inds)), $(100*length(clean_tell_inds)/count(adjfiberindx_vec.>300))"); flush(stdout)
+
+    clean_total_inds = vcat(clean_inds,clean_tell_inds)
+    is_tell_vec = vcat(zeros(Int,length(clean_inds)),ones(Int,length(clean_tell_inds)))
+
+    h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_lco",clean_total_inds)
+    h5write(prior_dict["out_dir"]*"clean_inds.h5","is_tell_vec_lco",is_tell_vec)
 end
 
 ## make strip dd precursors and write out
 @everywhere clean_inds_apo = h5read(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo")
+@everywhere is_tell_apo = convert.(Bool,h5read(prior_dict["out_dir"]*"clean_inds.h5","is_tell_vec_apo"))
 @everywhere clean_inds_lco = h5read(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_lco")
+@everywhere is_tell_lco = convert.(Bool,h5read(prior_dict["out_dir"]*"clean_inds.h5","is_tell_vec_lco"))
 
 @everywhere grab_star_spec_partial(indx2run) = grab_star_spec(indx2run,RV_pixoff_final,f,g,h,m)
 
@@ -344,23 +390,23 @@ end
 # Run LCO
 @everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","ynormMat")
 GC.gc()
-@everywhere solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_lco)
+@everywhere solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,Iterators.zip(clean_inds_lco,is_tell_lco))
 solve_star_ddmodel_fiber_partial(507)
-@showprogress pmap(solve_star_ddmodel_fiber_partial,301:600) #obvi SVD speed up if we switch to MKL... do we really want two LA deps for this repo?
+# @showprogress pmap(solve_star_ddmodel_fiber_partial,301:600) #obvi SVD speed up if we switch to MKL... do we really want two LA deps for this repo?
 
 SLURM_prune_workers_per_node(num_workers_per_node) # Total RAM divided by approximately size of strip_dd_precursors_apo.h5
 
 # Run APO
 @everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","ynormMat")
 GC.gc()
+@everywhere solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,Iterators.zip(clean_inds_apo,is_tell_apo))
 solve_star_ddmodel_fiber_partial(295)
-@everywhere solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_apo)
-@showprogress pmap(solve_star_ddmodel_fiber_partial,1:300) # tried switching the pmap outside, watch RAM
+# @showprogress pmap(solve_star_ddmodel_fiber_partial,1:300) # tried switching the pmap outside, watch RAM
 
 ## check continuous connected components number in the msk_starCor
-for tstind in 1:600
-    fname_subpix = prior_dict["out_dir"]*"APOGEE_starCor_svd_"*string(nsub_out)*"_subpix_f"*lpad(tstind,3,"0")*".h5" 
-    Vsubpix_loc = h5read(fname_subpix,"Vmat")
-    zero_ranges = find_zero_ranges(Vsubpix_loc[:,1,1])
-    println("Fiber $tstind has $(length(zero_ranges)) continuous connected zero components (should be 4).")
-end
+# for tstind in 1:600
+#     fname_subpix = prior_dict["out_dir"]*"APOGEE_starCor_svd_"*string(nsub_out)*"_subpix_f"*lpad(tstind,3,"0")*".h5" 
+#     Vsubpix_loc = h5read(fname_subpix,"Vmat")
+#     zero_ranges = find_zero_ranges(Vsubpix_loc[:,1,1])
+#     println("Fiber $tstind has $(length(zero_ranges)) continuous connected zero components (should be 4).")
+# end
