@@ -62,9 +62,11 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     sfd_cut = 0.05
 
     # See https://www.sdss4.org/dr17/irspec/apogee-bitmasks/
-    bad_extratarg_bits = 2^1+2^2+2^3 #COMISSIONING (1), TELLURIC (2), APO1M (3)
-    bad_starflag_bits = 2^0+2^1+2^3+2^4+2^12+2^13+2^16+2^17+2^18+2^19+2^20+2^21+2^22+2^23+2^25 
-    #BAD_PIXELS (0), COMMISSIONING (1), VERY_BRIGHT_NEIGHBOR (3), LOW_SNR (4), PERSIST_JUMP_POS (12), PERSIST_JUMP_NEG (13), SUSPECT_RV_COMBINATION (16), SUSPECT_BROAD_LINES (17), BAD_RV_COMBINATION (18), RV_REJECT (19), RV_SUSPECT (20), MULTIPLE_SUSPECT (21), RV_FAIL (22), SUSPECT_ROTATION (23), MTPFLUX_LT_50 (25)
+    bad_extratarg_bits = 2^1+2^3 #COMISSIONING (1), APO1M (3)
+    # Had to pass: TELLURIC (2) for sampling hot stars
+    bad_starflag_bits = 2^0+2^1+2^3+2^4+2^12+2^13+2^16+2^18+2^19+2^21+2^22+2^23+2^25 
+    #BAD_PIXELS (0), COMMISSIONING (1), VERY_BRIGHT_NEIGHBOR (3), LOW_SNR (4), PERSIST_JUMP_POS (12), PERSIST_JUMP_NEG (13), SUSPECT_RV_COMBINATION (16), BAD_RV_COMBINATION (18), RV_REJECT (19), MULTIPLE_SUSPECT (21), RV_FAIL (22), SUSPECT_ROTATION (23), MTPFLUX_LT_50 (25)
+    # Had to pass: SUSPECT_BROAD_LINES (17), RV_SUSPECT (20) for sampling hot stars
     bad_aspcap_bits = 2^0+2^1+2^3+2^4+2^5+2^8+2^10
     +2^11+2^12+2^13+2^16+2^17+2^18+2^19+2^20+2^21
     +2^22+2^23+2^24+2^26+2^27+2^28+2^29+2^30+2^31
@@ -81,7 +83,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict["map2star"] = prior_dir*"2024_03_05/outlists/summary/dr17_dr17_map2star_1indx.h5"
 
     prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f"
-    prior_dict["out_dir"] = prior_dir*"2024_03_16/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd/"
+    prior_dict["out_dir"] = prior_dir*"2024_03_23/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd/"
 end
 
 @everywhere begin
@@ -229,7 +231,7 @@ if !isfile(prior_dict["out_dir"]*"clean_inds.h5")
     f = FITS(summary_file_by_dr(release_dir,redux_ver,dr_number,"allStar"))
     EXTRATARG = read(f[2],"EXTRATARG")[map2star]
     ASPCAPFLAG = read(f[2],"ASPCAPFLAG")[map2star]
-    FE_H_FLAG = read(f[2],"FE_H_FLAG")[map2star]
+    # FE_H_FLAG = read(f[2],"FE_H_FLAG")[map2star]
 
     TEFF = read(f[2],"TEFF")[map2star]
     LOGG = read(f[2],"LOGG")[map2star]
@@ -248,8 +250,8 @@ if !isfile(prior_dict["out_dir"]*"clean_inds.h5")
     STARFLAG_masks = .!(STARFLAG .& bad_starflag_bits.!=0);
     ASPCAP_masks = .!(ASPCAPFLAG .& bad_aspcap_bits.!=0);
     Teff_masks = (.!isnan.(TEFF));
-    FE_masks = (FE_H_FLAG .== 0);
-    apg_msk = TARG_mask .& STARFLAG_masks .& ASPCAP_masks .& Teff_masks .& FE_masks
+    # FE_masks = (FE_H_FLAG .== 0);
+    apg_msk = TARG_mask .& STARFLAG_masks .& ASPCAP_masks .& Teff_masks # .& FE_masks
     println("Visits after TARG/STAR/ASPCAP/TEFF/FE masks: $(count(apg_msk)), $(100*count(apg_msk)/length(apg_msk))"); flush(stdout)
 
     ## Query SFD
@@ -261,15 +263,18 @@ if !isfile(prior_dict["out_dir"]*"clean_inds.h5")
     avg_flux_conservation = reader(prior_dict["past_run"],"avg_flux_conservation")
     adjfiberindx_vec = reader(prior_dict["past_run"],"adjfiberindx")
     msk_flux_conserve = (avg_flux_conservation .< flux_conserve_cut);
+    RV_pixoff_final = reader(prior_dict["past_run"],"RV_pixoff_final")
     RV_minchi2_final = reader(prior_dict["past_run"],"RV_minchi2_final")
+    RV_flag = reader(prior_dict["past_run"],"RV_flag")
     snr_proxy = sqrt.(-RV_minchi2_final);
     msk_MADGICS_snr = (snr_proxy .> snr_proxy_cut); 
+    msk_MADGICS_RV = (RV_flag.==0); 
 
     clean_msk = (adjfiberindx_vec.<=300) 
     clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
     clean_msk .&= sfd_msk # SFD Mask (low-reddening)
-    clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr) # Remove StarConts that failed to converge well and low SNR model detections
-    # clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) .& ## add back moon avoidance only if we see deviation in the theory work up near zero
+    clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr .& msk_MADGICS_RV) # Remove StarConts that failed to converge well and low SNR model detections
+    clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) ## add back moon avoidance only if we see deviation in the theory work up near zero
     println("Clean APO Visits for DD Model Training: $(count(clean_msk)), $(100*count(clean_msk)/count(adjfiberindx_vec.<=300))"); flush(stdout)
     clean_inds = findall(clean_msk);
     h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo",clean_inds)
@@ -277,8 +282,8 @@ if !isfile(prior_dict["out_dir"]*"clean_inds.h5")
     clean_msk = (adjfiberindx_vec.>300) 
     clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
     clean_msk .&= sfd_msk # SFD Mask (low-reddening)
-    clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr) # Remove StarConts that failed to converge well and low SNR model detections
-    # clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) .& ## add back moon avoidance only if we see deviation in the theory work up near zero
+    clean_msk .&= (msk_flux_conserve .& msk_MADGICS_snr .& msk_MADGICS_RV) # Remove StarConts that failed to converge well and low SNR model detections
+    clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) ## add back moon avoidance only if we see deviation in the theory work up near zero
     println("Clean LCO Visits for DD Model Training: $(count(clean_msk)), $(100*count(clean_msk)/count(adjfiberindx_vec.>300))"); flush(stdout)
     clean_inds = findall(clean_msk);
     h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_lco",clean_inds)
@@ -340,6 +345,7 @@ end
 @everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","ynormMat")
 GC.gc()
 @everywhere solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_lco)
+solve_star_ddmodel_fiber_partial(507)
 @showprogress pmap(solve_star_ddmodel_fiber_partial,301:600) #obvi SVD speed up if we switch to MKL... do we really want two LA deps for this repo?
 
 SLURM_prune_workers_per_node(num_workers_per_node) # Total RAM divided by approximately size of strip_dd_precursors_apo.h5
