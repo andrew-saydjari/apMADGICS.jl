@@ -353,6 +353,7 @@ SLURM_prune_workers_per_node(num_workers_per_node) # Total RAM divided by approx
 # Run APO
 @everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","ynormMat")
 GC.gc()
+solve_star_ddmodel_fiber_partial(295)
 @everywhere solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_apo)
 @showprogress pmap(solve_star_ddmodel_fiber_partial,1:300) # tried switching the pmap outside, watch RAM
 
