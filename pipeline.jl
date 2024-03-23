@@ -9,7 +9,7 @@ using BLISBLAS
 using Distributed, SlurmClusterManager, Suppressor, DataFrames, DelimitedFiles
 addprocs(SlurmManager(),exeflags=["--project=./"])
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker allocation took $dt"); t_then = t_now; flush(stdout)
-println("Running Main on ", gethostname())
+println("Running Main on ", gethostname()); flush(stdout)
 
 @everywhere begin
     using BLISBLAS
@@ -46,9 +46,9 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 # relatively soon... so don't worry for now.
 @everywhere begin
     refine_iters = 5
-    ddstaronly = false
-    runlist_range = 1:600 #295, 245, 335, 101
-    batchsize = 40
+    ddstaronly = true
+    runlist_range = 1:600 # 295, 245, 335, 101
+    batchsize = 100
 
     # Step Size for Chi2 Surface Error Bars
     RV_err_step = 4
@@ -60,13 +60,13 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
 
     cache_dir = "../local_cache/"
     out_dir="../outdir/"
-    inject_cache_dir = prior_dir*"2024_03_11/inject_local_cache_15672only_295_real"
+    inject_cache_dir = prior_dir*"2024_03_11/inject_local_cache_15273only_295_real"
 
     # Prior Dictionary
     prior_dict = Dict{String,String}()
 
     # Input List (not really a prior, but an input file we search for stars conditioned on)
-    # prior_dict["runlists"] = prior_dir*"2024_03_11/inject_15672only_295_real/injection_input_lst_"
+    # prior_dict["runlists"] = prior_dir*"2024_03_11/inject_15273only_295_real/injection_input_lst_"
     prior_dict["runlists"] = prior_dir*"2024_03_15/outlists/star/dr17_dr17_star_input_lst_msked_" # repackaged for cross platform/version from 2024_03_05
 
     # Sky Priors
@@ -75,11 +75,10 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict["skyLines_faint"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/sky_priors/APOGEE_skyline_faint_GSPICE_svd_120_f"
 
     # Star Priors
-    # prior_dict["starCont"] = prior_dir*"2023_07_22/star_priors/APOGEE_starcont_svd_60_f"
     prior_dict["starCont"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/star_priors/APOGEE_starcont_svd_60_f"
     prior_dict["starLines_refLSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_th_22500.h5"
-    # prior_dict["starLines_LSF"] = prior_dir*"2023_09_26/star_priors/APOGEE_starCor_svd_50_subpix_f"
-    prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f"
+    prior_dict["starLines_LSF"] = prior_dir*"2024_03_16/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd/APOGEE_starCor_svd_50_subpix_f" # DD Version
+    # prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f" # TH Version
 
     # DIB Priors
     dib_waves = [15273, 15672]
@@ -167,7 +166,7 @@ end
 end
 
 @everywhere begin
-    function pipeline_single_spectra(argtup, prior_vec; caching=true, sky_caching=true, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=true, ddstaronly=false, cache_dir=cache_dir, inject_cache_dir=inject_cache_dir)
+    function pipeline_single_spectra(argtup, prior_vec; caching=true, sky_caching=false, skyCont_off=false, skyLines_off=false, rv_chi2res=false, rv_split=true, ddstaronly=false, cache_dir=cache_dir, inject_cache_dir=inject_cache_dir)
         release_dir, redux_ver, tele, field, plate, mjd, fiberindx = argtup[2:end]
         V_skycont,chebmsk_exp,V_skyline_bright,V_skyline_faint,skymsk_bright,skymsk_faint,skymsk,V_starcont,V_subpix_refLSF, V_subpix, msk_starCor, V_dib_lst, V_dib_soft_lst, V_dib_noLSF_soft_lst = prior_vec
         out = []
@@ -672,8 +671,8 @@ nwork = length(workers())
 println("Batches to Do: $lenargs, number of workers: $nwork")
 flush(stdout)
 
-# pout = @showprogress pmap(multi_spectra_batch,ittot)
-pout = @showprogress pmap(multi_spectra_batch,ittot,on_error=ex->2)
+pout = @showprogress pmap(multi_spectra_batch,ittot)
+# pout = @showprogress pmap(multi_spectra_batch,ittot,on_error=ex->2)
 writedlm(out_dir*"pout_apMADGICS.txt",pout)
 rmprocs(workers())
 

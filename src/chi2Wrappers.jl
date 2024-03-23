@@ -9,6 +9,7 @@ minoffset0  = round(Int,sigrng[1] / sigstep0)-1
 sigScanFun(x; step = sigstep0, minoffset = minoffset0)  = round(Int,x / step) .-minoffset
 
 #MDispatch to handle nothing finds (suspect missing chip case)
+#This logic should be cleaned up, it is catching on edge cases, with tiny obs wavelength lengths
 function slicer(lindx::Int,rindx::Int,widx)
     return lindx:rindx
 end
@@ -17,6 +18,9 @@ function slicer(lindx::Int,rindx::Nothing,widx)
 end
 function slicer(lindx::Nothing,rindx::Int,widx)
     return (rindx-widx):rindx
+end
+function slicer(lindx::Nothing,rindx::Nothing,widx)
+    return nothing
 end
 function clamp_range(x,lbnd,ubnd)
     if isempty(x)
@@ -42,7 +46,11 @@ function chi2_wrapper2d(svals,intup;sigslice=4)
     widx = round(Int,sigslice*sval2/0.22) # this is a hardcoded approximate pixel size in Angstroms
     slrng0 = slicer(lindx,rindx,widx)
     pre_Vslice .= view(ShiftedArrays.circshift(view(V_new,:,:,sigindx,tval),(rval,0)),simplemsk,:)
-    slrng = clamp_range(slrng0,1,size(pre_Vslice,1))
+    slrng = if isnothing(slrng0)
+            1:length(wave_obs)
+        else
+            clamp_range(slrng0,1,size(pre_Vslice,1))
+        end
     pre_Vslice .*= Dscale 
     return woodbury_update_inv_tst_sub(
         Ctotinv,

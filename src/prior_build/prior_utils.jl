@@ -248,3 +248,28 @@ end
 function gauss1d_2deriv(amp,x0,sigma,pixcoord)
     return - amp .* ((pixcoord.-x0).^2 ./(sigma^4) .- 1 ./(sigma^2)) .* exp.(-0.5 .*((pixcoord.-x0)./sigma).^2)./(sqrt(2*pi))
 end
+
+function SLURM_prune_workers_per_node(num_workers_per_node;reduce_head_by=1)
+    getinfo_worker(workerid::Int) = @getfrom workerid myid(), ThreadPinning.sched_getcpu(), gethostname()
+    dfo = DataFrame(workerid=Int[],physcpu=Int[],hostname=String[]);
+    head_host = gethostname()
+    activateout = @capture_out begin
+        idlst = getinfo_worker.(workers()); df = DataFrame(workerid=Int[],physcpu=Int[],hostname=String[]); push!(df,idlst...)
+        gdf = groupby(df,:hostname)
+        for sgdf in gdf
+            workers2keep = num_workers_per_node
+            if head_host .== sgdf.hostname[1]
+                workers2keep -= reduce_head_by
+            end
+            rmprocs(sgdf.workerid[(workers2keep+1):end])
+        end
+        idlst = getinfo_worker.(workers()); push!(dfo,idlst...)
+    end
+    # Helpful Worker Info Printing
+    gdf = groupby(dfo,:hostname); dfc = combine(gdf, nrow, :workerid => minimum, :workerid => maximum, :physcpu => minimum, :physcpu => maximum)
+    println("$(gethostname()) running Main")
+    for row in Tables.namedtupleiterator(dfc)
+        println("$(row.hostname) running $(row.nrow) workers: $(row.workerid_minimum)->$(row.workerid_maximum)")
+    end
+    flush(stdout)
+end
