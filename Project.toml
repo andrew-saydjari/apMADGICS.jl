@@ -39,9 +39,13 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 ThreadPinning = "811555cd-349b-4f26-b7bc-1f208b848042"
 
+[weakdeps]
+BlockArrays = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
+
 [compat]
 AstroTime = "0.7"
 BLISBLAS = "0.1"
+BlockArrays = "1.16.36"
 BasisFunctions = "0.6"
 DataFrames = "1"
 Distributions = "0.25"
