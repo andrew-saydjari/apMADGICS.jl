@@ -195,6 +195,22 @@ function shifted_map(xin,shift)
     return etp(shiftedrng)
 end
 
-function shiftHelper(subspec_in,shiftval)
-    return shifted_map(subspec_in,-shiftval)
+function shifted_map_lin(xin,shift)
+    lx = length(xin)
+    shiftedrng = range((1-shift),(lx-shift),length=lx)
+    itp = Interpolations.interpolate(xin,Interpolations.BSpline(Linear()));
+    etp = Interpolations.extrapolate(itp,0)
+    return etp(shiftedrng)
+end
+
+function shiftHelper(subspec_in,shiftval;linfallback=false)
+    if !linfallback
+        return shifted_map(subspec_in,-shiftval)
+    else
+        out = shifted_map(subspec_in,-shiftval)
+        msknan = isnan.(out)
+        outlin = shifted_map_lin(subspec_in,-shiftval)
+        out[msknan] .= outlin[msknan]
+        return out
+    end
 end

@@ -60,6 +60,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     flux_conserve_cut = 1e-3
     snr_proxy_cut = 30
     sfd_cut = 0.05
+    ynorm_med_clamp = 15 # effectively clamps the SNR weighting of the data into the data driven stellar model to be flat above 15^2
 
     # See https://www.sdss4.org/dr17/irspec/apogee-bitmasks/
     bad_extratarg_bits = 2^1+2^2+2^3 #COMISSIONING (1), TELLURIC (2), APO1M (3)
@@ -81,7 +82,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict["map2star"] = prior_dir*"2024_03_05/outlists/summary/dr17_dr17_map2star_1indx.h5"
 
     prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f"
-    prior_dict["out_dir"] = prior_dir*"2024_03_16/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd/"
+    prior_dict["out_dir"] = prior_dir*"2024_05_10/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd/"
 end
 
 @everywhere begin
@@ -98,7 +99,7 @@ end
 @everywhere begin
     RV_pixoff_final = reader(prior_dict["past_run"],"RV_pixoff_final")
 
-    keyval = "x_residuals_z_v0"
+    keyval = "fluxerr2"
     savename_sub = chop(prior_dict["past_run"],tail=3)*"_"*keyval*".h5"
     f = h5open(savename_sub)
     keyvalres = "x_residuals_v0"
@@ -122,14 +123,20 @@ end
     function grab_star_spec(findx,RV_pixoff_final,f,g,h,m)
         svald = RV_pixoff_final[findx]
         
-        sig = g[keyvalres][:,findx]./f[keyval][:,findx]
-        subspec = replace((g[keyvalres][:,findx])./(sig.^2),NaN=>0)
-        x1norm = shiftHelper(subspec,svald)
+        shifted_res = shiftHelper(g[keyvalres][:,findx],svald,linfallback=true);
+        shifted_var = shiftHelper(f[keyval][:,findx],svald,linfallback=true);
+        shifted_starCont = shiftHelper(h[keyvalref][:,findx],svald,linfallback=true);
         
         x2norm_noshift = m[keyvallineCof][:,findx]
-        
-        subspec_ref = replace(h[keyvalref][:,findx]./(sig.^2),NaN=>0)
-        ynorm = shiftHelper(subspec_ref,svald)
+        x1norm = replace((shifted_res)./(shifted_var),NaN=>0);
+        ynorm = replace(shifted_starCont./(shifted_var),NaN=>0);
+
+        ynorm_med = nanzeromedian(ynorm)
+        rescale_snr_factor = ynorm_med_clamp./ynorm_med
+        # no rescaling of the x2norm because it containts starLine coeff and gets multiplied by ynorm later
+        ynorm.*= rescale_snr_factor
+        x1norm.*= rescale_snr_factor
+
         return x1norm, x2norm_noshift, ynorm
     end
 end
