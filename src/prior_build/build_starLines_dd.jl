@@ -82,7 +82,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     prior_dict["map2star"] = prior_dir*"2024_03_05/outlists/summary/dr17_dr17_map2star_1indx.h5"
 
     prior_dict["starLines_LSF"] = prior_dir*"2024_02_21/apMADGICS.jl/src/prior_build/starLine_priors_norm94/APOGEE_stellar_kry_50_subpix_f"
-    prior_dict["out_dir"] = prior_dir*"2024_05_10/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd/"
+    prior_dict["out_dir"] = prior_dir*"2024_05_10/apMADGICS.jl/src/prior_build/starLine_priors_norm94_dd_clamp/"
 end
 
 @everywhere begin
@@ -347,20 +347,22 @@ end
 @everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_lco.h5","ynormMat")
 GC.gc()
 @everywhere solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_lco)
-@showprogress pmap(solve_star_ddmodel_fiber_partial,301:600) #obvi SVD speed up if we switch to MKL... do we really want two LA deps for this repo?
-
+# @showprogress pmap(solve_star_ddmodel_fiber_partial,301:600) #obvi SVD speed up if we switch to MKL... do we really want two LA deps for this repo?
+solve_star_ddmodel_fiber_partial(507)
 SLURM_prune_workers_per_node(num_workers_per_node) # Total RAM divided by approximately size of strip_dd_precursors_apo.h5
 
 # Run APO
-@everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","ynormMat")
-GC.gc()
-@everywhere solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_apo)
-@showprogress pmap(solve_star_ddmodel_fiber_partial,1:300) # tried switching the pmap outside, watch RAM
+# @everywhere ynormMat = h5read(prior_dict["out_dir"]*"strip_dd_precursors_apo.h5","ynormMat")
+# GC.gc()
+# @everywhere solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_apo)
+# @showprogress pmap(solve_star_ddmodel_fiber_partial,1:300) # tried switching the pmap outside, watch RAM
 
 ## check continuous connected components number in the msk_starCor
 for tstind in 1:600
     fname_subpix = prior_dict["out_dir"]*"APOGEE_starCor_svd_"*string(nsub_out)*"_subpix_f"*lpad(tstind,3,"0")*".h5" 
-    Vsubpix_loc = h5read(fname_subpix,"Vmat")
-    zero_ranges = find_zero_ranges(Vsubpix_loc[:,1,1])
-    println("Fiber $tstind has $(length(zero_ranges)) continuous connected zero components (should be 4).")
+    if isfile(fname_subpix)
+        Vsubpix_loc = h5read(fname_subpix,"Vmat")
+        zero_ranges = find_zero_ranges(Vsubpix_loc[:,1,1])
+        println("Fiber $tstind has $(length(zero_ranges)) continuous connected zero components (should be 4).")
+    end
 end
