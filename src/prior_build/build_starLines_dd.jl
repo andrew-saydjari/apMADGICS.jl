@@ -279,7 +279,12 @@ if !isfile(prior_dict["out_dir"]*"clean_inds.h5")
     # clean_msk .&= (.!(-0.8 .< RV_pixoff_final .< 1.2)) .& ## add back moon avoidance only if we see deviation in the theory work up near zero
     println("Clean APO Visits for DD Model Training: $(count(clean_msk)), $(100*count(clean_msk)/count(adjfiberindx_vec.<=300))"); flush(stdout)
     clean_inds = findall(clean_msk);
-    h5write(prior_dict["out_dir"]*"clean_inds.h5","clean_inds_apo",clean_inds)
+    fname = prior_dict["out_dir"]*"clean_inds.h5"
+    dirName = splitdir(fname)[1]
+    if !ispath(dirName)
+        mkpath(dirName)
+    end
+    h5write(fname,"clean_inds_apo",clean_inds)
 
     clean_msk = (adjfiberindx_vec.>300) 
     clean_msk .&= (apg_msk .& (SNR.>DRP_SNR_CUT)) # Cuts on ASPCAP/Upstream Processing/Targetting
