@@ -36,6 +36,7 @@ println("Running Main on ", gethostname()); flush(stdout)
     
     using StatsBase, ProgressMeter
     using SortFilters, Random, KrylovKit, KryburyCompress, Glob, DelimitedFiles, DustExtinction
+    import FastRunningMedian: running_median
 end
 t_now = now(); dt = Dates.canonicalize(Dates.CompoundPeriod(t_now-t_then)); println("Worker loading took $dt"); t_then = t_now; flush(stdout)
 
@@ -125,7 +126,13 @@ end
         
         shifted_res = shiftHelper(g[keyvalres][:,findx],svald,linfallback=true);
         shifted_var = shiftHelper(f[keyval][:,findx],svald,linfallback=true);
-        shifted_starCont = shiftHelper(h[keyvalref][:,findx],svald,linfallback=true);
+        # iteratively infill shifted var to allow the theory model to take over in gaps
+        for windsize = 10 .^(1:1//10:3)
+            dis_win_size = 2*round(Int,windsize/2)+1
+            want2replace = isnan.(shifted_var);
+            shifted_var[want2replace].=running_median(shifted_var,dis_win_size,:asymmetric_truncated,nan=:ignore)[want2replace]
+        end
+        shifted_starCont = shiftHelper(h[keyvalref][:,findx],svald,linfallback=true);        
         
         x2norm_noshift = m[keyvallineCof][:,findx]
         x1norm = replace((shifted_res)./(shifted_var),NaN=>0);
@@ -361,6 +368,7 @@ SLURM_prune_workers_per_node(num_workers_per_node) # Total RAM divided by approx
 # GC.gc()
 # @everywhere solve_star_ddmodel_fiber_partial(adjfiberindx) = solve_star_ddmodel_fiber(adjfiberindx,clean_inds_apo)
 # @showprogress pmap(solve_star_ddmodel_fiber_partial,1:300) # tried switching the pmap outside, watch RAM
+# solve_star_ddmodel_fiber_partial(295)
 
 ## check continuous connected components number in the msk_starCor
 for tstind in 1:600
