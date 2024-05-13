@@ -48,7 +48,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     refine_iters = 5
     ddstaronly = true
     runlist_range = 507:507 # 295, 245, 335, 101
-    batchsize = 100
+    batchsize = 25
 
     # Step Size for Chi2 Surface Error Bars
     RV_err_step = 4
