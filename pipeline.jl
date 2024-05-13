@@ -260,7 +260,7 @@ end
         V_skyline_tot_r = V_skyline_faint_r
         V_locSky_c = VLocSky
         V_locSky_r = V_locSky_c[rvmsk,:]
-        V_starCont_c = abs(starscale)*V_starcont
+        V_starCont_c = sqrt(abs(starscale))*V_starcont
         V_starCont_r = V_starCont_c[rvmsk,:]
 
         ## Solve RV of Star
@@ -331,7 +331,7 @@ end
         V_skyline_faint_r = V_skyline_faint_c[finalmsk,:]
         V_skyline_tot_r = V_skyline_faint_r
         V_locSky_r = V_locSky_c[finalmsk,:]
-        V_starCont_c = abs(starscale1)*V_starcont
+        V_starCont_c = sqrt(abs(starscale1))*V_starcont
         V_starCont_r = V_starCont_c[finalmsk,:]
 
         Vcomb_skylines = hcat(V_skyline_tot_r,V_locSky_r,V_starCont_r);
