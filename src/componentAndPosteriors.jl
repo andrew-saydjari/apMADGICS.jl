@@ -123,7 +123,7 @@ end
 
 function get_posterior_from_prior(Σ_inv, pobj)
     if typeof(pobj) <: Diagonal
-        return LowRankMultMat([Σ_inv,pobj],Cii_precomp_mult,Cii_fxn_dmat_mult);
+        return LowRankMultMat([Σ_inv,pobj],[],Cii_fxn_dmat_mult);
     elseif !issquare(pobj)
         return LowRankMultMat([Σ_inv,pobj],[],Cii_fxn_mult);
     else # how many times would you have to call this for this to be a bad idea for a dense matrix n/3?
@@ -134,7 +134,7 @@ end
 # only having it do something for the V case... should be fine for now
 function get_posterior_from_prior_asym(Σ_inv, pobjL, pobjR)
     if typeof(pobjL) <: Diagonal
-        return LowRankMultMat([Σ_inv,pobjL],Cii_precomp_mult,Cii_fxn_dmat_mult);
+        return LowRankMultMat([Σ_inv,pobjL],[],Cii_fxn_dmat_mult);
     elseif !issquare(pobjL)
         return LowRankMultMat([Σ_inv,pobjL, pobjR],[],Cii_fxn_mult_asym);
     else # how many times would you have to call this for this to be a bad idea for a dense matrix n/3?
