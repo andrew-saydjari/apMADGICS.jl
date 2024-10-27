@@ -504,7 +504,7 @@ end
             V_subpix = read(f["Vmat"])
             if ddstaronly
                 V_subpix_refLSF = V_subpix
-                msk_starCor = convert.(Bool,read(f["msk_starCor"]))
+                msk_starCor = expand_msk(convert.(Bool,read(f["msk_starCor"])),rad=4)
             else
                 msk_starCor = ones(Bool,length(chebmsk_exp))
             end

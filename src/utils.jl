@@ -136,6 +136,21 @@ function initalize_git(git_dir)
     return git_branch, git_commit
 end
 
+# need to remove this from prior_utils.jl now
+function expand_msk(msk;rad=1)
+    lmsk = length(msk)
+    msknew = ones(Bool,lmsk)
+    for i=1:length(msk)
+        lindx = maximum((1,i-rad))
+        rindx = minimum((i+rad,lmsk))
+        mskslice = view(msk,lindx:rindx)
+        if any(.!mskslice)
+            msknew[i] = false
+        end
+    end
+    return msknew
+end
+
 function grow_msk2d(msk; rad=1)
     (sx, sy) = size(msk)
     msknew = zeros(Bool,(sx,sy))
