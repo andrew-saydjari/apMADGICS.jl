@@ -59,7 +59,7 @@ using LibGit2; git_branch, git_commit = initalize_git(src_dir); @passobj 1 worke
     svalMarg0 = -0//10:1//10:0//10;
 
     cache_dir = "../local_cache/"
-    out_dir="../outdir/"
+    out_dir="../outdir_lanczos/"
     inject_cache_dir = prior_dir*"2024_03_11/inject_local_cache_15273only_295_real"
 
     # Prior Dictionary
