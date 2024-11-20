@@ -42,7 +42,7 @@ ThreadPinning = "811555cd-349b-4f26-b7bc-1f208b848042"
 [compat]
 AstroTime = "0.7"
 BLISBLAS = "0.1"
-BasisFunctions = "0.6"
+BasisFunctions = "0.6, 0.7"
 DataFrames = "1"
 Distributions = "0.25"
 Downloads = "1"
