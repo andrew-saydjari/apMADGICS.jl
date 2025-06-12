@@ -23,6 +23,10 @@ function marginalize_flux_err(chi2lst,fluxlst,dfluxlst,refchi2val;margin_len=360
     else
         out = (NaN, NaN)
     end
+    # consider computing the cross term by taking the mean over the sigma_values weighted by pweights
+    # then can do (f-mean(f))*(sigma-mean(sigma)) to compute cross term
+    # or just produce the 2D grid, using sigma error I guess
+    # then the cross term is obvious
     return out
 end
 
